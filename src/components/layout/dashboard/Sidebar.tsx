@@ -14,7 +14,6 @@ import {
 import DashboardIcon from "@mui/icons-material/Dashboard";
 import PeopleIcon from "@mui/icons-material/People";
 import SecurityIcon from "@mui/icons-material/Security";
-import CategoryIcon from "@mui/icons-material/Category";
 import StoreIcon from "@mui/icons-material/Store";
 import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
 import BarChartIcon from "@mui/icons-material/BarChart";

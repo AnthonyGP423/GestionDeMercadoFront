@@ -12,13 +12,16 @@ import Producto from "../pages/Dashboard/Producto";
 import StandDetalle from "../pages/Dashboard/StandDetalle";
 import CategoriaProducto from "../pages/Dashboard/CategoriaProducto";
 import Pagos from "../pages/Dashboard/Pagos";
+import TiendaHome from "../pages/Tienda/TiendaHome";
+import PreciosProductos from "../pages/Tienda/ProductosPrecios";
+import Contacto from "../pages/Tienda/Contacto";
 import PingTest from "../pages/Dashboard/PingTest";
 import PrivateRoute from "../auth/PrivateRoute";
 
 const AppRoutes = () => {
   return (
     <Routes>
-      <Route path="/" element={<Navigate to="/login" replace />} />
+      <Route path="/" element={<Navigate to="/tienda" />} />
 
       <Route path="/login" element={<Login />} />
       <Route path="/registrate" element={<Registrate />} />
@@ -44,8 +47,10 @@ const AppRoutes = () => {
         <Route path="pagos" element={<Pagos />} />
         <Route path="ping-test" element={<PingTest />} />
       </Route>
-
-      <Route path="*" element={<Navigate to="/login" replace />} />
+      <Route path="/tienda" element={<TiendaHome />} />
+      <Route path="/tienda/precios-productos" element={<PreciosProductos />} />
+      <Route path="/tienda/contacto" element={<Contacto />} />
+      <Route path="*" element={<Navigate to="/tienda" replace />} />
     </Routes>
   );
 };

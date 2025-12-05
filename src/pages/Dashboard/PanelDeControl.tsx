@@ -1,7 +1,7 @@
 // src/pages/Dashboard/PaneldeControl.tsx
 import { Box } from "@mui/material";
-import Sidebar from "../../components/layout/Sidebar";
-import HeaderBar from "../../components/layout/HeaderBar";
+import Sidebar from "../../components/layout/dashboard/Sidebar";
+import HeaderBar from "../../components/layout/dashboard/HeaderBar";
 import { Outlet } from "react-router-dom";
 
 export default function PanelDeControl() {
