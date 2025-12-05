@@ -12,20 +12,29 @@ import Producto from "../pages/Dashboard/Producto";
 import StandDetalle from "../pages/Dashboard/StandDetalle";
 import CategoriaProducto from "../pages/Dashboard/CategoriaProducto";
 import Pagos from "../pages/Dashboard/Pagos";
+import PingTest from "../pages/Dashboard/PingTest";
+import PrivateRoute from "../auth/PrivateRoute";
 
 const AppRoutes = () => {
   return (
     <Routes>
-      <Route path="/" element={<Navigate to="/login" />} />
+      <Route path="/" element={<Navigate to="/login" replace />} />
 
       <Route path="/login" element={<Login />} />
       <Route path="/registrate" element={<Registrate />} />
 
-      <Route path="/dashboard" element={<PanelDeControl />}>
+      {/* /dashboard protegido */}
+      <Route
+        path="/dashboard"
+        element={
+          <PrivateRoute>
+            <PanelDeControl />
+          </PrivateRoute>
+        }
+      >
         <Route path="usuario" element={<User />} />
         <Route path="stand" element={<Stand />} />
         <Route path="stands/:id" element={<StandDetalle />} />
-
         <Route path="reporte" element={<Reporte />} />
         <Route path="categoria-stand" element={<CategoriaStand />} />
         <Route path="rol" element={<Rol />} />
@@ -33,8 +42,10 @@ const AppRoutes = () => {
         <Route path="producto" element={<Producto />} />
         <Route path="categoria-producto" element={<CategoriaProducto />} />
         <Route path="pagos" element={<Pagos />} />
+        <Route path="ping-test" element={<PingTest />} />
       </Route>
-      <Route path="*" element={<Navigate to="/login" />} />
+
+      <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
   );
 };
