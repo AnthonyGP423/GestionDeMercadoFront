@@ -14,8 +14,7 @@ import {
 } from "@mui/material";
 import React, { useState, useEffect } from "react";
 
-// --- Interfaces (TypeScript) ---
-interface ProductData {
+export interface ProductData {
   nombre: string;
   descripcion: string;
   unidad_medida: string;
@@ -31,8 +30,10 @@ interface ProductData {
 interface Props {
   open: boolean;
   onClose: () => void;
-  onSubmit: (data: ProductData) => void;
+  onSubmit?: (data: ProductData) => void;
   initialData?: ProductData;
+  // 👇 nuevo: modo del modal
+  mode?: "edit" | "view" | "visibilidad";
 }
 
 export default function ProductModal({
@@ -40,8 +41,8 @@ export default function ProductModal({
   onClose,
   onSubmit,
   initialData,
+  mode = "edit",
 }: Props) {
-  // --- Estado Inicial ---
   const defaultState: ProductData = {
     nombre: "",
     descripcion: "",
@@ -57,7 +58,10 @@ export default function ProductModal({
 
   const [form, setForm] = useState<ProductData>(defaultState);
 
-  // Cargar datos si es edición
+  const isView = mode === "view";
+  const isVisibilidad = mode === "visibilidad";
+  const isEdit = mode === "edit";
+
   useEffect(() => {
     if (initialData) {
       setForm(initialData);
@@ -66,8 +70,8 @@ export default function ProductModal({
     }
   }, [initialData, open]);
 
-  // --- Listas de opciones ---
   const unidades = ["Kg", "Unidad", "Litro", "Caja", "Paquete"];
+  // En admin solo mostramos, pero las listas se mantienen por si luego se reutiliza
   const categorias = [
     { id: 1, nombre: "Verduras" },
     { id: 2, nombre: "Carnes" },
@@ -79,10 +83,9 @@ export default function ProductModal({
     { id: 3, codigo: "A-115" },
   ];
 
-  // --- Manejadores ---
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (isView || isVisibilidad) return; // no editar en esos modos
     const { name, value } = e.target;
-    // Validación solo números
     if (name === "precio_actual" || name === "precio_oferta") {
       if (!/^\d*\.?\d*$/.test(value)) return;
     }
@@ -90,22 +93,38 @@ export default function ProductModal({
   };
 
   const toggleSwitch = (field: keyof ProductData) => {
-    setForm((prev) => ({ ...prev, [field]: !prev[field] }));
+    // Solo se puede cambiar visible_directorio en modo "visibilidad" o en modo "edit"
+    if (
+      (field === "visible_directorio" && (isVisibilidad || isEdit)) ||
+      (field !== "visible_directorio" && isEdit)
+    ) {
+      setForm((prev) => ({ ...prev, [field]: !prev[field] }));
+    }
   };
 
   const handleSave = () => {
+    if (!onSubmit) {
+      onClose();
+      return;
+    }
     onSubmit(form);
     onClose();
   };
 
+  const title =
+    mode === "view"
+      ? "Detalle de producto"
+      : mode === "visibilidad"
+      ? "Visibilidad de producto"
+      : initialData
+      ? "Editar producto"
+      : "Nuevo producto";
+
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="md">
-      <DialogTitle sx={{ fontWeight: "bold" }}>
-        {initialData ? "Editar producto" : "Nuevo producto"}
-      </DialogTitle>
+      <DialogTitle sx={{ fontWeight: "bold" }}>{title}</DialogTitle>
 
       <DialogContent dividers>
-        {/* Usamos Stack para el orden VERTICAL (hacia abajo) con espacio de 2 */}
         <Stack spacing={2} sx={{ mt: 1 }}>
           {/* FILA 1: Nombre y Unidad */}
           <Box sx={{ display: "flex", gap: 2 }}>
@@ -115,7 +134,10 @@ export default function ProductModal({
               name="nombre"
               value={form.nombre}
               onChange={handleChange}
-              sx={{ flex: 1 }} // Ocupa todo el espacio posible
+              sx={{ flex: 1 }}
+              InputProps={{
+                readOnly: !isEdit,
+              }}
             />
             <TextField
               select
@@ -123,7 +145,8 @@ export default function ProductModal({
               name="unidad_medida"
               value={form.unidad_medida}
               onChange={handleChange}
-              sx={{ width: "150px" }} // Ancho fijo para la unidad
+              sx={{ width: "150px" }}
+              disabled={!isEdit}
             >
               {unidades.map((u) => (
                 <MenuItem key={u} value={u}>
@@ -133,7 +156,7 @@ export default function ProductModal({
             </TextField>
           </Box>
 
-          {/* FILA 2: Precio, Switch Oferta y Precio Oferta */}
+          {/* FILA 2: Precio, Oferta, Precio Oferta */}
           <Box sx={{ display: "flex", gap: 2, alignItems: "center" }}>
             <TextField
               fullWidth
@@ -145,10 +168,10 @@ export default function ProductModal({
                 startAdornment: (
                   <InputAdornment position="start">S/.</InputAdornment>
                 ),
+                readOnly: !isEdit,
               }}
             />
 
-            {/* Contenedor del Switch para que no se deforme */}
             <Box sx={{ whiteSpace: "nowrap" }}>
               <FormControlLabel
                 control={
@@ -156,13 +179,13 @@ export default function ProductModal({
                     checked={form.en_oferta}
                     onChange={() => toggleSwitch("en_oferta")}
                     color="warning"
+                    disabled={!isEdit}
                   />
                 }
                 label="¿Oferta?"
               />
             </Box>
 
-            {/* Input de Oferta (aparece o desaparece manteniendo el espacio limpio) */}
             {form.en_oferta ? (
               <TextField
                 fullWidth
@@ -175,10 +198,10 @@ export default function ProductModal({
                   startAdornment: (
                     <InputAdornment position="start">S/.</InputAdornment>
                   ),
+                  readOnly: !isEdit,
                 }}
               />
             ) : (
-              // Espacio vacío para mantener el layout si no hay oferta (opcional)
               <Box sx={{ width: "100%" }} />
             )}
           </Box>
@@ -192,6 +215,7 @@ export default function ProductModal({
               name="id_categoria_producto"
               value={form.id_categoria_producto}
               onChange={handleChange}
+              disabled={!isEdit}
             >
               {categorias.map((c) => (
                 <MenuItem key={c.id} value={c.id}>
@@ -207,6 +231,7 @@ export default function ProductModal({
               name="id_stand"
               value={form.id_stand}
               onChange={handleChange}
+              disabled={!isEdit}
             >
               {stands.map((s) => (
                 <MenuItem key={s.id} value={s.id}>
@@ -226,15 +251,20 @@ export default function ProductModal({
             name="descripcion"
             value={form.descripcion}
             onChange={handleChange}
+            InputProps={{
+              readOnly: !isEdit,
+            }}
           />
 
-          {/* FILA 5: Configuración final (Visible y Estado) */}
+          {/* FILA 5: Configuración final */}
           <Box sx={{ display: "flex", gap: 4, pt: 1 }}>
             <FormControlLabel
               control={
                 <Switch
                   checked={form.visible_directorio}
                   onChange={() => toggleSwitch("visible_directorio")}
+                  // 👇 solo editable en modo visibilidad o edit, no en view
+                  disabled={isView}
                 />
               }
               label="Visible en directorio"
@@ -247,10 +277,12 @@ export default function ProductModal({
                   onChange={() =>
                     setForm((prev) => ({
                       ...prev,
-                      estado: prev.estado === "Activo" ? "Inactivo" : "Activo",
+                      estado:
+                        prev.estado === "Activo" ? "Inactivo" : "Activo",
                     }))
                   }
                   color="success"
+                  disabled={!isEdit}
                 />
               }
               label={`Estado: ${form.estado}`}
@@ -261,11 +293,13 @@ export default function ProductModal({
 
       <DialogActions sx={{ p: 2 }}>
         <Button onClick={onClose} color="inherit">
-          Cancelar
+          {mode === "view" ? "Cerrar" : "Cancelar"}
         </Button>
-        <Button variant="contained" onClick={handleSave} disableElevation>
-          Guardar
-        </Button>
+        {(isEdit || isVisibilidad) && (
+          <Button variant="contained" onClick={handleSave} disableElevation>
+            Guardar
+          </Button>
+        )}
       </DialogActions>
     </Dialog>
   );
