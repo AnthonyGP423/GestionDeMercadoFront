@@ -1,102 +1,32 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Box,
   Container,
   Typography,
   Breadcrumbs,
   Link as MuiLink,
+  Stack,
+  Divider,
+  CircularProgress,
+  Alert,
 } from "@mui/material";
+import axios from "axios";
 
+// Layout
 import PublicHeader from "../../components/layout/store/HeaderTienda";
 import PublicFooter from "../../components/layout/store/FooterTienda";
 
+// Componentes internos
 import ProductFiltersBar from "../../components/shared/ProductFiltersBar";
 import OffersStrip from "../../components/layout/store/OffersStrip";
 import PriceComparatorBanner from "../../components/layout/store/PriceComparatorBanner";
 import ProductsGrid, {
   StoreProduct,
 } from "../../components/layout/store/ProductsGrid";
-// ================== DATOS DE EJEMPLO ==================
-const ALL_PRODUCTS: StoreProduct[] = [
-  {
-    id: 1,
-    nombre: "Mango Tommy",
-    categoriaTag: "Frutas",
-    stand: "Frutas del Sol · Bloque A, Puesto 15",
-    precio: 2.1,
-    unidad: "kg",
-    moneda: "S/.",
-    esOferta: true,
-    descuentoPorc: 20,
-    imageUrl:
-      "https://th.bing.com/th/id/R.b9a9572162d4f39da9ba36e0528585aa?rik=Hz%2bbf9D8xsvNag&pid=ImgRaw&r=0",
-  },
-  {
-    id: 2,
-    nombre: "Papa Pastusa",
-    categoriaTag: "Verduras",
-    stand: "Tubérculos Andinos · Bloque C, Puesto 11",
-    precio: 0.8,
-    unidad: "kg",
-    moneda: "S/.",
-  },
-  {
-    id: 3,
-    nombre: "Queso Campesino",
-    categoriaTag: "Lácteos",
-    stand: "Lácteos del Valle · Bloque D, Puesto 05",
-    precio: 12.5,
-    unidad: "kg",
-    moneda: "S/.",
-    esOferta: true,
-    descuentoPorc: 15,
-  },
-  {
-    id: 4,
-    nombre: "Costilla de Res",
-    categoriaTag: "Carnes",
-    stand: "Carnes El Ganadero · Bloque D, Puesto 18",
-    precio: 18.0,
-    unidad: "kg",
-    moneda: "S/.",
-  },
-  {
-    id: 5,
-    nombre: "Lechuga Crespa",
-    categoriaTag: "Verduras",
-    stand: "Hortalizas Frescas · Bloque B, Puesto 01",
-    precio: 1.5,
-    unidad: "unidad",
-    moneda: "S/.",
-  },
-  {
-    id: 6,
-    nombre: "Aguacate Hass",
-    categoriaTag: "Frutas",
-    stand: "Frutas del Sol · Bloque A, Puesto 25",
-    precio: 3.5,
-    unidad: "kg",
-    moneda: "S/.",
-  },
-  {
-    id: 7,
-    nombre: "Huevo AA x30",
-    categoriaTag: "Aves",
-    stand: "Avícola Central · Bloque D, Puesto 02",
-    precio: 15.0,
-    unidad: "bandeja",
-    moneda: "S/.",
-  },
-  {
-    id: 8,
-    nombre: "Zanahoria",
-    categoriaTag: "Verduras",
-    stand: "Verduras La Finca · Bloque C, Puesto 21",
-    precio: 1.1,
-    unidad: "kg",
-    moneda: "S/.",
-  },
-];
+
+// ================== CONFIG API ==================
+const API_URL = "http://localhost:8080/api/v1/admin/productos";
+// Si de verdad tu endpoint es .../productos/1, cámbialo arriba
 
 // Mapa simple para conectar value del filtro con el texto de la categoría
 const CATEGORY_MAP: Record<string, string> = {
@@ -118,12 +48,96 @@ export default function PreciosProductos() {
   const [priceRange, setPriceRange] = useState("todos");
   const [sortBy, setSortBy] = useState("relevancia");
 
+  // ===== estados de datos API =====
+  const [products, setProducts] = useState<StoreProduct[]>([]);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // ================== FETCH A SPRING BOOT ==================
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        // Si necesitas token, lo sacas de donde lo guardes (localStorage, context, etc.)
+        const token = localStorage.getItem(
+          "eyJhbGciOiJIUzI1NiJ9.eyJyb2wiOiJBRE1JTiIsInN1YiI6Implc3VzLnJhbW9zQG1lcmNhZG8uY29tIiwiaWF0IjoxNzY1MTYwMzgxLCJleHAiOjE3NjUxODkxODF9.uKjUlqw4MhKyyhQWoKMXKNWiYqI3OICdk4xkGMFhfdQ"
+        ); // ejemplo, ajusta a tu caso
+
+        const response = await axios.get(API_URL, {
+          headers: {
+            Authorization: token ? `Bearer ${token}` : "",
+            Accept: "*/*",
+          },
+        });
+
+        // 👇 Si tu backend devuelve un array de productos directamente:
+        const data = response.data as any[];
+
+        // Si lo devuelve envuelto (ej: { content: [...] }), cambiar por response.data.content
+        // const data = response.data.content as any[];
+
+        const mapped: StoreProduct[] = data.map((p: any) => {
+          const enOferta = p.enOferta === true;
+          const tienePrecioOferta =
+            enOferta && p.precioOferta !== null && p.precioOferta !== undefined;
+
+          // precio a mostrar (si hay oferta, mostramos precioOferta, si no, precioActual)
+          const precioFinal = tienePrecioOferta
+            ? p.precioOferta
+            : p.precioActual;
+
+          // porcentaje de descuento (si hay oferta y precioOferta < precioActual)
+          let descuentoPorc = 0;
+          if (
+            tienePrecioOferta &&
+            typeof p.precioActual === "number" &&
+            p.precioActual > 0 &&
+            p.precioOferta < p.precioActual
+          ) {
+            descuentoPorc = Math.round(
+              (1 - p.precioOferta / p.precioActual) * 100
+            );
+          }
+
+          return {
+            id: p.idProducto,
+            nombre: p.nombre,
+            categoriaTag: p.nombreCategoriaProducto ?? "Sin categoría",
+            stand: p.nombreComercialStand
+              ? `${p.nombreComercialStand} · Bloque ${p.bloqueStand}, Puesto ${p.numeroStand}`
+              : "Stand no asignado",
+            precio: precioFinal,
+            unidad: p.unidadMedida ?? "unidad",
+            moneda: "S/.",
+
+            esOferta: enOferta,
+            descuentoPorc,
+
+            imageUrl:
+              p.imagenUrl ??
+              "https://via.placeholder.com/400x300?text=Sin+imagen",
+          };
+        });
+
+        setProducts(mapped);
+      } catch (err) {
+        console.error(err);
+        setError("No se pudieron cargar los productos desde el servidor.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProducts();
+  }, []);
   // ===== ofertas del día (solo las que tienen esOferta) =====
-  const offers = useMemo(() => ALL_PRODUCTS.filter((p) => p.esOferta), []);
+  const offers = useMemo(() => products.filter((p) => p.esOferta), [products]);
 
   // ===== lógica de filtrado + orden =====
   const filteredProducts = useMemo(() => {
-    let list = [...ALL_PRODUCTS];
+    let list = [...products];
 
     // Buscar por texto
     if (search.trim()) {
@@ -170,80 +184,152 @@ export default function PreciosProductos() {
     }
 
     return list;
-  }, [search, category, priceRange, sortBy]);
+  }, [products, search, category, priceRange, sortBy]);
 
   // ===== acciones =====
   const handleViewStand = (product: StoreProduct) => {
-    // Más adelante aquí puedes navegar a la página pública del stand
-    // por ahora solo log:
-    console.log("Ir al stand de:", product.stand);
+    console.log("Ir al producto:", product.nombre);
+    // aquí luego haces navigate(`/producto/${product.id}`)
   };
 
   const handleViewAllOffers = () => {
-    // Al hacer clic en "Ver todas" en Ofertas del día
     setSortBy("ofertas");
   };
 
   return (
-    <Box sx={{ minHeight: "100vh", bgcolor: "#f3f4f6" }}>
+    <Box
+      sx={{
+        minHeight: "100vh",
+        bgcolor: "#f8fafc",
+        display: "flex",
+        flexDirection: "column",
+      }}
+    >
       <PublicHeader />
 
-      <Container maxWidth="lg" sx={{ py: 4 }}>
-        {/* Migas de pan (opcional) */}
-        <Breadcrumbs sx={{ mb: 1 }} aria-label="breadcrumb">
-          <MuiLink underline="hover" color="inherit" href="/">
-            Inicio
-          </MuiLink>
-          <Typography color="text.primary">Precios y productos</Typography>
-        </Breadcrumbs>
+      <Box sx={{ flex: 1, py: 5 }}>
+        <Container maxWidth="lg">
+          <Stack spacing={5}>
+            {/* CABECERA */}
+            <Box>
+              <Breadcrumbs sx={{ mb: 2 }} aria-label="breadcrumb">
+                <MuiLink
+                  underline="hover"
+                  color="inherit"
+                  href="/"
+                  sx={{ display: "flex", alignItems: "center" }}
+                >
+                  Inicio
+                </MuiLink>
+                <Typography color="text.primary" fontWeight={500}>
+                  Precios y productos
+                </Typography>
+              </Breadcrumbs>
 
-        {/* Título y descripción */}
-        <Box sx={{ mb: 3 }}>
-          <Typography variant="h4" sx={{ fontWeight: 800, mb: 1 }}>
-            Precios y Productos del Mercado
-          </Typography>
-          <Typography variant="body1" color="text.secondary">
-            Consulta los productos frescos ofrecidos diariamente por los
-            comerciantes del mercado.
-          </Typography>
-        </Box>
+              <Typography
+                variant="h3"
+                sx={{ fontWeight: 800, mb: 1, letterSpacing: "-0.02em" }}
+              >
+                Precios y Productos
+              </Typography>
+              <Typography
+                variant="body1"
+                color="text.secondary"
+                sx={{ maxWidth: 700 }}
+              >
+                Consulta los productos frescos ofrecidos diariamente por los
+                comerciantes del mercado. Precios actualizados en tiempo real.
+              </Typography>
+            </Box>
 
-        {/* Filtros superiores */}
-        <ProductFiltersBar
-          search={search}
-          onSearchChange={setSearch}
-          category={category}
-          onCategoryChange={setCategory}
-          priceRange={priceRange}
-          onPriceRangeChange={setPriceRange}
-          sortBy={sortBy}
-          onSortByChange={setSortBy}
-        />
+            {/* BARRA DE FILTROS */}
+            <Box>
+              <ProductFiltersBar
+                search={search}
+                onSearchChange={setSearch}
+                category={category}
+                onCategoryChange={setCategory}
+                priceRange={priceRange}
+                onPriceRangeChange={setPriceRange}
+                sortBy={sortBy}
+                onSortByChange={setSortBy}
+              />
+            </Box>
 
-        {/* Ofertas del día */}
-        <OffersStrip
-          offers={offers}
-          onViewStand={handleViewStand}
-          onViewAll={handleViewAllOffers}
-        />
+            {/* LOADING / ERROR */}
+            {loading && (
+              <Box sx={{ py: 6, textAlign: "center" }}>
+                <CircularProgress />
+                <Typography
+                  variant="body2"
+                  sx={{ mt: 2 }}
+                  color="text.secondary"
+                >
+                  Cargando productos...
+                </Typography>
+              </Box>
+            )}
 
-        {/* Banner comparador de precios */}
-        <PriceComparatorBanner
-          onClick={() => console.log("Abrir comparador de precios (futuro)")}
-        />
+            {error && !loading && <Alert severity="error">{error}</Alert>}
 
-        {/* Todos los productos */}
-        <Box sx={{ mt: 4, mb: 2 }}>
-          <Typography variant="h6" sx={{ fontWeight: 700 }}>
-            Todos los productos
-          </Typography>
-        </Box>
+            {/* SOLO renderizamos el resto si no está cargando */}
+            {!loading && !error && (
+              <>
+                {/* OFERTAS DEL DÍA */}
+                {offers.length > 0 && !search && category === "todos" && (
+                  <Box>
+                    <OffersStrip
+                      offers={offers}
+                      onViewStand={handleViewStand}
+                      onViewAll={handleViewAllOffers}
+                    />
+                  </Box>
+                )}
 
-        <ProductsGrid
-          products={filteredProducts}
-          onViewStand={handleViewStand}
-        />
-      </Container>
+                {/* BANNER COMPARADOR */}
+                <Box>
+                  <PriceComparatorBanner
+                    onClick={() => console.log("Abrir comparador de precios")}
+                  />
+                </Box>
+
+                {/* GRID PRINCIPAL */}
+                <Box>
+                  <Stack direction="row" alignItems="center" spacing={2} mb={3}>
+                    <Typography variant="h5" sx={{ fontWeight: 700 }}>
+                      Todos los productos
+                    </Typography>
+                    <Divider
+                      flexItem
+                      orientation="vertical"
+                      sx={{ height: 24, alignSelf: "center" }}
+                    />
+                    <Typography variant="body2" color="text.secondary">
+                      {filteredProducts.length} resultados encontrados
+                    </Typography>
+                  </Stack>
+
+                  {filteredProducts.length > 0 ? (
+                    <ProductsGrid
+                      products={filteredProducts}
+                      onViewStand={handleViewStand}
+                    />
+                  ) : (
+                    <Box sx={{ py: 8, textAlign: "center" }}>
+                      <Typography variant="h6" color="text.secondary">
+                        No encontramos productos con esos filtros.
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Intenta buscar con otros términos o limpia los filtros.
+                      </Typography>
+                    </Box>
+                  )}
+                </Box>
+              </>
+            )}
+          </Stack>
+        </Container>
+      </Box>
 
       <PublicFooter />
     </Box>

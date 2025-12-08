@@ -154,7 +154,7 @@ export default function OffersStrip({
                 sx={{ textTransform: "none", fontWeight: 600, borderRadius: 2 }}
                 onClick={() => onViewStand && onViewStand(product)}
               >
-                Ver Stand
+                Ver Detalles
               </Button>
             </Box>
           </Paper>

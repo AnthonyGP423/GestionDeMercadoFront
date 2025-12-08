@@ -144,7 +144,7 @@ export default function ProductsGrid({
               onClick={() => onViewStand(p)}
               sx={{ borderRadius: 2, textTransform: "none", fontWeight: 600 }}
             >
-              Ver stand
+              Ver Detalles
             </Button>
           </CardActions>
         </Card>

@@ -17,7 +17,7 @@ import PreciosProductos from "../pages/Tienda/ProductosPrecios";
 import Contacto from "../pages/Tienda/Contacto";
 import PingTest from "../pages/Dashboard/PingTest";
 import PrivateRoute from "../auth/PrivateRoute";
-
+import VistaProducto from "../pages/Tienda/VistaProducto";
 const AppRoutes = () => {
   return (
     <Routes>
@@ -50,6 +50,7 @@ const AppRoutes = () => {
       <Route path="/tienda" element={<TiendaHome />} />
       <Route path="/tienda/precios-productos" element={<PreciosProductos />} />
       <Route path="/tienda/contacto" element={<Contacto />} />
+      <Route path="/tienda/producto" element={<VistaProducto />} />
       <Route path="*" element={<Navigate to="/tienda" replace />} />
     </Routes>
   );
