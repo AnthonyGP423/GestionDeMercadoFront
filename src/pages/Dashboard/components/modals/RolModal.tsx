@@ -7,27 +7,56 @@ import {
   Button,
   Box,
 } from "@mui/material";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { RolCreateRequest, RolDto, RolUpdateRequest } from "../../../../api/rolesApi";
 
 interface Props {
   open: boolean;
   onClose: () => void;
-  onSubmit: (data: any) => void;
+  mode: "create" | "edit";
+  initialData?: RolDto | null;
+  onSubmit: (data: RolCreateRequest | RolUpdateRequest) => void;
 }
 
-export default function RolModal({ open, onClose, onSubmit }: Props) {
+export default function RolModal({
+  open,
+  onClose,
+  mode,
+  initialData,
+  onSubmit,
+}: Props) {
   const [nombreRol, setNombreRol] = useState("");
+  const [descripcion, setDescripcion] = useState("");
+
+  // Cuando abro el modal para editar, cargo datos
+  useEffect(() => {
+    if (mode === "edit" && initialData) {
+      setNombreRol(initialData.nombreRol ?? "");
+      setDescripcion(initialData.descripcion ?? "");
+    } else if (mode === "create" && open) {
+      // limpiar al abrir en modo crear
+      setNombreRol("");
+      setDescripcion("");
+    }
+  }, [mode, initialData, open]);
 
   const handleSave = () => {
     if (!nombreRol.trim()) return;
-    onSubmit({ nombre: nombreRol.trim() });
-    setNombreRol("");
-    onClose();
+
+    onSubmit({
+      nombreRol: nombreRol.trim(),
+      descripcion: descripcion.trim() || undefined,
+    });
+
+    // El cierre y limpieza se maneja en el padre después de éxito
   };
+
+  const title =
+    mode === "create" ? "Registrar nuevo rol" : "Editar rol";
 
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
-      <DialogTitle sx={{ fontWeight: "bold" }}>Registrar nuevo rol</DialogTitle>
+      <DialogTitle sx={{ fontWeight: "bold" }}>{title}</DialogTitle>
 
       <DialogContent dividers>
         <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
@@ -37,6 +66,15 @@ export default function RolModal({ open, onClose, onSubmit }: Props) {
             value={nombreRol}
             onChange={(e) => setNombreRol(e.target.value)}
           />
+
+          <TextField
+            label="Descripción (opcional)"
+            fullWidth
+            multiline
+            minRows={2}
+            value={descripcion}
+            onChange={(e) => setDescripcion(e.target.value)}
+          />
         </Box>
       </DialogContent>
 
@@ -45,7 +83,7 @@ export default function RolModal({ open, onClose, onSubmit }: Props) {
           Cancelar
         </Button>
         <Button variant="contained" onClick={handleSave}>
-          Guardar rol
+          Guardar
         </Button>
       </DialogActions>
     </Dialog>

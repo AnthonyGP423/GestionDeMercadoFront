@@ -11,18 +11,41 @@ import {
   IconButton,
   Box,
 } from "@mui/material";
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import PhotoCamera from "@mui/icons-material/PhotoCamera";
+
+interface UsuarioFormData {
+  nombre: string;
+  apellidos: string;
+  email: string;
+  password: string;
+  telefono: string;
+  dni: string;
+  ruc: string;
+  razonSocial: string;
+  rol: string;
+  foto?: string;
+}
 
 interface Props {
   open: boolean;
   onClose: () => void;
-  onSubmit: (data: any) => void;
+  onSubmit: (data: UsuarioFormData) => void;
+
+  /** Datos iniciales para ver/editar */
+  initialData?: UsuarioFormData;
+  /** Modo del modal */
+  mode?: "create" | "edit" | "view";
 }
 
-export default function NewUserModal({ open, onClose, onSubmit }: Props) {
-  const [form, setForm] = useState({
+export default function NewUserModal({
+  open,
+  onClose,
+  onSubmit,
+  initialData,
+  mode = "create",
+}: Props) {
+  const [form, setForm] = useState<UsuarioFormData>({
     nombre: "",
     apellidos: "",
     email: "",
@@ -37,36 +60,85 @@ export default function NewUserModal({ open, onClose, onSubmit }: Props) {
 
   const [preview, setPreview] = useState<string | null>(null);
 
-  const handleChange = (e: any) => {
+  const readOnly = mode === "view";
+
+  // Cargar datos iniciales cuando cambie initialData
+  useEffect(() => {
+    if (initialData) {
+      setForm({
+        nombre: initialData.nombre ?? "",
+        apellidos: initialData.apellidos ?? "",
+        email: initialData.email ?? "",
+        password: "",
+        telefono: initialData.telefono ?? "",
+        dni: initialData.dni ?? "",
+        ruc: initialData.ruc ?? "",
+        razonSocial: initialData.razonSocial ?? "",
+        rol: initialData.rol ?? "",
+        foto: initialData.foto ?? "",
+      });
+
+      if (initialData.foto) {
+        setPreview(initialData.foto);
+      } else {
+        setPreview(null);
+      }
+    } else {
+      // Si no hay initialData (modo create), limpiar
+      setForm({
+        nombre: "",
+        apellidos: "",
+        email: "",
+        password: "",
+        telefono: "",
+        dni: "",
+        ruc: "",
+        razonSocial: "",
+        rol: "",
+        foto: "",
+      });
+      setPreview(null);
+    }
+  }, [initialData]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (readOnly) return;
     const { name, value } = e.target;
 
     if (name === "telefono" || name === "dni") {
       if (!/^\d*$/.test(value)) return;
     }
 
-    setForm({ ...form, [name]: value });
+    setForm((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleFoto = (e: any) => {
+  const handleFoto = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (readOnly) return;
+
     const file = e.target.files?.[0];
     if (!file) return;
 
     const url = URL.createObjectURL(file);
     setPreview(url);
 
-    setForm({ ...form, foto: file });
+    // Si más adelante manejas upload real, aquí solo guarda referencia
+    setForm((prev) => ({ ...prev, foto: url }));
   };
 
   const handleSave = () => {
     onSubmit(form);
-    onClose();
   };
+
+  const titulo =
+    mode === "create"
+      ? "Registrar usuario"
+      : mode === "edit"
+      ? "Editar usuario"
+      : "Detalle del usuario";
 
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="md">
-      <DialogTitle sx={{ fontWeight: "bold" }}>
-        Registrar nuevo usuario
-      </DialogTitle>
+      <DialogTitle sx={{ fontWeight: "bold" }}>{titulo}</DialogTitle>
 
       <DialogContent dividers>
         {/* FOTO */}
@@ -76,14 +148,23 @@ export default function NewUserModal({ open, onClose, onSubmit }: Props) {
             sx={{ width: 100, height: 100, margin: "0 auto" }}
           />
 
-          <IconButton color="primary" component="label" sx={{ mt: 1 }}>
-            <PhotoCamera />
-            <input type="file" hidden accept="image/*" onChange={handleFoto} />
-          </IconButton>
+          {!readOnly && (
+            <>
+              <IconButton color="primary" component="label" sx={{ mt: 1 }}>
+                <PhotoCamera />
+                <input
+                  type="file"
+                  hidden
+                  accept="image/*"
+                  onChange={handleFoto}
+                />
+              </IconButton>
 
-          <Typography variant="body2" color="text.secondary">
-            Subir foto
-          </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Subir foto
+              </Typography>
+            </>
+          )}
         </Box>
 
         {/* FORMULARIO */}
@@ -95,6 +176,7 @@ export default function NewUserModal({ open, onClose, onSubmit }: Props) {
               name="nombre"
               value={form.nombre}
               onChange={handleChange}
+              disabled={readOnly}
             />
 
             <TextField
@@ -103,6 +185,7 @@ export default function NewUserModal({ open, onClose, onSubmit }: Props) {
               name="apellidos"
               value={form.apellidos}
               onChange={handleChange}
+              disabled={readOnly}
             />
           </Box>
 
@@ -114,16 +197,19 @@ export default function NewUserModal({ open, onClose, onSubmit }: Props) {
               name="email"
               value={form.email}
               onChange={handleChange}
+              disabled={readOnly || mode === "edit"} // no editar email en modo edit
             />
 
-            <TextField
-              fullWidth
-              type="password"
-              label="Contraseña"
-              name="password"
-              value={form.password}
-              onChange={handleChange}
-            />
+            {!readOnly && (
+              <TextField
+                fullWidth
+                type="password"
+                label={mode === "edit" ? "Nueva contraseña" : "Contraseña"}
+                name="password"
+                value={form.password}
+                onChange={handleChange}
+              />
+            )}
           </Box>
 
           <Box sx={{ display: "flex", gap: 2 }}>
@@ -134,6 +220,7 @@ export default function NewUserModal({ open, onClose, onSubmit }: Props) {
               value={form.telefono}
               onChange={handleChange}
               inputProps={{ maxLength: 9 }}
+              disabled={readOnly}
             />
 
             <TextField
@@ -143,6 +230,7 @@ export default function NewUserModal({ open, onClose, onSubmit }: Props) {
               value={form.dni}
               onChange={handleChange}
               inputProps={{ maxLength: 8 }}
+              disabled={readOnly}
             />
 
             <TextField
@@ -151,6 +239,7 @@ export default function NewUserModal({ open, onClose, onSubmit }: Props) {
               name="ruc"
               value={form.ruc}
               onChange={handleChange}
+              disabled={readOnly}
             />
           </Box>
 
@@ -160,6 +249,7 @@ export default function NewUserModal({ open, onClose, onSubmit }: Props) {
             name="razonSocial"
             value={form.razonSocial}
             onChange={handleChange}
+            disabled={readOnly}
           />
 
           <TextField
@@ -169,6 +259,7 @@ export default function NewUserModal({ open, onClose, onSubmit }: Props) {
             name="rol"
             value={form.rol}
             onChange={handleChange}
+            disabled={readOnly}
           >
             <MenuItem value="ADMIN">Admin</MenuItem>
             <MenuItem value="SUPERVISOR">Supervisor</MenuItem>
@@ -179,11 +270,14 @@ export default function NewUserModal({ open, onClose, onSubmit }: Props) {
 
       <DialogActions>
         <Button onClick={onClose} color="inherit">
-          Cancelar
+          {readOnly ? "Cerrar" : "Cancelar"}
         </Button>
-        <Button variant="contained" onClick={handleSave}>
-          Guardar usuario
-        </Button>
+
+        {!readOnly && (
+          <Button variant="contained" onClick={handleSave}>
+            Guardar
+          </Button>
+        )}
       </DialogActions>
     </Dialog>
   );
