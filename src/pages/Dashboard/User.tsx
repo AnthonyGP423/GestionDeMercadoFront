@@ -1,8 +1,20 @@
 import { useEffect, useMemo, useState } from "react";
-import { Typography, CircularProgress, Box } from "@mui/material";
+import {
+  Box,
+  Typography,
+  Paper,
+  Table,
+  TableHead,
+  TableBody,
+  TableRow,
+  TableCell,
+  IconButton,
+  Chip,
+  CircularProgress,
+  Stack,
+} from "@mui/material";
 
 import FiltersBar from "../../components/shared/FiltersBar";
-import DataTable from "../../components/shared/DataTable";
 import NewUserModal from "./components/modals/UserModal";
 import { useToast } from "../../components/ui/Toast";
 
@@ -78,19 +90,16 @@ export default function Usuario() {
   //   FILTROS
   // ===========================
   const filtros = [
-    { label: "Rol", field: "rol", options: ["ADMIN", "SUPERVISOR", "SOCIO", "TRABAJADOR", "CLIENTE"] },
+    {
+      label: "Rol",
+      field: "rol",
+      options: ["ADMIN", "SUPERVISOR", "SOCIO", "TRABAJADOR", "CLIENTE"],
+    },
     {
       label: "Estado",
       field: "estado",
       options: ["ACTIVO", "SUSPENDIDO", "BAJA"],
     },
-  ];
-
-  const columnas = [
-    { title: "Nombre completo", field: "nombre", type: "text" as const },
-    { title: "Email", field: "email", type: "text" as const },
-    { title: "Rol", field: "rol", type: "text" as const },
-    { title: "Estado", field: "estado", type: "status" as const },
   ];
 
   const datosFiltrados = useMemo(
@@ -185,21 +194,6 @@ export default function Usuario() {
     }
   };
 
-  const acciones = [
-    {
-      icon: <VisibilityIcon color="primary" />,
-      onClick: (row: UsuarioRow) => handleVer(row),
-    },
-    {
-      icon: <EditIcon color="warning" />,
-      onClick: (row: UsuarioRow) => handleEditar(row),
-    },
-    {
-      icon: <DeleteIcon color="error" />,
-      onClick: (row: UsuarioRow) => handleEliminar(row),
-    },
-  ];
-
   // ===========================
   //   CREAR / EDITAR (MODAL)
   // ===========================
@@ -213,7 +207,7 @@ export default function Usuario() {
         dni: formData.dni,
         ruc: formData.ruc,
         razonSocial: formData.razonSocial,
-        rol: formData.rol, // si tu backend usa idRol, aquí puedes mapearlo
+        rol: formData.rol,
       };
 
       if (formData.password) {
@@ -256,6 +250,60 @@ export default function Usuario() {
   };
 
   // ===========================
+  //   CHIP DE ESTADO (MISMO LOOK QUE ROLES)
+  // ===========================
+  const renderEstadoChip = (estado: string) => {
+    const e = estado.toUpperCase();
+
+    if (e === "ACTIVO") {
+      return (
+        <Chip
+          label="ACTIVO"
+          size="small"
+          sx={{
+            bgcolor: "#bbf7d0",   // igual que chip "Todos" en Roles
+            color: "#166534",
+            fontWeight: 600,
+            borderRadius: 999,
+            fontSize: 12,
+          }}
+        />
+      );
+    }
+
+    if (e === "SUSPENDIDO") {
+      return (
+        <Chip
+          label="SUSPENDIDO"
+          size="small"
+          sx={{
+            bgcolor: "#fee2e2",
+            color: "#b91c1c",
+            fontWeight: 600,
+            borderRadius: 999,
+            fontSize: 12,
+          }}
+        />
+      );
+    }
+
+    // BAJA u otros
+    return (
+      <Chip
+        label={e}
+        size="small"
+        sx={{
+          bgcolor: "#e5e7eb",
+          color: "#374151",
+          fontWeight: 600,
+          borderRadius: 999,
+          fontSize: 12,
+        }}
+      />
+    );
+  };
+
+  // ===========================
   //   RENDER
   // ===========================
   if (loading) {
@@ -279,8 +327,15 @@ export default function Usuario() {
   if (error) {
     return (
       <>
-        <Typography variant="h4" sx={{ mb: 3, fontWeight: "bold" }}>
-          Gestión de Usuarios
+        <Typography
+          variant="h4"
+          sx={{
+            mb: 3,
+            fontWeight: 800,
+            fontFamily: `"Poppins","Inter",system-ui,-apple-system`,
+          }}
+        >
+          Usuarios
         </Typography>
         <Typography color="error" sx={{ mb: 2 }}>
           {error}
@@ -291,10 +346,27 @@ export default function Usuario() {
 
   return (
     <>
-      <Typography variant="h4" sx={{ mb: 5, fontWeight: "bold" }}>
-        Gestión de Usuarios
-      </Typography>
+      {/* CABECERA — MATCH CON ROLES */}
+      <Box sx={{ mb: 4 }}>
+        <Typography
+          variant="h4"
+          sx={{
+            fontWeight: 800,
+            fontFamily: `"Poppins","Inter",system-ui,-apple-system,BlinkMacSystemFont`,
+          }}
+        >
+          Usuarios
+        </Typography>
+        <Typography
+          variant="body1"
+          color="text.secondary"
+          sx={{ mt: 0.5, maxWidth: 520 }}
+        >
+          Administra los usuarios del sistema y sus roles.
+        </Typography>
+      </Box>
 
+      {/* BARRA DE FILTROS + BOTÓN NUEVO USUARIO (MISMO ESTILO QUE NUEVO ROL) */}
       <FiltersBar
         filters={filtros}
         searchValue={busqueda}
@@ -305,10 +377,133 @@ export default function Usuario() {
         }}
         onAdd={handleOpenCreate}
         addLabel="Nuevo usuario"
+        addButtonSx={{
+          borderRadius: "999px",
+          px: 3,
+          py: 1.1,
+          textTransform: "none",
+          fontWeight: 700,
+          backgroundColor: "#22c55e",
+          boxShadow: "0 6px 14px rgba(34, 197, 94, 0.25)",
+          "&:hover": {
+            backgroundColor: "#16a34a",
+            boxShadow: "0 8px 18px rgba(22, 163, 74, 0.35)",
+          },
+        }}
       />
 
-      <DataTable columns={columnas} data={datosFiltrados} actions={acciones} />
+      {/* TABLA MODERNA (MISMOS EFECTOS QUE ROLES) */}
+      <Paper
+        elevation={0}
+        sx={{
+          mt: 3,
+          borderRadius: 4,
+          overflow: "hidden",
+          boxShadow: "0 18px 40px rgba(15, 23, 42, 0.06)",
+        }}
+      >
+        <Table>
+          <TableHead>
+            <TableRow
+              sx={{
+                bgcolor: "#f9fafb",
+                "& th": {
+                  fontWeight: 600,
+                  fontSize: 13,
+                  letterSpacing: 0.5,
+                  textTransform: "uppercase",
+                  color: "#6b7280",
+                  borderBottom: "1px solid #e5e7eb",
+                },
+              }}
+            >
+              <TableCell sx={{ width: "30%" }}>Nombre completo</TableCell>
+              <TableCell sx={{ width: "30%" }}>Email</TableCell>
+              <TableCell sx={{ width: "15%" }}>Rol</TableCell>
+              <TableCell sx={{ width: "15%" }}>Estado</TableCell>
+              <TableCell sx={{ width: "10%" }} align="center">
+                Acciones
+              </TableCell>
+            </TableRow>
+          </TableHead>
 
+          <TableBody>
+            {datosFiltrados.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={5}>
+                  <Box
+                    sx={{
+                      py: 5,
+                      textAlign: "center",
+                      color: "text.secondary",
+                    }}
+                  >
+                    No se encontraron usuarios con los criterios actuales.
+                  </Box>
+                </TableCell>
+              </TableRow>
+            ) : (
+              datosFiltrados.map((row) => (
+                <TableRow
+                  key={row.id}
+                  hover
+                  sx={{
+                    "& td": {
+                      borderBottom: "1px solid #f1f5f9",
+                      fontSize: 14,
+                    },
+                  }}
+                >
+                  <TableCell sx={{ fontWeight: 600 }}>{row.nombre}</TableCell>
+                  <TableCell>{row.email}</TableCell>
+                  <TableCell>{row.rol}</TableCell>
+                  <TableCell>{renderEstadoChip(row.estado)}</TableCell>
+
+                  <TableCell align="center">
+                    <Stack
+                      direction="row"
+                      spacing={1}
+                      justifyContent="center"
+                    >
+                      <IconButton
+                        size="small"
+                        onClick={() => handleVer(row)}
+                      >
+                        <VisibilityIcon
+                          fontSize="small"
+                          sx={{ color: "#0ea5e9" }}
+                        />
+                      </IconButton>
+
+                      <IconButton
+                        size="small"
+                        onClick={() => handleEditar(row)}
+                      >
+                        <EditIcon
+                          fontSize="small"
+                          sx={{ color: "#f59e0b" }}
+                        />
+                      </IconButton>
+
+                      <IconButton
+                        size="small"
+                        onClick={() => handleEliminar(row)}
+                      >
+                        <DeleteIcon
+                          fontSize="small"
+                          sx={{ color: "#ef4444" }}
+                        />
+                      </IconButton>
+                    </Stack>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </Paper>
+
+      {/* MODAL CREAR / EDITAR / VER */}
       <NewUserModal
         open={openModal}
         onClose={handleCloseModal}

@@ -108,7 +108,7 @@ export default function Principal() {
           Authorization: `Bearer ${token}`,
         };
 
-        // Llamadas paralelas (ahora 4)
+        // Llamadas paralelas (4)
         const [indicadoresRes, morososRes, standsRes, ultimosPagosRes] =
           await Promise.all([
             axios.get<IndicadoresCuotas>(
@@ -153,25 +153,68 @@ export default function Principal() {
     fetchData();
   }, [periodoActual]);
 
-  // Derivados
+  // Derivados base
   const totalStandsRegistrados = stands.length;
+  const standsActivos = useMemo(
+    () => stands.filter((s) => s.estado === "ACTIVO").length,
+    [stands]
+  );
+  const standsNoActivos = totalStandsRegistrados - standsActivos;
+
   const totalStandsConCuota = indicadores?.totalStandsConCuota ?? 0;
   const porcentajeAlDia = indicadores?.porcentajeAlDia ?? 0;
   const porcentajeMorosos = indicadores?.porcentajeMorosos ?? 0;
   const standsAlDia = indicadores?.standsAlDia ?? 0;
   const standsMorosos = indicadores?.standsMorosos ?? 0;
 
+  const bloquesConMorosidad =
+    indicadores?.morosidadPorBloque.filter((b) => b.standsMorosos > 0) ?? [];
+
+  // Derivados financieros simples
+  const deudaTotalMorosos = useMemo(
+    () =>
+      morosos.reduce(
+        (acc, m) => acc + Number(m.saldoPendiente || 0),
+        0
+      ),
+    [morosos]
+  );
+
+  const totalPagadoUltimos = useMemo(
+    () =>
+      ultimosPagos.reduce(
+        (acc, p) => acc + Number(p.montoPagado || 0),
+        0
+      ),
+    [ultimosPagos]
+  );
+
   const cardStyle = {
     p: 3,
-    borderRadius: 3,
-    flex: 1,
-    minWidth: "220px",
+    borderRadius: 4,
+    boxShadow: "0 18px 40px rgba(15, 23, 42, 0.06)",
+    bgcolor: "#ffffff",
   };
 
   if (loading) {
     return (
-      <Box sx={{ mt: 4 }}>
-        <Typography variant="h6" sx={{ mb: 2 }}>
+      <Box
+        sx={{
+          mt: 6,
+          display: "flex",
+          flexDirection: "column",
+          gap: 2,
+          maxWidth: 480,
+        }}
+      >
+        <Typography
+          variant="h5"
+          sx={{
+            fontWeight: 700,
+            fontFamily:
+              '"Poppins","Inter",system-ui,-apple-system,BlinkMacSystemFont',
+          }}
+        >
           Cargando panel general del mercado...
         </Typography>
         <LinearProgress />
@@ -182,7 +225,7 @@ export default function Principal() {
   if (error) {
     return (
       <Box sx={{ mt: 4 }}>
-        <Typography color="error" sx={{ mb: 1 }}>
+        <Typography color="error" sx={{ mb: 1, fontWeight: 600 }}>
           {error}
         </Typography>
         <Typography variant="body2" color="text.secondary">
@@ -196,98 +239,271 @@ export default function Principal() {
     <Box>
       {/* TÍTULO */}
       <Stack spacing={1} sx={{ mb: 4 }}>
-        <Typography variant="h4" sx={{ fontWeight: "bold" }}>
+        <Typography
+          variant="h4"
+          sx={{
+            fontWeight: 800,
+            fontFamily:
+              '"Poppins","Inter",system-ui,-apple-system,BlinkMacSystemFont',
+          }}
+        >
           Panel general del mercado
         </Typography>
-        <Typography color="text.secondary">
-          Resumen operativo del periodo <strong>{periodoActual}</strong>
+        <Typography color="text.secondary" sx={{ maxWidth: 520 }}>
+          Vista ejecutiva del mercado mayorista para el periodo{" "}
+          <strong>{periodoActual}</strong>: ocupación, morosidad y flujo de
+          pagos.
         </Typography>
       </Stack>
 
-      {/* TARJETAS DE RESUMEN */}
-      <Stack direction={{ xs: "column", md: "row" }} spacing={3} sx={{ mb: 4 }}>
-        {/* Card 1: Stands registrados */}
+      {/* TARJETAS DE RESUMEN (grid) */}
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: {
+            xs: "1fr",
+            md: "1.3fr 1.3fr 1.2fr 1.2fr",
+          },
+          gap: 2.5,
+          mb: 4,
+        }}
+      >
+        {/* Card 1: Stands registrados / activos */}
         <Paper sx={cardStyle}>
-          <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
-            <StoreIcon sx={{ mr: 1, fontSize: 30, color: "#166534" }} />
-            <Typography
-              variant="subtitle1"
-              color="text.secondary"
-              fontWeight="bold"
+          <Stack direction="row" justifyContent="space-between" mb={2}>
+            <Box>
+              <Typography
+                variant="subtitle2"
+                sx={{ fontWeight: 600, color: "#6b7280" }}
+              >
+                Stands registrados
+              </Typography>
+              <Typography
+                variant="caption"
+                sx={{ color: "#9ca3af" }}
+              >
+                Totales en el mercado
+              </Typography>
+            </Box>
+            <Box
+              sx={{
+                width: 40,
+                height: 40,
+                borderRadius: "999px",
+                bgcolor: "#ecfdf3",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
             >
-              Stands registrados
-            </Typography>
-          </Box>
-          <Typography variant="h3" sx={{ fontWeight: "bold", mb: 1 }}>
+              <StoreIcon sx={{ fontSize: 22, color: "#16a34a" }} />
+            </Box>
+          </Stack>
+
+          <Typography
+            variant="h3"
+            sx={{ fontWeight: 800, color: "#111827", lineHeight: 1.1, mb: 0.5 }}
+          >
             {totalStandsRegistrados}
           </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Stands activos y clausurados dentro del mercado.
-          </Typography>
+
+          <Stack direction="row" spacing={2} mt={1}>
+            <Chip
+              label={`${standsActivos} activos`}
+              size="small"
+              sx={{
+                bgcolor: "#dcfce7",
+                color: "#166534",
+                fontWeight: 600,
+                borderRadius: 999,
+              }}
+            />
+            <Chip
+              label={`${standsNoActivos} no activos`}
+              size="small"
+              sx={{
+                bgcolor: "#fee2e2",
+                color: "#b91c1c",
+                fontWeight: 600,
+                borderRadius: 999,
+              }}
+            />
+          </Stack>
         </Paper>
 
         {/* Card 2: Stands con cuota */}
         <Paper sx={cardStyle}>
-          <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
-            <PaidIcon sx={{ mr: 1, fontSize: 30, color: "#22c55e" }} />
-            <Typography
-              variant="subtitle1"
-              color="text.secondary"
-              fontWeight="bold"
+          <Stack direction="row" justifyContent="space-between" mb={2}>
+            <Box>
+              <Typography
+                variant="subtitle2"
+                sx={{ fontWeight: 600, color: "#6b7280" }}
+              >
+                Stands con cuota
+              </Typography>
+              <Typography
+                variant="caption"
+                sx={{ color: "#9ca3af" }}
+              >
+                Periodo {periodoActual}
+              </Typography>
+            </Box>
+            <Box
+              sx={{
+                width: 40,
+                height: 40,
+                borderRadius: "999px",
+                bgcolor: "#ecfdf3",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
             >
-              Stands con cuota ({periodoActual})
-            </Typography>
-          </Box>
-          <Typography variant="h3" sx={{ fontWeight: "bold", mb: 1 }}>
+              <PaidIcon sx={{ fontSize: 22, color: "#22c55e" }} />
+            </Box>
+          </Stack>
+
+          <Typography
+            variant="h3"
+            sx={{ fontWeight: 800, color: "#111827", lineHeight: 1.1, mb: 0.5 }}
+          >
             {totalStandsConCuota}
           </Typography>
+
           <Typography variant="body2" color="text.secondary">
-            {standsAlDia} al día / {standsMorosos} morosos
+            {standsAlDia} al día · {standsMorosos} morosos
           </Typography>
         </Paper>
 
-        {/* Card 3: Cumplimiento */}
+        {/* Card 3: Cumplimiento de pagos */}
         <Paper sx={cardStyle}>
-          <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
-            <AssessmentIcon sx={{ mr: 1, fontSize: 30, color: "#0ea5e9" }} />
-            <Typography
-              variant="subtitle1"
-              color="text.secondary"
-              fontWeight="bold"
+          <Stack direction="row" justifyContent="space-between" mb={2}>
+            <Box>
+              <Typography
+                variant="subtitle2"
+                sx={{ fontWeight: 600, color: "#6b7280" }}
+              >
+                Cumplimiento de pagos
+              </Typography>
+              <Typography
+                variant="caption"
+                sx={{ color: "#9ca3af" }}
+              >
+                Morosidad vs al día
+              </Typography>
+            </Box>
+            <Box
+              sx={{
+                width: 40,
+                height: 40,
+                borderRadius: "999px",
+                bgcolor: "#e0f2fe",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
             >
-              Cumplimiento de pagos
-            </Typography>
-          </Box>
-          <Typography variant="h3" sx={{ fontWeight: "bold", mb: 1 }}>
+              <AssessmentIcon sx={{ fontSize: 22, color: "#0ea5e9" }} />
+            </Box>
+          </Stack>
+
+          <Typography
+            variant="h3"
+            sx={{ fontWeight: 800, color: "#16a34a", lineHeight: 1.1, mb: 0.5 }}
+          >
             {porcentajeAlDia.toFixed(1)}%
           </Typography>
           <Typography variant="body2" color="text.secondary">
             Morosidad: {porcentajeMorosos.toFixed(1)}%
           </Typography>
+
+          {/* Barrita de proporción simple */}
+          <Box sx={{ mt: 1.5 }}>
+            <Box
+              sx={{
+                height: 8,
+                borderRadius: 999,
+                bgcolor: "#e5e7eb",
+                overflow: "hidden",
+              }}
+            >
+              <Box
+                sx={{
+                  height: "100%",
+                  width: `${porcentajeAlDia}%`,
+                  maxWidth: "100%",
+                  bgcolor: "#22c55e",
+                  transition: "width .3s ease",
+                }}
+              />
+            </Box>
+          </Box>
         </Paper>
 
-        {/* Card 4: Bloques con morosidad */}
+        {/* Card 4: Morosidad por bloques / deuda total */}
         <Paper sx={cardStyle}>
-          <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
-            <WarningIcon sx={{ mr: 1, fontSize: 30, color: "#f97316" }} />
-            <Typography
-              variant="subtitle1"
-              color="text.secondary"
-              fontWeight="bold"
+          <Stack direction="row" justifyContent="space-between" mb={2}>
+            <Box>
+              <Typography
+                variant="subtitle2"
+                sx={{ fontWeight: 600, color: "#6b7280" }}
+              >
+                Bloques con morosidad
+              </Typography>
+              <Typography
+                variant="caption"
+                sx={{ color: "#9ca3af" }}
+              >
+                Deuda total visible en el periodo
+              </Typography>
+            </Box>
+            <Box
+              sx={{
+                width: 40,
+                height: 40,
+                borderRadius: "999px",
+                bgcolor: "#fef2f2",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
             >
-              Bloques con morosidad
-            </Typography>
-          </Box>
-          <Typography variant="h3" sx={{ fontWeight: "bold", mb: 1 }}>
-            {indicadores?.morosidadPorBloque.filter(
-              (b) => b.standsMorosos > 0
-            ).length ?? 0}
+              <WarningIcon sx={{ fontSize: 22, color: "#f97316" }} />
+            </Box>
+          </Stack>
+
+          <Typography
+            variant="h5"
+            sx={{ fontWeight: 700, color: "#b91c1c", mb: 0.5 }}
+          >
+            S/. {deudaTotalMorosos.toFixed(2)}
           </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Distribución por bloque según cuotas pendientes.
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+            {bloquesConMorosidad.length} bloques con stands morosos.
           </Typography>
+
+          <Stack direction="row" spacing={1} flexWrap="wrap">
+            {bloquesConMorosidad.slice(0, 3).map((b) => (
+              <Chip
+                key={b.bloque}
+                size="small"
+                label={`${b.bloque}: ${b.standsMorosos} morosos`}
+                sx={{
+                  bgcolor: "#fee2e2",
+                  color: "#b91c1c",
+                  fontWeight: 500,
+                  borderRadius: 999,
+                }}
+              />
+            ))}
+            {bloquesConMorosidad.length === 0 && (
+              <Typography variant="caption" color="text.secondary">
+                Sin morosidad por bloque.
+              </Typography>
+            )}
+          </Stack>
         </Paper>
-      </Stack>
+      </Box>
 
       {/* SECCIÓN DE TABLAS */}
       <Box
@@ -298,7 +514,13 @@ export default function Principal() {
         }}
       >
         {/* IZQUIERDA: Últimos pagos (datos reales) */}
-        <Paper sx={{ p: 3, borderRadius: 3, flex: 7 }}>
+        <Paper
+          sx={{
+            ...cardStyle,
+            flex: 7,
+            p: 3,
+          }}
+        >
           <Box
             sx={{
               display: "flex",
@@ -307,15 +529,21 @@ export default function Principal() {
               mb: 2,
             }}
           >
-            <Typography variant="h6" sx={{ fontWeight: "bold" }}>
-              Últimos pagos registrados
-            </Typography>
+            <Box>
+              <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                Últimos pagos registrados
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Total mostrado: S/. {totalPagadoUltimos.toFixed(2)}
+              </Typography>
+            </Box>
             <Button
               size="small"
               endIcon={<ArrowForwardIcon />}
               onClick={() => navigate("/dashboard/pagos")}
+              sx={{ textTransform: "none", fontWeight: 600 }}
             >
-              Ver todos
+              Ver módulo de pagos
             </Button>
           </Box>
 
@@ -326,7 +554,15 @@ export default function Principal() {
           ) : (
             <Table size="small">
               <TableHead>
-                <TableRow>
+                <TableRow
+                  sx={{
+                    "& th": {
+                      fontSize: 12,
+                      color: "#6b7280",
+                      borderBottom: "1px solid #e5e7eb",
+                    },
+                  }}
+                >
                   <TableCell>Stand</TableCell>
                   <TableCell>Ubicación</TableCell>
                   <TableCell>Periodo</TableCell>
@@ -337,7 +573,7 @@ export default function Principal() {
               <TableBody>
                 {ultimosPagos.map((p) => (
                   <TableRow key={p.idCuota} hover>
-                    <TableCell sx={{ fontWeight: 500 }}>
+                    <TableCell sx={{ fontWeight: 500, fontSize: 13 }}>
                       {p.nombreStand || `Stand #${p.idStand}`}
                     </TableCell>
                     <TableCell
@@ -345,13 +581,19 @@ export default function Principal() {
                     >
                       {p.bloque}-{p.numeroStand}
                     </TableCell>
-                    <TableCell>{p.periodo}</TableCell>
+                    <TableCell sx={{ fontSize: 13 }}>{p.periodo}</TableCell>
                     <TableCell
-                      sx={{ color: "success.main", fontWeight: "bold" }}
+                      sx={{
+                        color: "success.main",
+                        fontWeight: "bold",
+                        fontSize: 13,
+                      }}
                     >
                       S/. {Number(p.montoPagado || 0).toFixed(2)}
                     </TableCell>
-                    <TableCell>{p.fechaPago ?? "-"}</TableCell>
+                    <TableCell sx={{ fontSize: 12 }}>
+                      {p.fechaPago ?? "-"}
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -361,15 +603,21 @@ export default function Principal() {
           <Typography
             variant="caption"
             color="text.secondary"
-            sx={{ mt: 1, display: "block" }}
+            sx={{ mt: 1.5, display: "block" }}
           >
-            * Datos obtenidos en tiempo real desde{" "}
+            * Datos obtenidos desde{" "}
             <code>/api/v1/admin/cuotas/ultimos-pagos</code>.
           </Typography>
         </Paper>
 
         {/* DERECHA: Morosos reales del backend */}
-        <Paper sx={{ p: 3, borderRadius: 3, flex: 5 }}>
+        <Paper
+          sx={{
+            ...cardStyle,
+            flex: 5,
+            p: 3,
+          }}
+        >
           <Box
             sx={{
               display: "flex",
@@ -378,14 +626,20 @@ export default function Principal() {
               mb: 2,
             }}
           >
-            <Typography variant="h6" sx={{ fontWeight: "bold" }}>
-              Stands con deuda ({periodoActual})
-            </Typography>
+            <Box>
+              <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                Stands con deuda ({periodoActual})
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Deuda total: S/. {deudaTotalMorosos.toFixed(2)}
+              </Typography>
+            </Box>
             <Chip
               label={`${morosos.length} con saldo pendiente`}
               size="small"
               color={morosos.length > 0 ? "error" : "success"}
               variant="outlined"
+              sx={{ fontWeight: 600 }}
             />
           </Box>
 
@@ -396,7 +650,15 @@ export default function Principal() {
           ) : (
             <Table size="small">
               <TableHead>
-                <TableRow>
+                <TableRow
+                  sx={{
+                    "& th": {
+                      fontSize: 12,
+                      color: "#6b7280",
+                      borderBottom: "1px solid #e5e7eb",
+                    },
+                  }}
+                >
                   <TableCell>Stand</TableCell>
                   <TableCell>Periodo</TableCell>
                   <TableCell align="right">Deuda</TableCell>
@@ -406,17 +668,28 @@ export default function Principal() {
                 {morosos.map((m) => (
                   <TableRow key={m.idCuota} hover>
                     <TableCell>
-                      <Box sx={{ fontWeight: 500 }}>{m.nombreStand}</Box>
+                      <Box sx={{ fontWeight: 500, fontSize: 13 }}>
+                        {m.nombreStand}
+                      </Box>
                       <Typography variant="caption" color="text.secondary">
                         {m.bloque}-{m.numeroStand}
                       </Typography>
                     </TableCell>
                     <TableCell>
-                      <Chip label={m.periodo} size="small" color="warning" />
+                      <Chip
+                        label={m.periodo}
+                        size="small"
+                        color="warning"
+                        sx={{ fontSize: 11, fontWeight: 500 }}
+                      />
                     </TableCell>
                     <TableCell
                       align="right"
-                      sx={{ color: "error.main", fontWeight: "bold" }}
+                      sx={{
+                        color: "error.main",
+                        fontWeight: "bold",
+                        fontSize: 13,
+                      }}
                     >
                       S/. {m.saldoPendiente.toFixed(2)}
                     </TableCell>
@@ -426,15 +699,16 @@ export default function Principal() {
             </Table>
           )}
 
-          <Box sx={{ textAlign: "center", mt: 2 }}>
+          <Box sx={{ mt: 2 }}>
             <Button
               fullWidth
               variant="outlined"
               color="error"
               size="small"
               onClick={() => navigate("/dashboard/pagos")}
+              sx={{ textTransform: "none", fontWeight: 600 }}
             >
-              Gestionar deudas
+              Gestionar deudas en módulo de pagos
             </Button>
           </Box>
         </Paper>

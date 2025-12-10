@@ -31,7 +31,7 @@ export interface ProductoRow {
   precioNormal: number;
   precioNormalTexto: string;
 
-  // 🔹 Oferta
+  // Oferta
   tieneOferta: boolean;
   ofertaStatus: "Con oferta" | "Sin oferta";
   precioOferta: number | null;
@@ -55,7 +55,7 @@ const mapProductoToRow = (p: ProductoBackend): ProductoRow => {
       ? Number(p.precioOferta)
       : null;
 
-  // 👉 Regla clara de oferta
+  // Regla de oferta
   const hayOferta = !!p.enOferta && precioOfertaNumber !== null;
   const ofertaStatus: "Con oferta" | "Sin oferta" = hayOferta
     ? "Con oferta"
@@ -91,12 +91,17 @@ const productosAdminApi = {
     return data.map(mapProductoToRow);
   },
 
+  async listarPorStand(idStand: number): Promise<ProductoRow[]> {
+    const { data } = await http.get<ProductoBackend[]>(BASE_URL);
+    const filtrados = data.filter((p) => p.idStand === idStand);
+    return filtrados.map(mapProductoToRow);
+  },
+
   async cambiarVisibilidad(
     idProducto: number,
     visible: boolean
   ): Promise<ProductoRow> {
     const visibleParam = visible ? "True" : "False";
-    // si tu PATCH no devuelve body no pasa nada que no uses este retorno
     const { data } = await http.patch<ProductoBackend>(
       `${BASE_URL}/${idProducto}/visibilidad?visible=${visibleParam}`
     );

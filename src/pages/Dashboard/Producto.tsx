@@ -92,15 +92,94 @@ export default function ProductoAdmin() {
     type: "text" as const,
   },
   {
-    // 👇 ahora es un STATUS STRING, igual que "En venta"
     title: "Oferta",
     field: "ofertaStatus",
     type: "status" as const,
+    render: (row: ProductoRow) =>
+      row.tieneOferta ? (
+        <span
+          style={{
+            backgroundColor: "#16a34a20",
+            color: "#166534",
+            padding: "3px 10px",
+            borderRadius: "12px",
+            fontWeight: 600,
+            fontSize: "0.75rem",
+          }}
+        >
+          Con oferta
+        </span>
+      ) : (
+        <span
+          style={{
+            backgroundColor: "#e5e7eb",
+            color: "#6b7280",
+            padding: "3px 10px",
+            borderRadius: "12px",
+            fontWeight: 500,
+            fontSize: "0.75rem",
+          }}
+        >
+          Sin oferta
+        </span>
+      ),
   },
   {
     title: "Estado",
     field: "estado",
     type: "status" as const,
+    render: (row: ProductoRow) => {
+      const value = row.estado;
+
+      if (value === "En venta") {
+        return (
+          <span
+            style={{
+              backgroundColor: "#22c55e20",
+              color: "#15803d",
+              padding: "3px 10px",
+              borderRadius: "999px",
+              fontWeight: 600,
+              fontSize: "0.75rem",
+            }}
+          >
+            En venta
+          </span>
+        );
+      }
+
+      if (value === "Eliminado") {
+        return (
+          <span
+            style={{
+              backgroundColor: "#fee2e2",
+              color: "#b91c1c",
+              padding: "3px 10px",
+              borderRadius: "999px",
+              fontWeight: 600,
+              fontSize: "0.75rem",
+            }}
+          >
+            Eliminado
+          </span>
+        );
+      }
+
+      return (
+        <span
+          style={{
+            backgroundColor: "#e5e7eb",
+            color: "#6b7280",
+            padding: "3px 10px",
+            borderRadius: "999px",
+            fontWeight: 500,
+            fontSize: "0.75rem",
+          }}
+        >
+          {value}
+        </span>
+      );
+    },
   },
 ];
 
@@ -177,7 +256,7 @@ export default function ProductoAdmin() {
         nuevoVisible
       );
 
-      // 🔹 Recargamos el listado desde backend para ver el cambio
+      // Recargamos el listado desde backend para ver el cambio
       await fetchProductos();
 
       showToast(
