@@ -5,10 +5,12 @@ import AppRoutes from "./routes/routes";
 import { ToastProvider } from "./components/ui/Toast";
 import { AuthProvider } from "./auth/AuthContext";
 import "./index.css";
+import ScrollToTop from "./components/layout/scrolltop";
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
     <BrowserRouter>
+      <ScrollToTop />
       <AuthProvider>
         <ToastProvider>
           <AppRoutes />

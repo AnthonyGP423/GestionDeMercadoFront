@@ -39,17 +39,16 @@ export default function Contacto() {
             </Typography>
           </Box>
 
-          {/* LAYOUT PRINCIPAL (Flexbox en lugar de Grid) */}
+          {/* LAYOUT PRINCIPAL */}
           <Box
             sx={{
               display: "flex",
-              flexDirection: { xs: "column", md: "row" }, // Columna en móvil, Fila en PC
-              gap: 4, // Espacio entre columnas
-              alignItems: "start", // Alineación superior
+              flexDirection: { xs: "column", md: "row" },
+              gap: 4,
+              alignItems: "start",
             }}
           >
             {/* --- COLUMNA IZQUIERDA: INFORMACIÓN --- */}
-            {/* flex: 5 simula el md={5} de Grid */}
             <Box sx={{ flex: { xs: 1, md: 5 }, width: "100%" }}>
               <Paper
                 elevation={0}
@@ -136,7 +135,6 @@ export default function Contacto() {
             </Box>
 
             {/* --- COLUMNA DERECHA: FORMULARIO --- */}
-            {/* flex: 7 simula el md={7} de Grid */}
             <Box sx={{ flex: { xs: 1, md: 7 }, width: "100%" }}>
               <Paper
                 elevation={0}
@@ -152,13 +150,11 @@ export default function Contacto() {
                   Envíanos un mensaje
                 </Typography>
 
-                {/* Usamos Stack para el espaciado vertical de los inputs */}
                 <Stack spacing={3}>
-                  {/* Fila: Nombre y Correo (usando CSS Grid para 2 columnas exactas) */}
                   <Box
                     sx={{
                       display: "grid",
-                      gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, // 1 col móvil, 2 col tablet+
+                      gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" },
                       gap: 2,
                     }}
                   >
@@ -221,7 +217,7 @@ export default function Contacto() {
                 ¿Cómo llegar?
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                Próximamente aquí podrás ver el mapa interactivo del mercado.
+                Visualiza la ubicación del mercado directamente en el mapa.
               </Typography>
 
               <Box
@@ -229,15 +225,19 @@ export default function Contacto() {
                   width: "100%",
                   height: 300,
                   borderRadius: 2,
-                  bgcolor: "#e5e7eb",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  color: "text.secondary",
-                  fontSize: 14,
+                  overflow: "hidden",
+                  border: "1px solid #e5e7eb",
                 }}
               >
-                Mapa del mercado (placeholder)
+                <Box
+                  component="iframe"
+                  src="https://www.google.com/maps/embed?pb=!1m17!1m12!1m3!1d3900.4019921225045!2d-76.98261291466386!3d-12.153011957388744!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m2!1m1!2zMTLCsDA5JzEwLjgiUyA3NsKwNTgnMzkuOSJX!5e0!3m2!1ses-419!2sus!4v1765327369647!5m2!1ses-419!2sus"
+                  width="100%"
+                  height="100%"
+                  loading="lazy"
+                  style={{ border: 0 }}
+                  referrerPolicy="no-referrer-when-downgrade"
+                />
               </Box>
             </Paper>
           </Box>

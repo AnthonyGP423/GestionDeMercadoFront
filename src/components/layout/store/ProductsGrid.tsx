@@ -7,6 +7,7 @@ import {
   Chip,
   Button,
 } from "@mui/material";
+import { useNavigate } from "react-router-dom"; // 👈 IMPORTANTE
 
 export interface StoreProduct {
   id: number;
@@ -30,30 +31,31 @@ export default function ProductsGrid({
   products,
   onViewStand,
 }: ProductsGridProps) {
+  const navigate = useNavigate(); // 👈 HOOK DEL ROUTER
+
   return (
     <Box
       sx={{
         display: "grid",
-        // Definición de columnas responsivas (equivalente a tu antiguo Grid xs, sm, md, lg)
         gridTemplateColumns: {
-          xs: "1fr", // xs={12} -> 1 columna
-          sm: "repeat(2, 1fr)", // sm={6}  -> 2 columnas
-          md: "repeat(3, 1fr)", // md={4}  -> 3 columnas
-          lg: "repeat(4, 1fr)", // lg={3}  -> 4 columnas
+          xs: "1fr",
+          sm: "repeat(2, 1fr)",
+          md: "repeat(3, 1fr)",
+          lg: "repeat(4, 1fr)",
         },
-        gap: 3, // Espaciado entre tarjetas
+        gap: 3,
       }}
     >
       {products.map((p) => (
         <Card
           key={p.id}
-          elevation={1} // Puedes ajustar la elevación base aquí
+          elevation={1}
           sx={{
             borderRadius: 3,
             overflow: "hidden",
             display: "flex",
             flexDirection: "column",
-            height: "100%", // Asegura que ocupe toda la altura de la celda del grid
+            height: "100%",
             bgcolor: "#fff",
             boxShadow:
               "0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05)",
@@ -65,7 +67,7 @@ export default function ProductsGrid({
             },
           }}
         >
-          {/* 🔹 CABECERA CON IMAGEN */}
+          {/* IMAGEN */}
           <Box
             sx={{
               width: "100%",
@@ -78,7 +80,7 @@ export default function ProductsGrid({
             }}
           />
 
-          {/* CONTENIDO (Flex grow para empujar el botón al fondo) */}
+          {/* CONTENIDO */}
           <CardContent sx={{ flexGrow: 1, p: 2 }}>
             <Typography
               variant="subtitle1"
@@ -130,18 +132,22 @@ export default function ProductsGrid({
                 }
                 size="small"
                 color="error"
-                variant="outlined" // Variante outlined para que no sea tan pesado visualmente
+                variant="outlined"
                 sx={{ fontWeight: 700, height: 24, border: "1px solid" }}
               />
             )}
           </CardContent>
 
+          {/* BOTÓN */}
           <CardActions sx={{ px: 2, pb: 2, pt: 0 }}>
             <Button
               fullWidth
               variant="contained"
               color="success"
-              onClick={() => onViewStand(p)}
+              onClick={() => {
+                onViewStand(p); // 👈 si quieres seguir usando el callback
+                navigate("/tienda/producto"); // 👈 aquí navega a la página
+              }}
               sx={{ borderRadius: 2, textTransform: "none", fontWeight: 600 }}
             >
               Ver Detalles

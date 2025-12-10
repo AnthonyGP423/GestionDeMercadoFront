@@ -10,7 +10,7 @@ import {
 import NotificationsNoneOutlinedIcon from "@mui/icons-material/NotificationsNoneOutlined";
 import AccountCircleOutlinedIcon from "@mui/icons-material/AccountCircleOutlined";
 import { useLocation } from "react-router-dom";
-import { useAuth } from "../../auth/useAuth"; // ajusta la ruta según tu proyecto
+import { useAuth } from "../../../auth/useAuth"; // ajusta la ruta según tu proyecto
 
 // Debe coincidir con el drawerWidth del Sidebar
 const drawerWidth = 260;
@@ -78,7 +78,9 @@ export default function HeaderBar() {
         {/* IZQUIERDA: breadcrumb + título */}
         <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
           <Breadcrumbs aria-label="breadcrumb" sx={{ fontSize: 13 }}>
-            <Typography sx={{ fontSize: 13, color: primary }}>Inicio</Typography>
+            <Typography sx={{ fontSize: 13, color: primary }}>
+              Inicio
+            </Typography>
             {currentLabel && (
               <Typography
                 sx={{ fontSize: 13, fontWeight: 600 }}

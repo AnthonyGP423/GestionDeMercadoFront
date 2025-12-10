@@ -11,8 +11,6 @@ import {
   Alert,
 } from "@mui/material";
 import axios from "axios";
-
-// Layout
 import PublicHeader from "../../components/layout/store/HeaderTienda";
 import PublicFooter from "../../components/layout/store/FooterTienda";
 
@@ -23,6 +21,7 @@ import PriceComparatorBanner from "../../components/layout/store/PriceComparator
 import ProductsGrid, {
   StoreProduct,
 } from "../../components/layout/store/ProductsGrid";
+import { useLocation } from "react-router-dom";
 
 // ================== CONFIG API ==================
 const API_URL = "http://localhost:8080/api/v1/admin/productos";
@@ -47,13 +46,22 @@ export default function PreciosProductos() {
   const [category, setCategory] = useState("todos");
   const [priceRange, setPriceRange] = useState("todos");
   const [sortBy, setSortBy] = useState("relevancia");
-
+  const location = useLocation() as {
+    state?: { initialCategory?: string };
+  };
   // ===== estados de datos API =====
   const [products, setProducts] = useState<StoreProduct[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-
+  useEffect(() => {
+    if (location.state?.initialCategory) {
+      setCategory(location.state.initialCategory);
+      // opcional: también podrías hacer scroll top
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  }, [location.state]);
   // ================== FETCH A SPRING BOOT ==================
+
   useEffect(() => {
     const fetchProducts = async () => {
       try {

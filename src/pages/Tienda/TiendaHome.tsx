@@ -8,6 +8,8 @@ import {
   Chip,
   Stack,
 } from "@mui/material";
+import { useNavigate } from "react-router-dom";
+
 import PublicHeader from "../../components/layout/store/HeaderTienda";
 import PublicFooter from "../../components/layout/store/FooterTienda";
 
@@ -24,6 +26,22 @@ import Inventory2Icon from "@mui/icons-material/Inventory2";
 import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
 
 export default function TiendaHome() {
+  const navigate = useNavigate();
+
+  const irAProductos = (categoriaFiltro?: string) => {
+    if (categoriaFiltro) {
+      navigate("/tienda/precios-productos", {
+        state: { initialCategory: categoriaFiltro },
+      });
+    } else {
+      navigate("/tienda/precios-productos");
+    }
+  };
+
+  const irAMapaStands = () => {
+    navigate("/tienda/mapa-stand");
+  };
+
   // === DATOS ===
   const bloques = [
     {
@@ -52,17 +70,28 @@ export default function TiendaHome() {
     },
   ];
 
+  // value = clave de CATEGORY_MAP en ProductosPrecios
   const categorias = [
-    { nombre: "Frutas", tag: "Popular", icon: <LocalFloristIcon /> },
-    { nombre: "Verduras", tag: "Popular", icon: <EcoIcon /> },
-    { nombre: "Carnes", icon: <KebabDiningIcon /> },
-    { nombre: "Aves", icon: <EggAltIcon /> },
-    { nombre: "Pescados", icon: <SetMealIcon /> },
-    { nombre: "Abarrotes", icon: <BakeryDiningIcon /> },
-    { nombre: "Lácteos", icon: <SportsEsportsIcon /> },
-    { nombre: "Bebidas", icon: <LiquorIcon /> },
-    { nombre: "Empacados", icon: <Inventory2Icon /> },
-    { nombre: "Otros", icon: <MoreHorizIcon /> },
+    {
+      nombre: "Frutas",
+      tag: "Popular",
+      icon: <LocalFloristIcon />,
+      value: "frutas",
+    },
+    {
+      nombre: "Verduras",
+      tag: "Popular",
+      icon: <EcoIcon />,
+      value: "verduras",
+    },
+    { nombre: "Carnes", icon: <KebabDiningIcon />, value: "carnes" },
+    { nombre: "Aves", icon: <EggAltIcon />, value: "aves" },
+    { nombre: "Pescados", icon: <SetMealIcon />, value: "pescados" },
+    { nombre: "Abarrotes", icon: <BakeryDiningIcon />, value: "abarrotes" },
+    { nombre: "Lácteos", icon: <SportsEsportsIcon />, value: "lacteos" },
+    { nombre: "Bebidas", icon: <LiquorIcon />, value: "bebidas" },
+    { nombre: "Empacados", icon: <Inventory2Icon />, value: "otros" },
+    { nombre: "Otros", icon: <MoreHorizIcon />, value: "otros" },
   ];
 
   return (
@@ -108,6 +137,7 @@ export default function TiendaHome() {
                 color="success"
                 size="large"
                 sx={{ borderRadius: 999 }}
+                onClick={irAMapaStands}
               >
                 Ver mapa del mercado
               </Button>
@@ -116,6 +146,7 @@ export default function TiendaHome() {
                 color="warning"
                 size="large"
                 sx={{ borderRadius: 999 }}
+                onClick={() => irAProductos()}
               >
                 Ver precios de productos
               </Button>
@@ -137,14 +168,14 @@ export default function TiendaHome() {
           </Typography>
         </Box>
 
-        {/* REJILLA DE BLOQUES (CSS Grid) */}
+        {/* REJILLA DE BLOQUES */}
         <Box
           sx={{
             display: "grid",
             gridTemplateColumns: {
-              xs: "1fr", // 1 columna en móvil
-              sm: "repeat(2, 1fr)", // 2 columnas en tablet
-              md: "repeat(4, 1fr)", // 4 columnas en PC
+              xs: "1fr",
+              sm: "repeat(2, 1fr)",
+              md: "repeat(4, 1fr)",
             },
             gap: 3,
             mb: 8,
@@ -168,7 +199,6 @@ export default function TiendaHome() {
                 },
               }}
             >
-              {/* Imagen */}
               <Box
                 sx={{
                   width: "100%",
@@ -179,7 +209,6 @@ export default function TiendaHome() {
                   backgroundPosition: "center",
                 }}
               />
-              {/* Texto */}
               <Box>
                 <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
                   {b.nombre}
@@ -202,14 +231,14 @@ export default function TiendaHome() {
           </Typography>
         </Box>
 
-        {/* REJILLA DE CATEGORÍAS (CSS Grid Responsivo) */}
+        {/* REJILLA DE CATEGORÍAS */}
         <Box
           sx={{
             display: "grid",
             gridTemplateColumns: {
-              xs: "repeat(2, 1fr)", // 2 columnas en móvil
-              sm: "repeat(3, 1fr)", // 3 columnas en tablet
-              md: "repeat(5, 1fr)", // 5 columnas en PC (perfecto para 10 items)
+              xs: "repeat(2, 1fr)",
+              sm: "repeat(3, 1fr)",
+              md: "repeat(5, 1fr)",
             },
             gap: 3,
           }}
@@ -218,6 +247,7 @@ export default function TiendaHome() {
             <Paper
               key={i}
               elevation={1}
+              onClick={() => irAProductos(cat.value)}
               sx={{
                 borderRadius: 3,
                 p: 3,
@@ -225,7 +255,6 @@ export default function TiendaHome() {
                 bgcolor: "#ffffff",
                 transition: "all 0.2s",
                 cursor: "pointer",
-                position: "relative", // Para posicionar elementos si fuera necesario
                 display: "flex",
                 flexDirection: "column",
                 alignItems: "center",
@@ -236,17 +265,16 @@ export default function TiendaHome() {
                 },
               }}
             >
-              {/* Icono Circular */}
               <Box
                 sx={{
                   width: 64,
                   height: 64,
                   borderRadius: "50%",
-                  bgcolor: "rgba(22, 163, 74, 0.14)", // Fondo verde suave
+                  bgcolor: "rgba(22, 163, 74, 0.14)",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  color: "#166534", // Icono verde oscuro
+                  color: "#166534",
                   mb: 2,
                   "& svg": { fontSize: 32 },
                 }}
@@ -277,7 +305,6 @@ export default function TiendaHome() {
         </Box>
       </Container>
 
-      {/* FOOTER */}
       <PublicFooter />
     </Box>
   );

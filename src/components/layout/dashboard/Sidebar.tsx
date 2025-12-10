@@ -26,7 +26,7 @@ import StorefrontIcon from "@mui/icons-material/Storefront";
 
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useState, useMemo } from "react";
-import { useAuth } from "../../auth/useAuth"; // ajusta la ruta según tu proyecto
+import { useAuth } from "../../../auth/useAuth"; // ajusta la ruta según tu proyecto
 
 const drawerWidth = 260;
 
