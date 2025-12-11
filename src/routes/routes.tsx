@@ -22,7 +22,7 @@ import PerfilUsuario from "../pages/Tienda/PerfilUsuario";
 import PerfilStand from "../pages/Tienda/PerfilStand";
 import MapaStand from "../pages/Tienda/MapaStand";
 import IncidenciasAdmin from "../pages/Dashboard/Incidencias";
-//import CredencialesQrAdmin from "../pages/Dashboard/CredencialesQrAdmin";
+import CredencialesQrAdmin from "../pages/Dashboard/CredencialesQrAdmin";
 
 const AppRoutes = () => {
   return (
@@ -53,6 +53,7 @@ const AppRoutes = () => {
         <Route path="pagos" element={<Pagos />} />
         <Route path="ping-test" element={<PingTest />} />
         <Route path="incidencias" element={<IncidenciasAdmin />} />
+        <Route path="credenciales-qr" element={<CredencialesQrAdmin />} />
       </Route>
       <Route path="/tienda" element={<TiendaHome />} />
       <Route path="/tienda/precios-productos" element={<PreciosProductos />} />
