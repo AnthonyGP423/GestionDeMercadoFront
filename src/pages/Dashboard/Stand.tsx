@@ -1,4 +1,3 @@
-
 import { useEffect, useMemo, useState } from "react";
 import {
   Box,
@@ -19,6 +18,7 @@ import {
   Stack,
   IconButton,
   Tooltip,
+  CircularProgress,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import RefreshIcon from "@mui/icons-material/Autorenew";
@@ -88,22 +88,49 @@ export default function Stand() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // === OPCIONES DINÁMICAS ===
+  // === OPCIONES DINÁMICAS (ordenadas alfabéticamente) ===
   const bloques = useMemo(
-    () => Array.from(new Set(stands.map((s) => s.bloque))).filter(Boolean),
+    () =>
+      Array.from(new Set(stands.map((s) => s.bloque)))
+        .filter(Boolean)
+        .sort((a, b) =>
+          String(a).localeCompare(String(b), "es", {
+            sensitivity: "base",
+          })
+        ),
     [stands]
   );
+
   const categorias = useMemo(
     () =>
-      Array.from(new Set(stands.map((s) => s.categoria))).filter(Boolean),
+      Array.from(new Set(stands.map((s) => s.categoria)))
+        .filter(Boolean)
+        .sort((a, b) =>
+          String(a).localeCompare(String(b), "es", {
+            sensitivity: "base",
+          })
+        ),
     [stands]
   );
+
   const estados = ["ABIERTO", "CERRADO", "CLAUSURADO"] as EstadoStand[];
 
-  // === FILTRADO ===
+  // === ORDENAR STANDS POR CÓDIGO ===
+  const standsOrdenados = useMemo(
+    () =>
+      [...stands].sort((a, b) =>
+        a.codigoStand.localeCompare(b.codigoStand, "es", {
+          sensitivity: "base",
+          numeric: true,
+        })
+      ),
+    [stands]
+  );
+
+  // === FILTRADO (sobre la lista ordenada) ===
   const filtered = useMemo(
     () =>
-      stands.filter((s) => {
+      standsOrdenados.filter((s) => {
         const matchesSearch =
           s.nombreComercial.toLowerCase().includes(search.toLowerCase()) ||
           s.numeroStand.includes(search) ||
@@ -122,7 +149,7 @@ export default function Stand() {
           matchesSearch && matchesBloque && matchesCategoria && matchesEstado
         );
       }),
-    [stands, search, filtroBloque, filtroCategoria, filtroEstado]
+    [standsOrdenados, search, filtroBloque, filtroCategoria, filtroEstado]
   );
 
   // === MAPEO MODAL <-> DTO ===
@@ -204,30 +231,29 @@ export default function Stand() {
     estado === "ABIERTO" ? "CERRADO" : "ABIERTO";
 
   const handleCambiarEstado = async (stand: StandRow) => {
-  if (stand.estado === "CLAUSURADO") {
-    showToast(
-      "Este stand está CLAUSURADO. Modifica su estado desde el detalle.",
-      "warning"
-    );
-    return;
-  }
+    if (stand.estado === "CLAUSURADO") {
+      showToast(
+        "Este stand está CLAUSURADO. Modifica su estado desde el detalle.",
+        "warning"
+      );
+      return;
+    }
 
-  const nuevo = toggleAbiertoCerrado(stand.estado);
-  try {
-    await standsAdminApi.cambiarEstado(stand.id, nuevo);
+    const nuevo = toggleAbiertoCerrado(stand.estado);
+    try {
+      await standsAdminApi.cambiarEstado(stand.id, nuevo);
 
-    // ⬅️ Refrescamos todo el listado
-    await fetchStands();
+      await fetchStands();
 
-    showToast(
-      `Estado del stand ${stand.codigoStand} actualizado a ${nuevo}`,
-      "success"
-    );
-  } catch (e: any) {
-    console.error(e);
-    showToast("No se pudo cambiar el estado del stand", "error");
-  }
-};
+      showToast(
+        `Estado del stand ${stand.codigoStand} actualizado a ${nuevo}`,
+        "success"
+      );
+    } catch (e: any) {
+      console.error(e);
+      showToast("No se pudo cambiar el estado del stand", "error");
+    }
+  };
 
   // === ELIMINAR ===
   const handleDelete = async (stand: StandRow) => {
@@ -266,24 +292,50 @@ export default function Stand() {
       <Chip
         label={estado}
         size="small"
-        sx={{ bgcolor: bg, color: text, fontWeight: 600 }}
+        sx={{
+          bgcolor: bg,
+          color: text,
+          fontWeight: 600,
+          borderRadius: "999px",
+          fontSize: 12,
+        }}
       />
     );
   };
 
+  const totalStands = stands.length;
+  const abiertos = stands.filter((s) => s.estado === "ABIERTO").length;
+  const cerrados = stands.filter((s) => s.estado === "CERRADO").length;
+  const clausurados = stands.filter((s) => s.estado === "CLAUSURADO").length;
+
+  const cardStyle = {
+    borderRadius: 4,
+    boxShadow: "0 18px 40px rgba(15, 23, 42, 0.06)",
+    bgcolor: "#ffffff",
+  } as const;
+
   return (
     <Box>
-      {/* HEADER */}
+      {/* HEADER con estilo unificado */}
       <Box
         sx={{
           display: "flex",
           justifyContent: "space-between",
           alignItems: "flex-start",
-          mb: 3,
+          mb: 4,
+          gap: 2,
         }}
       >
         <Box>
-          <Typography variant="h4" sx={{ fontWeight: "bold", mb: 0.5 }}>
+          <Typography
+            variant="h4"
+            sx={{
+              fontWeight: 800,
+              mb: 0.5,
+              fontFamily:
+                `"Poppins","Inter",system-ui,-apple-system,BlinkMacSystemFont`,
+            }}
+          >
             Stands del mercado
           </Typography>
           <Typography
@@ -298,9 +350,20 @@ export default function Stand() {
 
         <Button
           variant="contained"
-          color="success"
           startIcon={<AddIcon />}
-          sx={{ borderRadius: 999 }}
+          sx={{
+            borderRadius: "999px",
+            px: 3.5,
+            py: 1.1,
+            textTransform: "none",
+            fontWeight: 700,
+            backgroundColor: "#22c55e",
+            boxShadow: "0 6px 14px rgba(34, 197, 94, 0.25)",
+            "&:hover": {
+              backgroundColor: "#16a34a",
+              boxShadow: "0 8px 18px rgba(22, 163, 74, 0.35)",
+            },
+          }}
           onClick={() => {
             setEditingStand(null);
             setOpenModal(true);
@@ -310,7 +373,82 @@ export default function Stand() {
         </Button>
       </Box>
 
-      {/* FILTROS */}
+      {/* STATS RÁPIDAS */}
+      <Box sx={{ mb: 3, display: "flex", gap: 2, flexWrap: "wrap" }}>
+        <Paper
+          elevation={0}
+          sx={{
+            px: 2.5,
+            py: 1.5,
+            borderRadius: 3,
+            border: "1px solid",
+            borderColor: "divider",
+          }}
+        >
+          <Typography variant="caption" color="text.secondary">
+            Total stands
+          </Typography>
+          <Typography variant="h6" fontWeight="bold">
+            {totalStands}
+          </Typography>
+        </Paper>
+
+        <Paper
+          elevation={0}
+          sx={{
+            px: 2.5,
+            py: 1.5,
+            borderRadius: 3,
+            border: "1px solid #bbf7d0",
+            bgcolor: "#f0fdf4",
+          }}
+        >
+          <Typography variant="caption" color="success.main">
+            Abiertos
+          </Typography>
+          <Typography variant="h6" fontWeight="bold" color="success.main">
+            {abiertos}
+          </Typography>
+        </Paper>
+
+        <Paper
+          elevation={0}
+          sx={{
+            px: 2.5,
+            py: 1.5,
+            borderRadius: 3,
+            border: "1px solid #fee2e2",
+            bgcolor: "#fef2f2",
+          }}
+        >
+          <Typography variant="caption" color="#b91c1c">
+            Cerrados
+          </Typography>
+          <Typography variant="h6" fontWeight="bold" color="#b91c1c">
+            {cerrados}
+          </Typography>
+        </Paper>
+
+        <Paper
+          elevation={0}
+          sx={{
+            px: 2.5,
+            py: 1.5,
+            borderRadius: 3,
+            border: "1px solid #fef3c7",
+            bgcolor: "#fffbeb",
+          }}
+        >
+          <Typography variant="caption" color="#92400e">
+            Clausurados
+          </Typography>
+          <Typography variant="h6" fontWeight="bold" color="#92400e">
+            {clausurados}
+          </Typography>
+        </Paper>
+      </Box>
+
+      {/* FILTROS con tarjeta moderna */}
       <Paper
         sx={{
           p: 2,
@@ -322,7 +460,7 @@ export default function Stand() {
         }}
         elevation={0}
       >
-        <Stack direction="row" spacing={2} flexWrap="wrap">
+        <Stack direction="row" spacing={2} flexWrap="wrap" alignItems="center">
           <TextField
             sx={{ minWidth: 260 }}
             size="small"
@@ -354,7 +492,7 @@ export default function Stand() {
               label="Categoría"
               onChange={(e) => setFiltroCategoria(e.target.value)}
             >
-              <MenuItem value="Todos">Todos</MenuItem>
+              <MenuItem value="Todos">Todas</MenuItem>
               {categorias.map((c) => (
                 <MenuItem key={c} value={c}>
                   {c}
@@ -388,119 +526,174 @@ export default function Stand() {
             variant="text"
             startIcon={<RefreshIcon />}
             onClick={fetchStands}
+            sx={{
+              textTransform: "none",
+              fontWeight: 600,
+            }}
           >
             Actualizar
           </Button>
         </Stack>
       </Paper>
 
-      {/* TABLA */}
-      <Paper sx={{ p: 2, borderRadius: 3 }} elevation={0}>
-        <Table>
-          <TableHead>
-            <TableRow sx={{ bgcolor: "#f3f4f6" }}>
-              <TableCell>
-                <strong>Código</strong>
-              </TableCell>
-              <TableCell>
-                <strong>Nombre comercial</strong>
-              </TableCell>
-              <TableCell>
-                <strong>Categoría</strong>
-              </TableCell>
-              <TableCell>
-                <strong>Propietario</strong>
-              </TableCell>
-              <TableCell>
-                <strong>Estado</strong>
-              </TableCell>
-              <TableCell align="right">
-                <strong>Acciones</strong>
-              </TableCell>
-            </TableRow>
-          </TableHead>
+      {/* TABLA con estilo moderno + hover destacado */}
+      <Paper sx={{ ...cardStyle, p: 0 }} elevation={0}>
+        {loading && (
+          <Box
+            sx={{
+              py: 4,
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+            }}
+          >
+            <CircularProgress size={26} />
+          </Box>
+        )}
 
-          <TableBody>
-            {filtered.map((s) => (
-              <TableRow key={s.id} hover>
-                <TableCell>{s.codigoStand}</TableCell>
-                <TableCell>
-                  <Typography fontWeight={600}>
-                    {s.nombreComercial}
-                  </Typography>
-                </TableCell>
-                <TableCell>{s.categoria}</TableCell>
-                <TableCell>{s.propietario}</TableCell>
-                <TableCell>
-                  <EstadoChip estado={s.estado} />
-                </TableCell>
-
-                <TableCell align="right">
-                  <Stack
-                    direction="row"
-                    spacing={1}
-                    justifyContent="flex-end"
-                  >
-                    <Tooltip title="Ver detalle">
-                      <IconButton
-                        size="small"
-                        onClick={() =>
-                          navigate(`/dashboard/stands/${s.id}`)
-                        }
-                      >
-                        <VisibilityIcon fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-
-                    <Tooltip title="Editar stand">
-                      <IconButton
-                        size="small"
-                        onClick={() => handleEditarDesdeTabla(s)}
-                      >
-                        <EditIcon fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-
-                    <Tooltip title="Abrir / cerrar">
-                      <IconButton
-                        size="small"
-                        onClick={() => handleCambiarEstado(s)}
-                      >
-                        <RefreshIcon fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-
-                    <Tooltip title="Eliminar">
-                      <IconButton
-                        size="small"
-                        color="error"
-                        onClick={() => handleDelete(s)}
-                      >
-                        <DeleteIcon fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-                  </Stack>
+        {!loading && (
+          <Table>
+            <TableHead>
+              <TableRow
+                sx={{
+                  bgcolor: "#f9fafb",
+                  "& th": {
+                    fontWeight: 600,
+                    fontSize: 13,
+                    letterSpacing: 0.5,
+                    textTransform: "uppercase",
+                    color: "#6b7280",
+                    borderBottom: "1px solid #e5e7eb",
+                    py: 1.5,
+                  },
+                }}
+              >
+                <TableCell sx={{ width: "12%" }}>Código</TableCell>
+                <TableCell sx={{ width: "24%" }}>Nombre comercial</TableCell>
+                <TableCell sx={{ width: "18%" }}>Categoría</TableCell>
+                <TableCell sx={{ width: "22%" }}>Propietario</TableCell>
+                <TableCell sx={{ width: "12%" }}>Estado</TableCell>
+                <TableCell sx={{ width: "12%" }} align="right">
+                  Acciones
                 </TableCell>
               </TableRow>
-            ))}
+            </TableHead>
 
-            {!loading && filtered.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={6}>
-                  <Box
-                    sx={{
-                      py: 4,
-                      textAlign: "center",
-                      color: "text.secondary",
-                    }}
-                  >
-                    No se encontraron stands con los filtros aplicados.
-                  </Box>
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
+            <TableBody>
+              {filtered.map((s) => (
+                <TableRow
+                  key={s.id}
+                  hover
+                  sx={{
+                    "& td": {
+                      borderBottom: "1px solid #f1f5f9",
+                      fontSize: 14,
+                      py: 1.3,
+                    },
+                    transition:
+                      "background-color 0.15s ease, transform 0.15s ease",
+                    "&:hover": {
+                      bgcolor: "#f9fafb",
+                    },
+                  }}
+                >
+                  <TableCell>{s.codigoStand}</TableCell>
+
+                  <TableCell>
+                    <Typography
+                      sx={{ fontWeight: 700, color: "#111827" }}
+                      noWrap
+                    >
+                      {s.nombreComercial}
+                    </Typography>
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                    >{`Bloque ${s.bloque} · N° ${s.numeroStand}`}</Typography>
+                  </TableCell>
+
+                  <TableCell>{s.categoria}</TableCell>
+
+                  <TableCell>
+                    <Typography noWrap>{s.propietario}</Typography>
+                  </TableCell>
+
+                  <TableCell>
+                    <EstadoChip estado={s.estado} />
+                  </TableCell>
+
+                  <TableCell align="right">
+                    <Stack
+                      direction="row"
+                      spacing={0.5}
+                      justifyContent="flex-end"
+                    >
+                      <Tooltip title="Ver detalle">
+                        <IconButton
+                          size="small"
+                          onClick={() =>
+                            navigate(`/dashboard/stands/${s.id}`)
+                          }
+                        >
+                          <VisibilityIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+
+                      <Tooltip title="Editar stand">
+                        <IconButton
+                          size="small"
+                          onClick={() => handleEditarDesdeTabla(s)}
+                        >
+                          <EditIcon fontSize="small" sx={{ color: "#f59e0b" }} />
+                        </IconButton>
+                      </Tooltip>
+
+                      <Tooltip title="Abrir / cerrar">
+                        <IconButton
+                          size="small"
+                          onClick={() => handleCambiarEstado(s)}
+                        >
+                          <RefreshIcon
+                            fontSize="small"
+                            sx={{ color: "#22c55e" }}
+                          />
+                        </IconButton>
+                      </Tooltip>
+
+                      <Tooltip title="Eliminar">
+                        <IconButton
+                          size="small"
+                          onClick={() => handleDelete(s)}
+                        >
+                          <DeleteIcon
+                            fontSize="small"
+                            sx={{ color: "#ef4444" }}
+                          />
+                        </IconButton>
+                      </Tooltip>
+                    </Stack>
+                  </TableCell>
+                </TableRow>
+              ))}
+
+              {!loading && filtered.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={6}>
+                    <Box
+                      sx={{
+                        py: 4,
+                        textAlign: "center",
+                        color: "text.secondary",
+                      }}
+                    >
+                      No se encontraron stands con los filtros aplicados.
+                    </Box>
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        )}
       </Paper>
 
       {/* MODAL */}
@@ -518,4 +711,3 @@ export default function Stand() {
     </Box>
   );
 }
-

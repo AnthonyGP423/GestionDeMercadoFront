@@ -37,8 +37,7 @@ const primary = "#16a34a";      // verde principal
 const primarySoft = "#dcfce7";  // fondo de item seleccionado / chip
 const iconDefault = "#4b5563";  // gris para iconos
 const textMain = "#111827";
-const textMuted = "#6b7280";
-const accent = "#22c55e";       // verde para reportes
+const textMuted = "#6b7280";     
 const reportColor = "#eab308";
 
 export default function Sidebar() {

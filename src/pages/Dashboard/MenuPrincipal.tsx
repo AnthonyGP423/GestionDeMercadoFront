@@ -13,7 +13,6 @@ import {
   LinearProgress,
 } from "@mui/material";
 import StoreIcon from "@mui/icons-material/Store";
-import PaidIcon from "@mui/icons-material/Paid";
 import WarningIcon from "@mui/icons-material/Warning";
 import AssessmentIcon from "@mui/icons-material/Assessment";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
@@ -71,42 +70,61 @@ interface Stand {
   descripcionNegocio: string;
   latitud: number;
   longitud: number;
-  estado: string; // ACTIVO / CLAUSURADO / etc.
+  estado: string; // ABIERTO / CERRADO / CLAUSURADO
 }
 
-// ---- NUEVOS DTOs PARA MÉTRICAS EXTRA ----
-// Ajusta los nombres a lo que devuelva tu backend real
+// ==== DTOs ajustados a lo que devuelve tu backend ====
+
 interface UsuarioAdminDto {
-  id: number;
+  idUsuario: number;
   email: string;
-  estado: string;      // ACTIVO / BAJA / SUSPENDIDO
-  rolNombre?: string;  // ADMIN / SUPERVISOR / SOCIO / etc. (puede venir null)
+  estado: string; // ACTIVO / BAJA / SUSPENDIDO
+  rol: string; // ADMIN / CLIENTE / ...
 }
 
 interface ProductoAdminDto {
   idProducto: number;
   nombre: string;
-  visible: boolean;        // si tu campo se llama distinto, cámbialo aquí
-  estado: string;          // ACTIVO / INACTIVO
-  categoriaNombre?: string;
+  visibleDirectorio: boolean;
+  nombreCategoriaProducto: string | null;
 }
 
 interface IncidenciaAdminDto {
   idIncidencia: number;
   titulo: string;
-  estado: string;         // ABIERTA / EN_PROCESO / CERRADA
-  severidad?: string;     // BAJA / MEDIA / ALTA
+  estado: string; // ABIERTA / EN_PROCESO / CERRADA
+  severidad?: string;
   bloque?: string;
   numeroStand?: string;
   fechaRegistro: string;
 }
 
-// Helper para asegurarnos de tener siempre un array, aunque el backend devuelva Page<>
+// Helper array/Page
 function toArray<T>(data: any): T[] {
   if (!data) return [];
   if (Array.isArray(data)) return data;
   if (Array.isArray(data.content)) return data.content;
   return [];
+}
+
+// Helper texto categorías
+function categoriasPorTexto(count: number): string {
+  if (count === 0) return "Sin categorías registradas";
+  if (count === 1) return "1 categoría";
+  return `${count} categorías`;
+}
+
+// Normalizar rol para que no quede en 0
+function normalizarRol(raw?: string): string {
+  if (!raw) return "OTRO";
+  let r = raw.toUpperCase().trim();
+  if (r.startsWith("ROLE_")) r = r.replace("ROLE_", "");
+  if (r.includes("ADMIN")) return "ADMIN";
+  if (r.includes("SUPERVISOR")) return "SUPERVISOR";
+  if (r.includes("SOCIO")) return "SOCIO";
+  if (r.includes("CLIENTE")) return "CLIENTE";
+  if (r.includes("TRABAJADOR") || r.includes("EMPLEADO")) return "TRABAJADOR";
+  return r;
 }
 
 export default function Principal() {
@@ -117,10 +135,11 @@ export default function Principal() {
   const [ultimosPagos, setUltimosPagos] = useState<CuotaDto[]>([]);
   const [stands, setStands] = useState<Stand[]>([]);
 
-  // NUEVOS ESTADOS
   const [usuariosAdmin, setUsuariosAdmin] = useState<UsuarioAdminDto[]>([]);
   const [productosAdmin, setProductosAdmin] = useState<ProductoAdminDto[]>([]);
-  const [incidenciasAdmin, setIncidenciasAdmin] = useState<IncidenciaAdminDto[]>([]);
+  const [incidenciasAdmin, setIncidenciasAdmin] = useState<IncidenciaAdminDto[]>(
+    []
+  );
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -145,11 +164,8 @@ export default function Principal() {
         return;
       }
 
-      const headers = {
-        Authorization: `Bearer ${token}`,
-      };
+      const headers = { Authorization: `Bearer ${token}` };
 
-      // CADA REQUEST EN SU PROPIO TRY/CATCH PARA QUE NINGUNO ROMPA EL PANEL
       try {
         const res = await axios.get<IndicadoresCuotas>(
           `${API_BASE_URL}/api/v1/admin/cuotas/indicadores`,
@@ -158,7 +174,6 @@ export default function Principal() {
         setIndicadores(res.data);
       } catch (err) {
         console.error("Error cargando indicadores de cuotas:", err);
-        // si falla, dejamos indicadores en null y seguimos
       }
 
       try {
@@ -168,7 +183,7 @@ export default function Principal() {
         );
         setMorosos(toArray<CuotaDto>(res.data));
       } catch (err) {
-        console.error("Error cargando morosos:", err);
+        console.error("Error cargando cuotas con deuda:", err);
         setMorosos([]);
       }
 
@@ -192,8 +207,6 @@ export default function Principal() {
         console.error("Error cargando últimos pagos:", err);
         setUltimosPagos([]);
       }
-
-      // ---- NUEVOS: USUARIOS / PRODUCTOS / INCIDENCIAS ----
 
       try {
         const res = await axios.get<any>(
@@ -234,37 +247,63 @@ export default function Principal() {
     fetchData();
   }, [periodoActual]);
 
-  // Derivados base de stands/cuotas
+  // ===== Derivados STANDS / CUOTAS =====
   const totalStandsRegistrados = stands.length;
-  const standsActivos = useMemo(
-    () => stands.filter((s) => s.estado === "ACTIVO").length,
+
+  const standsAbiertos = useMemo(
+    () =>
+      stands.filter(
+        (s) => (s.estado || "").toUpperCase() === "ABIERTO"
+      ).length,
     [stands]
   );
-  const standsNoActivos = totalStandsRegistrados - standsActivos;
+  const standsCerrados = useMemo(
+    () =>
+      stands.filter(
+        (s) => (s.estado || "").toUpperCase() === "CERRADO"
+      ).length,
+    [stands]
+  );
+  const standsClausurados = useMemo(
+    () =>
+      stands.filter(
+        (s) => (s.estado || "").toUpperCase() === "CLAUSURADO"
+      ).length,
+    [stands]
+  );
+  const otrosStands =
+    totalStandsRegistrados -
+    standsAbiertos -
+    standsCerrados -
+    standsClausurados;
+
+  const porcentajeOcupacion =
+    totalStandsRegistrados === 0
+      ? 0
+      : (standsAbiertos / totalStandsRegistrados) * 100;
 
   const totalStandsConCuota = indicadores?.totalStandsConCuota ?? 0;
   const porcentajeAlDia = indicadores?.porcentajeAlDia ?? 0;
-  const porcentajeMorosos = indicadores?.porcentajeMorosos ?? 0;
+  const porcentajeConDeuda = indicadores?.porcentajeMorosos ?? 0;
   const standsAlDia = indicadores?.standsAlDia ?? 0;
-  const standsMorosos = indicadores?.standsMorosos ?? 0;
+  const standsConDeuda = indicadores?.standsMorosos ?? 0;
 
-  const bloquesConMorosidad =
+  const bloquesConDeuda =
     indicadores?.morosidadPorBloque.filter((b) => b.standsMorosos > 0) ?? [];
 
   // Derivados financieros
-  const deudaTotalMorosos = useMemo(
+  const deudaTotal = useMemo(
     () =>
       morosos.reduce((acc, m) => acc + Number(m.saldoPendiente || 0), 0),
     [morosos]
   );
-
   const totalPagadoUltimos = useMemo(
     () =>
       ultimosPagos.reduce((acc, p) => acc + Number(p.montoPagado || 0), 0),
     [ultimosPagos]
   );
 
-  // ==== NUEVOS DERIVADOS: USUARIOS / PRODUCTOS / INCIDENCIAS ====
+  // ===== Derivados USUARIOS / PRODUCTOS / INCIDENCIAS =====
 
   const totalUsuarios = usuariosAdmin.length;
   const usuariosActivos = usuariosAdmin.filter(
@@ -272,25 +311,30 @@ export default function Principal() {
   ).length;
   const usuariosNoActivos = totalUsuarios - usuariosActivos;
 
-  const usuariosPorRol = useMemo(() => {
-    const mapa: Record<string, number> = {};
-    usuariosAdmin.forEach((u) => {
-      const rol = (u.rolNombre || "OTRO").toUpperCase();
-      mapa[rol] = (mapa[rol] || 0) + 1;
-    });
-    return mapa;
-  }, [usuariosAdmin]);
+  const countRol = (rol: string) =>
+    usuariosAdmin.filter((u) => normalizarRol(u.rol) === rol).length;
+
+  const totalAdmin = countRol("ADMIN");
+  const totalSupervisor = countRol("SUPERVISOR");
+  const totalSocio = countRol("SOCIO");
+  const totalCliente = countRol("CLIENTE");
+  const totalTrabajador = countRol("TRABAJADOR");
 
   const totalProductos = productosAdmin.length;
-  const productosVisibles = productosAdmin.filter((p) => p.visible).length;
+  const productosVisibles = productosAdmin.filter(
+    (p) => p.visibleDirectorio === true
+  ).length;
   const productosOcultos = totalProductos - productosVisibles;
+  const porcentajeProductosVisibles =
+    totalProductos === 0 ? 0 : (productosVisibles / totalProductos) * 100;
 
-  const categoriasUnicas = useMemo(() => {
-    const set = new Set<string>();
+  const productosPorCategoria = useMemo(() => {
+    const map: Record<string, number> = {};
     productosAdmin.forEach((p) => {
-      if (p.categoriaNombre) set.add(p.categoriaNombre);
+      const cat = p.nombreCategoriaProducto || "Sin categoría";
+      map[cat] = (map[cat] || 0) + 1;
     });
-    return Array.from(set);
+    return Object.entries(map).sort((a, b) => b[1] - a[1]);
   }, [productosAdmin]);
 
   const totalIncidencias = incidenciasAdmin.length;
@@ -300,8 +344,9 @@ export default function Principal() {
   const incidenciasCerradas = totalIncidencias - incidenciasAbiertas.length;
 
   const incidenciasRecientes = [...incidenciasAdmin]
-    .sort((a, b) =>
-      (a.fechaRegistro || "").localeCompare(b.fechaRegistro || "") * -1
+    .sort(
+      (a, b) =>
+        (a.fechaRegistro || "").localeCompare(b.fechaRegistro || "") * -1
     )
     .slice(0, 5);
 
@@ -310,7 +355,7 @@ export default function Principal() {
     borderRadius: 4,
     boxShadow: "0 18px 40px rgba(15, 23, 42, 0.06)",
     bgcolor: "#ffffff",
-  };
+  } as const;
 
   if (loading) {
     return (
@@ -367,125 +412,158 @@ export default function Principal() {
         </Typography>
         <Typography color="text.secondary" sx={{ maxWidth: 620 }}>
           Vista ejecutiva del mercado mayorista para el periodo{" "}
-          <strong>{periodoActual}</strong>: ocupación, morosidad, usuarios,
-          catálogo de productos e incidencias.
+          <strong>{periodoActual}</strong>: ocupación, estado de pagos,
+          usuarios, catálogo de productos e incidencias.
         </Typography>
       </Stack>
 
-      {/* TARJETAS DE RESUMEN (fila 1: stands/cuotas) */}
+      {/* FILA 1: stands/cuotas, cumplimiento, bloques */}
       <Box
         sx={{
           display: "grid",
           gridTemplateColumns: {
             xs: "1fr",
-            md: "1.3fr 1.3fr 1.2fr 1.2fr",
+            md: "2fr 1.5fr 1.5fr",
           },
           gap: 2.5,
           mb: 3,
         }}
       >
-        {/* Card 1: Stands registrados */}
-        <Paper sx={cardStyle}>
-          <Stack direction="row" justifyContent="space-between" mb={2}>
-            <Box>
-              <Typography
-                variant="subtitle2"
-                sx={{ fontWeight: 600, color: "#6b7280" }}
+        {/* Card 1: Stands y cuotas del periodo (dona central) */}
+        <Paper sx={{ ...cardStyle, minHeight: 280 }}>
+          <Stack spacing={2} alignItems="center">
+            {/* encabezado pequeño */}
+            <Stack direction="row" spacing={1} alignItems="center">
+              <Box
+                sx={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: "999px",
+                  bgcolor: "#ecfdf3",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
               >
-                Stands registrados
-              </Typography>
-              <Typography variant="caption" sx={{ color: "#9ca3af" }}>
-                Totales en el mercado
-              </Typography>
-            </Box>
+                <StoreIcon sx={{ fontSize: 20, color: "#16a34a" }} />
+              </Box>
+              <Box>
+                <Typography
+                  variant="subtitle2"
+                  sx={{ fontWeight: 600, color: "#6b7280" }}
+                >
+                  Stands totales del mercado
+                </Typography>
+                <Typography variant="caption" sx={{ color: "#9ca3af" }}>
+                  Ocupación del mercado
+                </Typography>
+              </Box>
+            </Stack>
+
+            {/* DONA con gradiente y hover */}
             <Box
               sx={{
-                width: 40,
-                height: 40,
-                borderRadius: "999px",
-                bgcolor: "#ecfdf3",
+                position: "relative",
+                width: 180,
+                height: 180,
+                borderRadius: "50%",
+                background: `conic-gradient(
+                  #22c55e 0% ${Math.max(porcentajeOcupacion - 5, 0)}%,
+                  #4ade80 ${Math.max(porcentajeOcupacion - 5, 0)}% ${porcentajeOcupacion}%,
+                  #e5e7eb ${porcentajeOcupacion}% 100%
+                )`,
+                boxShadow: "0 18px 40px rgba(34, 197, 94, 0.25)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
+                transition: "transform 0.3s ease-out, box-shadow 0.3s ease-out",
+                "&:hover": {
+                  transform: "scale(1.03)",
+                  boxShadow: "0 22px 50px rgba(34, 197, 94, 0.35)",
+                },
               }}
             >
-              <StoreIcon sx={{ fontSize: 22, color: "#16a34a" }} />
+              {/* inner circle */}
+              <Box
+                sx={{
+                  position: "absolute",
+                  width: 120,
+                  height: 120,
+                  borderRadius: "50%",
+                  bgcolor: "#ffffff",
+                  boxShadow: "inset 0 0 0 1px rgba(148,163,184,0.18)",
+                }}
+              />
+              {/* texto central */}
+              <Box sx={{ position: "relative", textAlign: "center" }}>
+                <Typography
+                  variant="h5"
+                  sx={{
+                    fontWeight: 800,
+                    color: "#111827",
+                    lineHeight: 1.1,
+                  }}
+                >
+                  {porcentajeOcupacion.toFixed(1)}%
+                </Typography>
+                <Typography
+                  variant="caption"
+                  sx={{ color: "#6b7280", fontSize: 11 }}
+                >
+                  Stands abiertos
+                </Typography>
+              </Box>
             </Box>
-          </Stack>
 
-          <Typography
-            variant="h3"
-            sx={{ fontWeight: 800, color: "#111827", lineHeight: 1.1, mb: 0.5 }}
-          >
-            {totalStandsRegistrados}
-          </Typography>
+            {/* texto bajo la dona */}
+            <Typography variant="body2" color="text.secondary">
+              {standsAbiertos} de {totalStandsRegistrados} stands abiertos
+            </Typography>
 
-          <Stack direction="row" spacing={2} mt={1}>
-            <Chip
-              label={`${standsActivos} activos`}
-              size="small"
-              sx={{
-                bgcolor: "#dcfce7",
-                color: "#166534",
-                fontWeight: 600,
-                borderRadius: 999,
-              }}
-            />
-            <Chip
-              label={`${standsNoActivos} no activos`}
-              size="small"
-              sx={{
-                bgcolor: "#fee2e2",
-                color: "#b91c1c",
-                fontWeight: 600,
-                borderRadius: 999,
-              }}
-            />
+            {/* Cerrados / Clausurados / Otros con color */}
+            <Stack direction="row" spacing={1} flexWrap="wrap">
+              <Chip
+                size="small"
+                label={`Cerrados: ${standsCerrados}`}
+                sx={{
+                  bgcolor: "#fef3c7",
+                  color: "#92400e",
+                  fontSize: 11,
+                  fontWeight: 500,
+                  borderRadius: 999,
+                }}
+              />
+              <Chip
+                size="small"
+                label={`Clausurados: ${standsClausurados}`}
+                sx={{
+                  bgcolor: "#fee2e2",
+                  color: "#b91c1c",
+                  fontSize: 11,
+                  fontWeight: 500,
+                  borderRadius: 999,
+                }}
+              />
+              {otrosStands > 0 && (
+                <Chip
+                  size="small"
+                  label={`Otros: ${otrosStands}`}
+                  sx={{
+                    bgcolor: "#e5e7eb",
+                    color: "#374151",
+                    fontSize: 11,
+                    fontWeight: 500,
+                    borderRadius: 999,
+                  }}
+                />
+              )}
+            </Stack>
+
+            
           </Stack>
         </Paper>
 
-        {/* Card 2: Stands con cuota */}
-        <Paper sx={cardStyle}>
-          <Stack direction="row" justifyContent="space-between" mb={2}>
-            <Box>
-              <Typography
-                variant="subtitle2"
-                sx={{ fontWeight: 600, color: "#6b7280" }}
-              >
-                Stands con cuota
-              </Typography>
-              <Typography variant="caption" sx={{ color: "#9ca3af" }}>
-                Periodo {periodoActual}
-              </Typography>
-            </Box>
-            <Box
-              sx={{
-                width: 40,
-                height: 40,
-                borderRadius: "999px",
-                bgcolor: "#ecfdf3",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <PaidIcon sx={{ fontSize: 22, color: "#22c55e" }} />
-            </Box>
-          </Stack>
-
-          <Typography
-            variant="h3"
-            sx={{ fontWeight: 800, color: "#111827", lineHeight: 1.1, mb: 0.5 }}
-          >
-            {totalStandsConCuota}
-          </Typography>
-
-          <Typography variant="body2" color="text.secondary">
-            {standsAlDia} al día · {standsMorosos} morosos
-          </Typography>
-        </Paper>
-
-        {/* Card 3: Cumplimiento de pagos */}
+        {/* Card 2: Cumplimiento de pagos */}
         <Paper sx={cardStyle}>
           <Stack direction="row" justifyContent="space-between" mb={2}>
             <Box>
@@ -496,7 +574,7 @@ export default function Principal() {
                 Cumplimiento de pagos
               </Typography>
               <Typography variant="caption" sx={{ color: "#9ca3af" }}>
-                Morosidad vs al día
+                Stands al día vs con deuda
               </Typography>
             </Box>
             <Box
@@ -521,7 +599,7 @@ export default function Principal() {
             {porcentajeAlDia.toFixed(1)}%
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Morosidad: {porcentajeMorosos.toFixed(1)}%
+            Con deuda: {porcentajeConDeuda.toFixed(1)}%
           </Typography>
 
           <Box sx={{ mt: 1.5 }}>
@@ -544,9 +622,43 @@ export default function Principal() {
               />
             </Box>
           </Box>
+
+          {/* chips con cantidades al día / con deuda */}
+          <Stack direction="row" spacing={2.5} mt={3.5}>
+            <Chip
+                label={`Con cuota: ${totalStandsConCuota}`}
+                size="small"
+                sx={{
+                  bgcolor: "#eff6ff",
+                  color: "#1d4ed8",
+                  fontWeight: 600,
+                  borderRadius: 999,
+                }}
+              />
+            <Chip
+              label={`Al día: ${standsAlDia}`}
+              size="small"
+              sx={{
+                bgcolor: "#dcfce7",
+                color: "#166534",
+                fontWeight: 600,
+                borderRadius: 999,
+              }}
+            />
+            <Chip
+              label={`Con deuda: ${standsConDeuda}`}
+              size="small"
+              sx={{
+                bgcolor: "#fee2e2",
+                color: "#b91c1c",
+                fontWeight: 600,
+                borderRadius: 999,
+              }}
+            />
+          </Stack>
         </Paper>
 
-        {/* Card 4: Morosidad por bloques / deuda total */}
+        {/* Card 3: Bloques con deuda pendiente */}
         <Paper sx={cardStyle}>
           <Stack direction="row" justifyContent="space-between" mb={2}>
             <Box>
@@ -554,7 +666,7 @@ export default function Principal() {
                 variant="subtitle2"
                 sx={{ fontWeight: 600, color: "#6b7280" }}
               >
-                Bloques con morosidad
+                Bloques con deuda pendiente
               </Typography>
               <Typography variant="caption" sx={{ color: "#9ca3af" }}>
                 Deuda total visible en el periodo
@@ -579,18 +691,24 @@ export default function Principal() {
             variant="h5"
             sx={{ fontWeight: 700, color: "#b91c1c", mb: 0.5 }}
           >
-            S/. {deudaTotalMorosos.toFixed(2)}
+            S/. {deudaTotal.toFixed(2)}
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-            {bloquesConMorosidad.length} bloques con stands morosos.
+            {bloquesConDeuda.length} bloques con stands con deuda.
           </Typography>
 
-          <Stack direction="row" spacing={1} flexWrap="wrap">
-            {bloquesConMorosidad.slice(0, 3).map((b) => (
+          {/* listado vertical de bloques */}
+          <Stack
+            direction="column"
+            spacing={0.5}
+            alignItems="flex-start"
+            sx={{ mt: 0.5 }}
+          >
+            {bloquesConDeuda.slice(0, 3).map((b) => (
               <Chip
                 key={b.bloque}
                 size="small"
-                label={`${b.bloque}: ${b.standsMorosos} morosos`}
+                label={`${b.bloque}: ${b.standsMorosos} con deuda`}
                 sx={{
                   bgcolor: "#fee2e2",
                   color: "#b91c1c",
@@ -599,16 +717,16 @@ export default function Principal() {
                 }}
               />
             ))}
-            {bloquesConMorosidad.length === 0 && (
+            {bloquesConDeuda.length === 0 && (
               <Typography variant="caption" color="text.secondary">
-                Sin morosidad por bloque.
+                Sin deuda por bloque.
               </Typography>
             )}
           </Stack>
         </Paper>
       </Box>
 
-      {/* TARJETAS DE RESUMEN (fila 2: usuarios / productos / incidencias) */}
+      {/* FILA 2: usuarios / productos / incidencias */}
       <Box
         sx={{
           display: "grid",
@@ -620,7 +738,7 @@ export default function Principal() {
           mb: 4,
         }}
       >
-        {/* Card Usuarios */}
+        {/* Usuarios */}
         <Paper sx={cardStyle}>
           <Stack direction="row" justifyContent="space-between" mb={2}>
             <Box>
@@ -631,7 +749,7 @@ export default function Principal() {
                 Usuarios del sistema
               </Typography>
               <Typography variant="caption" sx={{ color: "#9ca3af" }}>
-                Administradores, supervisores y socios
+                Administradores, supervisores, socios y otros
               </Typography>
             </Box>
             <Box
@@ -668,7 +786,7 @@ export default function Principal() {
               }}
             />
             <Chip
-              label={`${usuariosNoActivos} no activos`}
+              label={`${usuariosNoActivos} en otros estados`}
               size="small"
               sx={{
                 bgcolor: "#fee2e2",
@@ -679,27 +797,78 @@ export default function Principal() {
             />
           </Stack>
 
-          <Stack direction="row" spacing={1} flexWrap="wrap" mt={1.5}>
-            {Object.entries(usuariosPorRol)
-              .slice(0, 3)
-              .map(([rol, count]) => (
-                <Chip
-                  key={rol}
-                  size="small"
-                  label={`${rol}: ${count}`}
-                  sx={{
-                    bgcolor: "#f3f4f6",
-                    color: "#4b5563",
-                    fontSize: 11,
-                    fontWeight: 500,
-                    borderRadius: 999,
-                  }}
-                />
-              ))}
-          </Stack>
+          <Box sx={{ mt: 1.5 }}>
+            <Typography
+              variant="caption"
+              sx={{
+                color: "#6b7280",
+                fontWeight: 600,
+                textTransform: "uppercase",
+              }}
+            >
+              Distribución por rol
+            </Typography>
+            <Stack direction="row" spacing={1} flexWrap="wrap" mt={0.5}>
+              <Chip
+                size="small"
+                label={`Admin: ${totalAdmin}`}
+                sx={{
+                  bgcolor: "#eff6ff",
+                  color: "#1d4ed8",
+                  fontSize: 11,
+                  fontWeight: 500,
+                  borderRadius: 999,
+                }}
+              />
+              <Chip
+                size="small"
+                label={`Supervisor: ${totalSupervisor}`}
+                sx={{
+                  bgcolor: "#e0f2fe",
+                  color: "#0369a1",
+                  fontSize: 11,
+                  fontWeight: 500,
+                  borderRadius: 999,
+                }}
+              />
+              <Chip
+                size="small"
+                label={`Socio: ${totalSocio}`}
+                sx={{
+                  bgcolor: "#dcfce7",
+                  color: "#166534",
+                  fontSize: 11,
+                  fontWeight: 500,
+                  borderRadius: 999,
+                }}
+              />
+              <Chip
+                size="small"
+                label={`Cliente: ${totalCliente}`}
+                sx={{
+                  bgcolor: "#fefce8",
+                  color: "#a16207",
+                  fontSize: 11,
+                  fontWeight: 500,
+                  borderRadius: 999,
+                }}
+              />
+              <Chip
+                size="small"
+                label={`Trabajador: ${totalTrabajador}`}
+                sx={{
+                  bgcolor: "#fee2e2",
+                  color: "#b91c1c",
+                  fontSize: 11,
+                  fontWeight: 500,
+                  borderRadius: 999,
+                }}
+              />
+            </Stack>
+          </Box>
         </Paper>
 
-        {/* Card Productos */}
+        {/* Productos */}
         <Paper sx={cardStyle}>
           <Stack direction="row" justifyContent="space-between" mb={2}>
             <Box>
@@ -710,7 +879,7 @@ export default function Principal() {
                 Catálogo de productos
               </Typography>
               <Typography variant="caption" sx={{ color: "#9ca3af" }}>
-                Productos publicados en el mercado
+                Visibilidad y principales categorías
               </Typography>
             </Box>
             <Box
@@ -732,16 +901,18 @@ export default function Principal() {
             variant="h4"
             sx={{ fontWeight: 800, color: "#111827", lineHeight: 1.1, mb: 0.5 }}
           >
-            {totalProductos}
+            {totalProductos} productos
           </Typography>
 
           <Typography variant="body2" color="text.secondary">
-            {categoriasUnicas.length} categorías distintas.
+            {categoriasPorTexto(productosPorCategoria.length)}
           </Typography>
 
           <Stack direction="row" spacing={1.5} mt={1.5}>
             <Chip
-              label={`${productosVisibles} visibles`}
+              label={`Visibles: ${productosVisibles} (${porcentajeProductosVisibles.toFixed(
+                1
+              )}%)`}
               size="small"
               sx={{
                 bgcolor: "#dcfce7",
@@ -751,7 +922,7 @@ export default function Principal() {
               }}
             />
             <Chip
-              label={`${productosOcultos} ocultos`}
+              label={`Ocultos: ${productosOcultos}`}
               size="small"
               sx={{
                 bgcolor: "#fee2e2",
@@ -761,9 +932,47 @@ export default function Principal() {
               }}
             />
           </Stack>
+
+          <Box sx={{ mt: 2 }}>
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              sx={{ mb: 0.5, display: "block" }}
+            >
+              Categorías con más productos:
+            </Typography>
+
+            {productosPorCategoria.slice(0, 3).map(([cat, count]) => (
+              <Stack
+                key={cat}
+                direction="row"
+                justifyContent="space-between"
+                sx={{ fontSize: 12, mb: 0.3 }}
+              >
+                <Typography
+                  variant="caption"
+                  sx={{ color: "#4b5563", maxWidth: "70%" }}
+                >
+                  {cat}
+                </Typography>
+                <Typography
+                  variant="caption"
+                  sx={{ fontWeight: 600, color: "#111827" }}
+                >
+                  {count} prod.
+                </Typography>
+              </Stack>
+            ))}
+
+            {productosPorCategoria.length === 0 && (
+              <Typography variant="caption" color="text.secondary">
+                Aún no hay productos registrados.
+              </Typography>
+            )}
+          </Box>
         </Paper>
 
-        {/* Card Incidencias */}
+        {/* Incidencias */}
         <Paper sx={cardStyle}>
           <Stack direction="row" justifyContent="space-between" mb={2}>
             <Box>
@@ -821,7 +1030,7 @@ export default function Principal() {
         </Paper>
       </Box>
 
-      {/* SECCIÓN DE TABLAS: Pagos / Morosos */}
+      {/* FILA 3: pagos recientes + incidencias recientes / stands con deuda */}
       <Box
         sx={{
           display: "flex",
@@ -830,111 +1039,211 @@ export default function Principal() {
           mb: 3,
         }}
       >
-        {/* IZQUIERDA: Últimos pagos */}
-        <Paper
+        {/* IZQUIERDA: pagos + incidencias recientes */}
+        <Box
           sx={{
-            ...cardStyle,
             flex: 7,
-            p: 3,
+            display: "flex",
+            flexDirection: "column",
+            gap: 3,
           }}
         >
-          <Box
-            sx={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              mb: 2,
-            }}
-          >
-            <Box>
-              <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                Últimos pagos registrados
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                Total mostrado: S/. {totalPagadoUltimos.toFixed(2)}
-              </Typography>
-            </Box>
-            <Button
-              size="small"
-              endIcon={<ArrowForwardIcon />}
-              onClick={() => navigate("/dashboard/pagos")}
-              sx={{ textTransform: "none", fontWeight: 600 }}
+          {/* Últimos pagos */}
+          <Paper sx={{ ...cardStyle, p: 3 }}>
+            <Box
+              sx={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                mb: 2,
+              }}
             >
-              Ver módulo de pagos
-            </Button>
-          </Box>
+              <Box>
+                <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                  Últimos pagos registrados
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Total mostrado: S/. {totalPagadoUltimos.toFixed(2)}
+                </Typography>
+              </Box>
+              <Button
+                size="small"
+                endIcon={<ArrowForwardIcon />}
+                onClick={() => navigate("/dashboard/pagos")}
+                sx={{ textTransform: "none", fontWeight: 600 }}
+              >
+                Ver módulo de pagos
+              </Button>
+            </Box>
 
-          {ultimosPagos.length === 0 ? (
-            <Typography variant="body2" color="text.secondary">
-              Aún no se registran pagos para mostrar en esta sección.
-            </Typography>
-          ) : (
-            <Table size="small">
-              <TableHead>
-                <TableRow
-                  sx={{
-                    "& th": {
-                      fontSize: 12,
-                      color: "#6b7280",
-                      borderBottom: "1px solid #e5e7eb",
-                    },
-                  }}
-                >
-                  <TableCell>Stand</TableCell>
-                  <TableCell>Ubicación</TableCell>
-                  <TableCell>Periodo</TableCell>
-                  <TableCell>Monto pagado</TableCell>
-                  <TableCell>Fecha de pago</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {ultimosPagos.map((p) => (
-                  <TableRow key={p.idCuota} hover>
-                    <TableCell sx={{ fontWeight: 500, fontSize: 13 }}>
-                      {p.nombreStand || `Stand #${p.idStand}`}
-                    </TableCell>
-                    <TableCell
-                      sx={{ color: "text.secondary", fontSize: "0.85rem" }}
-                    >
-                      {p.bloque}-{p.numeroStand}
-                    </TableCell>
-                    <TableCell sx={{ fontSize: 13 }}>{p.periodo}</TableCell>
-                    <TableCell
-                      sx={{
-                        color: "success.main",
-                        fontWeight: "bold",
-                        fontSize: 13,
-                      }}
-                    >
-                      S/. {Number(p.montoPagado || 0).toFixed(2)}
-                    </TableCell>
-                    <TableCell sx={{ fontSize: 12 }}>
-                      {p.fechaPago ?? "-"}
-                    </TableCell>
+            {ultimosPagos.length === 0 ? (
+              <Typography variant="body2" color="text.secondary">
+                Aún no se registran pagos para mostrar en esta sección.
+              </Typography>
+            ) : (
+              <Table size="small">
+                <TableHead>
+                  <TableRow
+                    sx={{
+                      "& th": {
+                        fontSize: 12,
+                        color: "#6b7280",
+                        borderBottom: "1px solid #e5e7eb",
+                      },
+                    }}
+                  >
+                    <TableCell>Stand</TableCell>
+                    <TableCell>Ubicación</TableCell>
+                    <TableCell>Periodo</TableCell>
+                    <TableCell>Monto pagado</TableCell>
+                    <TableCell>Fecha de pago</TableCell>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
+                </TableHead>
+                <TableBody>
+                  {ultimosPagos.map((p) => (
+                    <TableRow key={p.idCuota} hover>
+                      <TableCell sx={{ fontWeight: 500, fontSize: 13 }}>
+                        {p.nombreStand || `Stand #${p.idStand}`}
+                      </TableCell>
+                      <TableCell
+                        sx={{ color: "text.secondary", fontSize: "0.85rem" }}
+                      >
+                        {p.bloque}-{p.numeroStand}
+                      </TableCell>
+                      <TableCell sx={{ fontSize: 13 }}>{p.periodo}</TableCell>
+                      <TableCell
+                        sx={{
+                          color: "success.main",
+                          fontWeight: "bold",
+                          fontSize: 13,
+                        }}
+                      >
+                        S/. {Number(p.montoPagado || 0).toFixed(2)}
+                      </TableCell>
+                      <TableCell sx={{ fontSize: 12 }}>
+                        {p.fechaPago ?? "-"}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
 
-          <Typography
-            variant="caption"
-            color="text.secondary"
-            sx={{ mt: 1.5, display: "block" }}
-          >
-            * Datos obtenidos desde{" "}
-            <code>/api/v1/admin/cuotas/ultimos-pagos</code>.
-          </Typography>
-        </Paper>
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              sx={{ mt: 1.5, display: "block" }}
+            >
+              * Datos obtenidos desde{" "}
+              <code>/api/v1/admin/cuotas/ultimos-pagos</code>.
+            </Typography>
+          </Paper>
 
-        {/* DERECHA: Morosos */}
-        <Paper
-          sx={{
-            ...cardStyle,
-            flex: 5,
-            p: 3,
-          }}
-        >
+          {/* Incidencias recientes */}
+          <Paper sx={{ ...cardStyle, p: 3 }}>
+            <Box
+              sx={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                mb: 2,
+              }}
+            >
+              <Box>
+                <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                  Incidencias recientes
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Últimos casos registrados en el sistema.
+                </Typography>
+              </Box>
+              <Button
+                size="small"
+                endIcon={<ArrowForwardIcon />}
+                onClick={() => navigate("/dashboard/incidencias")}
+                sx={{ textTransform: "none", fontWeight: 600 }}
+              >
+                Ver todas
+              </Button>
+            </Box>
+
+            {incidenciasRecientes.length === 0 ? (
+              <Typography variant="body2" color="text.secondary">
+                No se encontraron incidencias para mostrar.
+              </Typography>
+            ) : (
+              <Table size="small">
+                <TableHead>
+                  <TableRow
+                    sx={{
+                      "& th": {
+                        fontSize: 12,
+                        color: "#6b7280",
+                        borderBottom: "1px solid #e5e7eb",
+                      },
+                    }}
+                  >
+                    <TableCell>Incidencia</TableCell>
+                    <TableCell>Estado</TableCell>
+                    <TableCell>Fecha</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {incidenciasRecientes.map((i) => (
+                    <TableRow key={i.idIncidencia} hover>
+                      <TableCell>
+                        <Typography
+                          variant="body2"
+                          sx={{ fontWeight: 500, fontSize: 13 }}
+                        >
+                          {i.titulo}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {i.bloque && i.numeroStand
+                            ? `${i.bloque}-${i.numeroStand}`
+                            : "Sin ubicación"}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Chip
+                          label={i.estado}
+                          size="small"
+                          sx={{
+                            borderRadius: 999,
+                            fontSize: 11,
+                            fontWeight: 600,
+                            bgcolor:
+                              (i.estado || "").toUpperCase() === "CERRADA"
+                                ? "#dcfce7"
+                                : "#fee2e2",
+                            color:
+                              (i.estado || "").toUpperCase() === "CERRADA"
+                                ? "#166534"
+                                : "#b91c1c",
+                          }}
+                        />
+                      </TableCell>
+                      <TableCell sx={{ fontSize: 12 }}>
+                        {i.fechaRegistro}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              sx={{ mt: 1.5, display: "block" }}
+            >
+              * Datos obtenidos desde <code>/api/v1/admin/incidencias</code>.
+            </Typography>
+          </Paper>
+        </Box>
+
+        {/* DERECHA: Stands con deuda */}
+        <Paper sx={{ ...cardStyle, flex: 5, p: 3 }}>
           <Box
             sx={{
               display: "flex",
@@ -948,7 +1257,7 @@ export default function Principal() {
                 Stands con deuda ({periodoActual})
               </Typography>
               <Typography variant="caption" color="text.secondary">
-                Deuda total: S/. {deudaTotalMorosos.toFixed(2)}
+                Deuda total: S/. {deudaTotal.toFixed(2)}
               </Typography>
             </Box>
             <Chip
@@ -962,7 +1271,7 @@ export default function Principal() {
 
           {morosos.length === 0 ? (
             <Typography variant="body2" color="text.secondary">
-              No se encontraron stands morosos para el periodo {periodoActual}.
+              No se encontraron stands con deuda para el periodo {periodoActual}.
             </Typography>
           ) : (
             <Table size="small">
@@ -1030,114 +1339,6 @@ export default function Principal() {
           </Box>
         </Paper>
       </Box>
-
-      {/* SECCIÓN EXTRA: Incidencias recientes */}
-      <Paper
-        sx={{
-          ...cardStyle,
-          p: 3,
-          mb: 4,
-        }}
-      >
-        <Box
-          sx={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            mb: 2,
-          }}
-        >
-          <Box>
-            <Typography variant="h6" sx={{ fontWeight: 700 }}>
-              Incidencias recientes
-            </Typography>
-            <Typography variant="caption" color="text.secondary">
-              Últimos casos registrados en el sistema.
-            </Typography>
-          </Box>
-          <Button
-            size="small"
-            endIcon={<ArrowForwardIcon />}
-            onClick={() => navigate("/dashboard/incidencias")}
-            sx={{ textTransform: "none", fontWeight: 600 }}
-          >
-            Ver todas
-          </Button>
-        </Box>
-
-        {incidenciasRecientes.length === 0 ? (
-          <Typography variant="body2" color="text.secondary">
-            No se encontraron incidencias para mostrar.
-          </Typography>
-        ) : (
-          <Table size="small">
-            <TableHead>
-              <TableRow
-                sx={{
-                  "& th": {
-                    fontSize: 12,
-                    color: "#6b7280",
-                    borderBottom: "1px solid #e5e7eb",
-                  },
-                }}
-              >
-                <TableCell>Incidencia</TableCell>
-                <TableCell>Estado</TableCell>
-                <TableCell>Fecha</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {incidenciasRecientes.map((i) => (
-                <TableRow key={i.idIncidencia} hover>
-                  <TableCell>
-                    <Typography
-                      variant="body2"
-                      sx={{ fontWeight: 500, fontSize: 13 }}
-                    >
-                      {i.titulo}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {i.bloque && i.numeroStand
-                        ? `${i.bloque}-${i.numeroStand}`
-                        : "Sin ubicación"}
-                    </Typography>
-                  </TableCell>
-                  <TableCell>
-                    <Chip
-                      label={i.estado}
-                      size="small"
-                      sx={{
-                        borderRadius: 999,
-                        fontSize: 11,
-                        fontWeight: 600,
-                        bgcolor:
-                          (i.estado || "").toUpperCase() === "CERRADA"
-                            ? "#dcfce7"
-                            : "#fee2e2",
-                        color:
-                          (i.estado || "").toUpperCase() === "CERRADA"
-                            ? "#166534"
-                            : "#b91c1c",
-                      }}
-                    />
-                  </TableCell>
-                  <TableCell sx={{ fontSize: 12 }}>
-                    {i.fechaRegistro}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        )}
-
-        <Typography
-          variant="caption"
-          color="text.secondary"
-          sx={{ mt: 1.5, display: "block" }}
-        >
-          * Datos obtenidos desde <code>/api/v1/admin/incidencias</code>.
-        </Typography>
-      </Paper>
     </Box>
   );
 }

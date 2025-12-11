@@ -6,9 +6,13 @@ import {
   Paper,
   ToggleButton,
   ToggleButtonGroup,
+  Stack,
+  Chip,
+  IconButton,
+  Divider,
+  CircularProgress,
 } from "@mui/material";
 
-import CardCategoria from "../Dashboard/components/cards/CardCategoria";
 import { useToast } from "../../components/ui/Toast";
 
 import categoriasProductosApi, {
@@ -20,23 +24,27 @@ import CategoryProductModal, {
   CategoryData,
 } from "./components/modals/CategoriaProductModal";
 
+import EditIcon from "@mui/icons-material/Edit";
+import DeleteIcon from "@mui/icons-material/Delete";
+import CategoryIcon from "@mui/icons-material/Category";
+import PowerSettingsNewIcon from "@mui/icons-material/PowerSettingsNew";
+
 type ModalMode = "create" | "edit";
 
 const getColorForCategoria = (nombre: string): string => {
   const n = nombre.toLowerCase();
 
-  if (n.includes("carne")) return "#ef4444";       // rojo - carnes
-  if (n.includes("pesc")) return "#0ea5e9";        // celeste - pescados
-  if (n.includes("marisco")) return "#0284c7";     // azul más intenso
-  if (n.includes("fruta")) return "#22c55e";       // verde - frutas
+  if (n.includes("carne")) return "#ef4444"; // rojo - carnes
+  if (n.includes("pesc")) return "#0ea5e9"; // celeste - pescados
+  if (n.includes("marisco")) return "#0284c7"; // azul más intenso
+  if (n.includes("fruta")) return "#22c55e"; // verde - frutas
   if (n.includes("verdura") || n.includes("hortaliza")) return "#16a34a";
-  if (n.includes("tubérculo") || n.includes("tuberculo")) return "#a16207"; // amarillo/ocre
-  if (n.includes("grano") || n.includes("cereal")) return "#f97316";        // naranja
-  if (n.includes("lácteo") || n.includes("lacteo")) return "#6366f1";       // violeta
-  if (n.includes("hierba") || n.includes("especia")) return "#10b981";      // verde menta
-  if (n.includes("bebida")) return "#3b82f6";       // azul medio
+  if (n.includes("tubérculo") || n.includes("tuberculo")) return "#a16207"; // ocre
+  if (n.includes("grano") || n.includes("cereal")) return "#f97316"; // naranja
+  if (n.includes("lácteo") || n.includes("lacteo")) return "#6366f1"; // violeta
+  if (n.includes("hierba") || n.includes("especia")) return "#10b981"; // menta
+  if (n.includes("bebida")) return "#3b82f6"; // azul medio
 
-  // por defecto, un violeta elegante
   return "#4F46E5";
 };
 
@@ -51,9 +59,9 @@ export default function Categoria() {
   const [selectedCategoria, setSelectedCategoria] =
     useState<CategoriaRow | null>(null);
 
-  const [filtroEstado, setFiltroEstado] = useState<
-    "Todos" | EstadoCategoria
-  >("Todos");
+  const [filtroEstado, setFiltroEstado] = useState<"Todos" | EstadoCategoria>(
+    "Todos"
+  );
 
   // ===== CARGA INICIAL =====
   const fetchCategorias = async () => {
@@ -182,20 +190,31 @@ export default function Categoria() {
 
   return (
     <>
-      {/* HEADER + CTA */}
+      {/* HEADER AL ESTILO ROLES / PRODUCTOS */}
       <Box
         sx={{
+          mb: 4,
           display: "flex",
           justifyContent: "space-between",
           alignItems: "flex-start",
-          mb: 3,
+          gap: 2,
         }}
       >
         <Box>
-          <Typography variant="h4" fontWeight="bold">
-            Categorías de Productos
+          <Typography
+            variant="h4"
+            sx={{
+              fontWeight: 800,
+              fontFamily:
+                `"Poppins","Inter",system-ui,-apple-system,BlinkMacSystemFont`,
+            }}
+          >
+            Categorías de productos
           </Typography>
-          <Typography color="text.secondary" sx={{ maxWidth: 600 }}>
+          <Typography
+            color="text.secondary"
+            sx={{ maxWidth: 620, mt: 0.5 }}
+          >
             Organiza los productos del mercado en{" "}
             <strong>rubros claros</strong>. Estas categorías se usan en el
             directorio público y en el portal de SOCIOS para clasificar
@@ -205,9 +224,20 @@ export default function Categoria() {
 
         <Button
           variant="contained"
-          color="success"
-          sx={{ borderRadius: 10, px: 4 }}
           onClick={abrirModalCrear}
+          sx={{
+            borderRadius: "999px",
+            px: 3.5,
+            py: 1.1,
+            textTransform: "none",
+            fontWeight: 700,
+            backgroundColor: "#22c55e",
+            boxShadow: "0 6px 14px rgba(34, 197, 94, 0.25)",
+            "&:hover": {
+              backgroundColor: "#16a34a",
+              boxShadow: "0 8px 18px rgba(22, 163, 74, 0.35)",
+            },
+          }}
         >
           + Nueva categoría
         </Button>
@@ -287,52 +317,91 @@ export default function Categoria() {
         </ToggleButtonGroup>
       </Box>
 
-      {/* GRID DE TARJETAS (CSS Grid con Box) */}
-      <Box
-        sx={{
-          display: "grid",
-          gridTemplateColumns: {
-            xs: "1fr",
-            sm: "repeat(2, 1fr)",
-            md: "repeat(3, 1fr)",
-            lg: "repeat(4, 1fr)",
-          },
-          columnGap: 3,
-          rowGap: 8,
-        }}
-      >
-        {categoriasFiltradas.map((cat) => (
-          <Box key={cat.id}>
-            <CardCategoria
-              nombre={cat.nombre}
-              descripcion={cat.descripcion}
-              estado={cat.estado}
-              colorHex={getColorForCategoria(cat.nombre)}
-              onToggleEstado={(nuevo) =>
-                handleToggleEstado(cat, nuevo as EstadoCategoria)
-              }
-              onEdit={() => abrirModalEditar(cat)}
-              onDelete={() => handleDelete(cat)}
-            />
-          </Box>
-        ))}
-
-        {!loading && categoriasFiltradas.length === 0 && (
+      {/* LISTA MODERNA (EN VEZ DE CARDS) */}
+      {loading ? (
+        <Box
+          sx={{
+            mt: 6,
+            display: "flex",
+            justifyContent: "center",
+          }}
+        >
+          <CircularProgress />
+        </Box>
+      ) : (
+        <Paper
+          elevation={0}
+          sx={{
+            borderRadius: 4,
+            overflow: "hidden",
+            boxShadow: "0 18px 40px rgba(15, 23, 42, 0.06)",
+          }}
+        >
+          {/* Encabezado tipo lista */}
           <Box
             sx={{
-              gridColumn: "1 / -1", // ocupa todo el ancho del grid
+              px: 3,
+              py: 1.5,
+              bgcolor: "#f9fafb",
+              borderBottom: "1px solid #e5e7eb",
+              display: "flex",
+              alignItems: "center",
+              gap: 2,
             }}
           >
-            <Paper
-              elevation={0}
+            <Typography
+              variant="caption"
               sx={{
-                p: 4,
-                textAlign: "center",
-                borderRadius: 3,
-                border: "1px dashed",
-                borderColor: "divider",
+                fontWeight: 600,
+                textTransform: "uppercase",
+                letterSpacing: 0.6,
+                color: "#6b7280",
+                flex: 3,
               }}
             >
+              Categoría
+            </Typography>
+            <Typography
+              variant="caption"
+              sx={{
+                fontWeight: 600,
+                textTransform: "uppercase",
+                letterSpacing: 0.6,
+                color: "#6b7280",
+                flex: 4,
+              }}
+            >
+              Descripción
+            </Typography>
+            <Typography
+              variant="caption"
+              sx={{
+                fontWeight: 600,
+                textTransform: "uppercase",
+                letterSpacing: 0.6,
+                color: "#6b7280",
+                flex: 1.5,
+              }}
+            >
+              Estado
+            </Typography>
+            <Typography
+              variant="caption"
+              sx={{
+                fontWeight: 600,
+                textTransform: "uppercase",
+                letterSpacing: 0.6,
+                color: "#6b7280",
+                flex: 1.5,
+                textAlign: "center",
+              }}
+            >
+              Acciones
+            </Typography>
+          </Box>
+
+          {categoriasFiltradas.length === 0 ? (
+            <Box sx={{ p: 4, textAlign: "center" }}>
               <Typography variant="subtitle1" fontWeight="medium">
                 No hay categorías para mostrar
               </Typography>
@@ -341,20 +410,153 @@ export default function Categoria() {
                 color="text.secondary"
                 sx={{ mt: 1 }}
               >
-                Crea tu primera categoría para comenzar a organizar el mercado.
+                Crea tu primera categoría para comenzar a organizar el
+                mercado.
               </Typography>
               <Button
                 variant="outlined"
                 color="success"
-                sx={{ mt: 2, borderRadius: 10 }}
+                sx={{ mt: 2, borderRadius: "999px" }}
                 onClick={abrirModalCrear}
               >
                 Crear categoría
               </Button>
-            </Paper>
-          </Box>
-        )}
-      </Box>
+            </Box>
+          ) : (
+            categoriasFiltradas.map((cat, index) => {
+              const color = getColorForCategoria(cat.nombre);
+              const esActiva = cat.estado === "Activo";
+
+              return (
+                <Box key={cat.id}>
+                  {index > 0 && <Divider sx={{ mx: 3 }} />}
+                  <Box
+                    sx={{
+                      px: 3,
+                      py: 2,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 2,
+                    }}
+                  >
+                    {/* Columna 1: nombre + icono de color */}
+                    <Stack
+                      direction="row"
+                      alignItems="center"
+                      spacing={1.5}
+                      sx={{ flex: 3, minWidth: 0 }}
+                    >
+                      <Box
+                        sx={{
+                          width: 32,
+                          height: 32,
+                          borderRadius: "999px",
+                          bgcolor: `${color}20`,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                      >
+                        <CategoryIcon
+                          sx={{ fontSize: 18, color: color }}
+                        />
+                      </Box>
+                      <Box sx={{ minWidth: 0 }}>
+                        <Typography
+                          variant="subtitle2"
+                          sx={{ fontWeight: 700, color: "#111827" }}
+                          noWrap
+                        >
+                          {cat.nombre}
+                        </Typography>
+                        <Typography
+                          variant="caption"
+                          color="text.secondary"
+                          noWrap
+                        >
+                          ID #{cat.id}
+                        </Typography>
+                      </Box>
+                    </Stack>
+
+                    {/* Columna 2: descripción */}
+                    <Box sx={{ flex: 4, minWidth: 0 }}>
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        noWrap
+                      >
+                        {cat.descripcion || "Sin descripción"}
+                      </Typography>
+                    </Box>
+
+                    {/* Columna 3: estado con chip y botón toggle */}
+                    <Stack
+                      direction="row"
+                      spacing={1}
+                      alignItems="center"
+                      sx={{ flex: 1.5, minWidth: 0 }}
+                    >
+                      <Chip
+                        label={cat.estado}
+                        size="small"
+                        sx={{
+                          borderRadius: "999px",
+                          fontSize: 12,
+                          fontWeight: 600,
+                          bgcolor: esActiva ? "#bbf7d0" : "#fee2e2",
+                          color: esActiva ? "#166534" : "#b91c1c",
+                        }}
+                      />
+                      <IconButton
+                        size="small"
+                        onClick={() =>
+                          handleToggleEstado(
+                            cat,
+                            esActiva ? "Inactivo" : "Activo"
+                          )
+                        }
+                      >
+                        <PowerSettingsNewIcon
+                          fontSize="small"
+                          sx={{ color: esActiva ? "#f97316" : "#22c55e" }}
+                        />
+                      </IconButton>
+                    </Stack>
+
+                    {/* Columna 4: acciones */}
+                    <Stack
+                      direction="row"
+                      spacing={1}
+                      justifyContent="center"
+                      sx={{ flex: 1.5 }}
+                    >
+                      <IconButton
+                        size="small"
+                        onClick={() => abrirModalEditar(cat)}
+                      >
+                        <EditIcon
+                          fontSize="small"
+                          sx={{ color: "#f59e0b" }}
+                        />
+                      </IconButton>
+                      <IconButton
+                        size="small"
+                        onClick={() => handleDelete(cat)}
+                      >
+                        <DeleteIcon
+                          fontSize="small"
+                          sx={{ color: "#ef4444" }}
+                        />
+                      </IconButton>
+                    </Stack>
+                  </Box>
+                </Box>
+              );
+            })
+          )}
+        </Paper>
+      )}
 
       {/* MODAL CREAR / EDITAR */}
       <CategoryProductModal

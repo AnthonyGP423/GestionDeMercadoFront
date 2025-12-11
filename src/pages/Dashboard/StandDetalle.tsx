@@ -3,9 +3,9 @@ import {
   Typography,
   Paper,
   Button,
-  Chip,
   Stack,
   Divider,
+  CircularProgress,
 } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import AutorenewIcon from "@mui/icons-material/Autorenew";
@@ -29,7 +29,7 @@ import { useToast } from "../../components/ui/Toast";
 import StandModal from "./components/modals/StandModal";
 import CambiarEstadoStandModal from "../Dashboard/components/modals/CambiarEstadosStandModal";
 
-// 🔹 productos del stand
+// productos del stand
 import productosAdminApi, {
   ProductoRow,
 } from "../../api/productosAdminApi";
@@ -194,23 +194,67 @@ export default function StandDetalle() {
     }
   };
 
+  // === ESTADOS VISUALES ===
   if (!stand && loading) {
-    return <Typography>Cargando stand...</Typography>;
-  }
-  if (!stand && !loading) {
     return (
-      <Box>
-        <Button
-          startIcon={<ArrowBackIcon />}
-          onClick={handleBack}
-          sx={{ mb: 2 }}
-        >
-          Volver
-        </Button>
-        <Typography>No se encontró el stand.</Typography>
+      <Box
+        sx={{
+          bgcolor: "#f3f4f6",
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          px: 2,
+        }}
+      >
+        <Stack direction="row" spacing={2} alignItems="center">
+          <CircularProgress size={24} />
+          <Typography color="text.secondary">
+            Cargando información del stand…
+          </Typography>
+        </Stack>
       </Box>
     );
   }
+
+  if (!stand && !loading) {
+    return (
+      <Box
+        sx={{
+          bgcolor: "#f3f4f6",
+          minHeight: "100vh",
+          py: 3,
+          px: { xs: 2, md: 4 },
+        }}
+      >
+        <Button
+          startIcon={<ArrowBackIcon />}
+          onClick={handleBack}
+          sx={{
+            mb: 2,
+            textTransform: "none",
+            color: "text.secondary",
+            fontWeight: 500,
+          }}
+        >
+          Volver a la tabla
+        </Button>
+        <Paper
+          sx={{
+            borderRadius: 4,
+            p: 3,
+            boxShadow: "0 10px 25px rgba(15,23,42,0.06)",
+          }}
+          elevation={0}
+        >
+          <Typography fontWeight={600}>
+            No se encontró la información del stand.
+          </Typography>
+        </Paper>
+      </Box>
+    );
+  }
+
   if (!stand) return null;
 
   const chipColor =
@@ -240,17 +284,22 @@ export default function StandDetalle() {
       <Button
         startIcon={<ArrowBackIcon />}
         onClick={handleBack}
-        sx={{ mb: 2, textTransform: "none", color: "gray" }}
+        sx={{
+          mb: 2,
+          textTransform: "none",
+          color: "text.secondary",
+          fontWeight: 500,
+        }}
       >
         Volver a la tabla
       </Button>
 
-      {/* CONTENIDO PRINCIPAL + PRODUCTOS DENTRO DE LA COLUMNA IZQUIERDA */}
+      {/* CARD PRINCIPAL */}
       <Paper
         sx={{
           borderRadius: 4,
           p: { xs: 3, md: 4 },
-          boxShadow: "0 10px 25px rgba(15,23,42,0.06)",
+          boxShadow: "0 18px 40px rgba(15,23,42,0.06)",
           border: "1px solid #e5e7eb",
           bgcolor: "#ffffff",
         }}
@@ -271,9 +320,15 @@ export default function StandDetalle() {
           <Box>
             <Typography
               variant="h4"
-              sx={{ fontWeight: 700, mb: 1, letterSpacing: "-0.03em" }}
+              sx={{
+                fontWeight: 800,
+                mb: 1,
+                letterSpacing: "-0.03em",
+                fontFamily:
+                  `"Poppins","Inter",system-ui,-apple-system,BlinkMacSystemFont`,
+              }}
             >
-              Stand {stand.bloque}-{stand.numeroStand} –{" "}
+              Stand {stand.bloque}-{stand.numeroStand} ·{" "}
               {stand.nombreComercial}
             </Typography>
 
@@ -313,10 +368,19 @@ export default function StandDetalle() {
           >
             <Button
               variant="contained"
-              color="success"
               startIcon={<EditIcon />}
               onClick={() => setOpenEditModal(true)}
-              sx={{ borderRadius: 999, textTransform: "none" }}
+              sx={{
+                borderRadius: "999px",
+                textTransform: "none",
+                fontWeight: 700,
+                backgroundColor: "#22c55e",
+                boxShadow: "0 6px 14px rgba(34, 197, 94, 0.25)",
+                "&:hover": {
+                  backgroundColor: "#16a34a",
+                  boxShadow: "0 8px 18px rgba(22, 163, 74, 0.35)",
+                },
+              }}
             >
               Editar stand
             </Button>
@@ -324,7 +388,11 @@ export default function StandDetalle() {
               variant="outlined"
               startIcon={<AutorenewIcon />}
               onClick={() => setOpenEstadoModal(true)}
-              sx={{ borderRadius: 999, textTransform: "none" }}
+              sx={{
+                borderRadius: "999px",
+                textTransform: "none",
+                fontWeight: 600,
+              }}
             >
               Cambiar estado
             </Button>
@@ -333,7 +401,11 @@ export default function StandDetalle() {
               color="error"
               startIcon={<DeleteIcon />}
               onClick={handleDelete}
-              sx={{ borderRadius: 999, textTransform: "none" }}
+              sx={{
+                borderRadius: "999px",
+                textTransform: "none",
+                fontWeight: 600,
+              }}
             >
               Eliminar
             </Button>
@@ -400,7 +472,7 @@ export default function StandDetalle() {
               </Box>
             </Stack>
 
-            {/* 🔹 PRODUCTOS EN ESTE STAND, PEGADOS A LOS DETALLES */}
+            {/* PRODUCTOS EN ESTE STAND */}
             <Box sx={{ mt: 4 }}>
               <Typography
                 variant="overline"

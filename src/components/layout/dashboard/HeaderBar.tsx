@@ -10,7 +10,7 @@ import {
 import NotificationsNoneOutlinedIcon from "@mui/icons-material/NotificationsNoneOutlined";
 import AccountCircleOutlinedIcon from "@mui/icons-material/AccountCircleOutlined";
 import { useLocation } from "react-router-dom";
-import { useAuth } from "../../../auth/useAuth"; // ajusta la ruta según tu proyecto
+import { useAuth } from "../../../auth/useAuth";
 
 // Debe coincidir con el drawerWidth del Sidebar
 const drawerWidth = 260;

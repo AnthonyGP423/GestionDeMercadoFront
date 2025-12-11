@@ -8,23 +8,23 @@ import {
   Paper,
   Stack,
 } from "@mui/material";
-import { authApi } from "../../api/authApi";        
-import { useAuth } from "../../auth/useAuth";     
+import { authApi } from "../../api/authApi";
+import { useAuth } from "../../auth/useAuth";
 
 const Login = () => {
   const navigate = useNavigate();
-  const { login } = useAuth();                  
+  const { login } = useAuth();
 
-  const [user, setUser] = useState<string>("");    // email
-  const [pass, setPass] = useState<string>("");    // password
-  const [loading, setLoading] = useState(false);   
-  const [errorMsg, setErrorMsg] = useState("");    
+  const [user, setUser] = useState<string>(""); // email
+  const [pass, setPass] = useState<string>(""); // password
+  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
     if (user.trim() === "" || pass.trim() === "") {
-      alert("Por favor completa todos los campos.");
+      setErrorMsg("Por favor completa todos los campos.");
       return;
     }
 
@@ -32,7 +32,6 @@ const Login = () => {
     setLoading(true);
 
     try {
-      // Llamamos a /api/auth/login
       const response = await authApi.login({
         email: user,
         password: pass,
@@ -40,13 +39,11 @@ const Login = () => {
 
       const data = response.data; // { token, tipoToken, email, rol }
 
-      // Guardamos token y datos de usuario en el contexto (y localStorage)
       login(data.token, {
         email: data.email,
         rol: data.rol,
       });
 
-      // Navegamos al panel principal
       navigate("/dashboard/principal");
     } catch (error: any) {
       console.error(error);
@@ -68,84 +65,165 @@ const Login = () => {
   return (
     <Box
       sx={{
-        height: "100vh",
+        minHeight: "100vh",
         display: "flex",
         justifyContent: "center",
         alignItems: "center",
-        background: "#f5f5f5",
+        px: 2,
+        background:
+          "linear-gradient(to bottom right, #f5f5f5, #e5e7eb)", // mismo tono claro, más moderno
       }}
     >
       <Paper
-        elevation={6}
+        elevation={0}
         sx={{
           padding: 4,
-          width: "350px",
-          borderRadius: 3,
+          width: "100%",
+          maxWidth: 400,
+          borderRadius: 4,
+          bgcolor: "#ffffff",
+          boxShadow: "0 18px 40px rgba(15,23,42,0.08)",
+          border: "1px solid #e5e7eb",
         }}
       >
-        <Typography variant="h4" textAlign="center" mb={3} fontWeight="bold">
-          Gestión De Mercado Mayorista
-        </Typography>
-
-        <Typography variant="body1" textAlign="center" mb={1} color="gray">
-          Control de stands, socios y supervisión del mercado mayorista
-        </Typography>
-
-        <form onSubmit={handleSubmit}>
-          <TextField
-            label="Email"
-            variant="outlined"
-            fullWidth
-            margin="normal"
-            value={user}
-            onChange={(e) => setUser(e.target.value)}
-          />
-
-          <TextField
-            label="Contraseña"
-            type="password"
-            variant="outlined"
-            fullWidth
-            margin="normal"
-            value={pass}
-            onChange={(e) => setPass(e.target.value)}
-          />
-
-          <Stack
-            direction="row"
-            justifyContent="space-between"
-            alignItems="center"
-            mt={2}
-            mb={1}
+        {/* Cabecera */}
+        <Box sx={{ mb: 3 }}>
+          <Typography
+            variant="overline"
+            sx={{
+              letterSpacing: "0.16em",
+              fontSize: 11,
+              fontWeight: 700,
+              color: "text.secondary",
+            }}
           >
-            <Typography variant="body2">¿No tienes cuenta?</Typography>
+            PANEL ADMINISTRATIVO
+          </Typography>
 
-            <Button size="small" variant="text" onClick={handleRegister}>
-              Regístrate
+          <Typography
+            variant="h4"
+            textAlign="left"
+            sx={{
+              mt: 1,
+              mb: 1,
+              fontWeight: 800,
+              fontFamily:
+                `"Poppins","Inter",system-ui,-apple-system,BlinkMacSystemFont`,
+            }}
+          >
+            Gestión de Mercado Mayorista
+          </Typography>
+
+          <Typography
+            variant="body2"
+            textAlign="left"
+            sx={{ color: "text.secondary" }}
+          >
+            Control de stands, socios y supervisión del mercado mayorista.
+          </Typography>
+        </Box>
+
+        {/* Formulario */}
+        <form onSubmit={handleSubmit}>
+          <Stack spacing={2}>
+            <TextField
+              label="Email"
+              variant="outlined"
+              fullWidth
+              size="small"
+              value={user}
+              onChange={(e) => setUser(e.target.value)}
+              InputProps={{
+                sx: {
+                  borderRadius: 3,
+                },
+              }}
+            />
+
+            <TextField
+              label="Contraseña"
+              type="password"
+              variant="outlined"
+              fullWidth
+              size="small"
+              value={pass}
+              onChange={(e) => setPass(e.target.value)}
+              InputProps={{
+                sx: {
+                  borderRadius: 3,
+                },
+              }}
+            />
+
+            {/* Mensaje de error si el backend responde con error */}
+            {errorMsg && (
+              <Box
+                sx={{
+                  mt: 0.5,
+                  px: 1.5,
+                  py: 1,
+                  borderRadius: 2,
+                  bgcolor: "#fee2e2",
+                  border: "1px solid #fecaca",
+                }}
+              >
+                <Typography
+                  variant="body2"
+                  color="error"
+                  textAlign="center"
+                  sx={{ fontSize: 13 }}
+                >
+                  {errorMsg}
+                </Typography>
+              </Box>
+            )}
+
+            <Stack
+              direction="row"
+              justifyContent="space-between"
+              alignItems="center"
+              mt={1}
+            >
+              <Typography variant="body2" color="text.secondary">
+                ¿No tienes cuenta?
+              </Typography>
+
+              <Button
+                size="small"
+                variant="text"
+                onClick={handleRegister}
+                sx={{
+                  textTransform: "none",
+                  fontWeight: 600,
+                  borderRadius: 999,
+                }}
+              >
+                Regístrate
+              </Button>
+            </Stack>
+
+            <Button
+              fullWidth
+              type="submit"
+              variant="contained"
+              disabled={loading}
+              sx={{
+                mt: 1,
+                borderRadius: "999px",
+                py: 1.1,
+                textTransform: "none",
+                fontWeight: 700,
+                boxShadow: "0 10px 25px rgba(34,197,94,0.35)",
+                backgroundColor: "#22c55e",
+                "&:hover": {
+                  backgroundColor: "#16a34a",
+                  boxShadow: "0 12px 30px rgba(22,163,74,0.45)",
+                },
+              }}
+            >
+              {loading ? "Ingresando..." : "Entrar"}
             </Button>
           </Stack>
-
-          {/* Mensaje de error si el backend responde con error */}
-          {errorMsg && (
-            <Typography
-              variant="body2"
-              color="error"
-              mt={1}
-              textAlign="center"
-            >
-              {errorMsg}
-            </Typography>
-          )}
-
-          <Button
-            fullWidth
-            type="submit"
-            variant="contained"
-            sx={{ mt: 2 }}
-            disabled={loading}
-          >
-            {loading ? "Ingresando..." : "Entrar"}
-          </Button>
         </form>
       </Paper>
     </Box>

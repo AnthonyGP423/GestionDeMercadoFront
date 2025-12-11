@@ -31,7 +31,6 @@ const CardCategoria: React.FC<CardCategoriaProps> = ({
   descripcion,
   estado,
   colorHex,
-  iconoUrl,
   onToggleEstado,
   onEdit,
   onDelete,

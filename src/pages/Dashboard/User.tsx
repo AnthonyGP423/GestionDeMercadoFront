@@ -3,15 +3,8 @@ import {
   Box,
   Typography,
   Paper,
-  Table,
-  TableHead,
-  TableBody,
-  TableRow,
-  TableCell,
-  IconButton,
-  Chip,
   CircularProgress,
-  Stack,
+  Chip,
 } from "@mui/material";
 
 import FiltersBar from "../../components/shared/FiltersBar";
@@ -27,6 +20,7 @@ import {
   UsuarioRow,
   UsuarioBackend,
 } from "../../api/usuarioApi";
+import DataTable from "../../components/shared/DataTable";
 
 type ModalMode = "create" | "edit" | "view";
 
@@ -250,7 +244,7 @@ export default function Usuario() {
   };
 
   // ===========================
-  //   CHIP DE ESTADO (MISMO LOOK QUE ROLES)
+  //   CHIP DE ESTADO
   // ===========================
   const renderEstadoChip = (estado: string) => {
     const e = estado.toUpperCase();
@@ -261,7 +255,7 @@ export default function Usuario() {
           label="ACTIVO"
           size="small"
           sx={{
-            bgcolor: "#bbf7d0",   // igual que chip "Todos" en Roles
+            bgcolor: "#bbf7d0",
             color: "#166534",
             fontWeight: 600,
             borderRadius: 999,
@@ -287,7 +281,6 @@ export default function Usuario() {
       );
     }
 
-    // BAJA u otros
     return (
       <Chip
         label={e}
@@ -302,6 +295,48 @@ export default function Usuario() {
       />
     );
   };
+
+  // ===========================
+  //   COLUMNAS + ACCIONES PARA DataTable
+  // ===========================
+  const columnas = [
+    {
+      title: "Nombre completo",
+      field: "nombre",
+      type: "text" as const,
+    },
+    {
+      title: "Email",
+      field: "email",
+      type: "text" as const,
+    },
+    {
+      title: "Rol",
+      field: "rol",
+      type: "text" as const,
+    },
+    {
+      title: "Estado",
+      field: "estado",
+      type: "status" as const,
+      render: (row: UsuarioRow) => renderEstadoChip(row.estado),
+    },
+  ];
+
+  const acciones = [
+    {
+      icon: <VisibilityIcon fontSize="small" sx={{ color: "#0ea5e9" }} />,
+      onClick: (row: UsuarioRow) => handleVer(row),
+    },
+    {
+      icon: <EditIcon fontSize="small" sx={{ color: "#f59e0b" }} />,
+      onClick: (row: UsuarioRow) => handleEditar(row),
+    },
+    {
+      icon: <DeleteIcon fontSize="small" sx={{ color: "#ef4444" }} />,
+      onClick: (row: UsuarioRow) => handleEliminar(row),
+    },
+  ];
 
   // ===========================
   //   RENDER
@@ -366,7 +401,7 @@ export default function Usuario() {
         </Typography>
       </Box>
 
-      {/* BARRA DE FILTROS + BOTÓN NUEVO USUARIO (MISMO ESTILO QUE NUEVO ROL) */}
+      {/* BARRA DE FILTROS + BOTÓN NUEVO USUARIO */}
       <FiltersBar
         filters={filtros}
         searchValue={busqueda}
@@ -392,7 +427,7 @@ export default function Usuario() {
         }}
       />
 
-      {/* TABLA MODERNA (MISMOS EFECTOS QUE ROLES) */}
+      {/* CARD + TABLA CON PAGINADO INTERNO (DataTable) */}
       <Paper
         elevation={0}
         sx={{
@@ -402,105 +437,11 @@ export default function Usuario() {
           boxShadow: "0 18px 40px rgba(15, 23, 42, 0.06)",
         }}
       >
-        <Table>
-          <TableHead>
-            <TableRow
-              sx={{
-                bgcolor: "#f9fafb",
-                "& th": {
-                  fontWeight: 600,
-                  fontSize: 13,
-                  letterSpacing: 0.5,
-                  textTransform: "uppercase",
-                  color: "#6b7280",
-                  borderBottom: "1px solid #e5e7eb",
-                },
-              }}
-            >
-              <TableCell sx={{ width: "30%" }}>Nombre completo</TableCell>
-              <TableCell sx={{ width: "30%" }}>Email</TableCell>
-              <TableCell sx={{ width: "15%" }}>Rol</TableCell>
-              <TableCell sx={{ width: "15%" }}>Estado</TableCell>
-              <TableCell sx={{ width: "10%" }} align="center">
-                Acciones
-              </TableCell>
-            </TableRow>
-          </TableHead>
-
-          <TableBody>
-            {datosFiltrados.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={5}>
-                  <Box
-                    sx={{
-                      py: 5,
-                      textAlign: "center",
-                      color: "text.secondary",
-                    }}
-                  >
-                    No se encontraron usuarios con los criterios actuales.
-                  </Box>
-                </TableCell>
-              </TableRow>
-            ) : (
-              datosFiltrados.map((row) => (
-                <TableRow
-                  key={row.id}
-                  hover
-                  sx={{
-                    "& td": {
-                      borderBottom: "1px solid #f1f5f9",
-                      fontSize: 14,
-                    },
-                  }}
-                >
-                  <TableCell sx={{ fontWeight: 600 }}>{row.nombre}</TableCell>
-                  <TableCell>{row.email}</TableCell>
-                  <TableCell>{row.rol}</TableCell>
-                  <TableCell>{renderEstadoChip(row.estado)}</TableCell>
-
-                  <TableCell align="center">
-                    <Stack
-                      direction="row"
-                      spacing={1}
-                      justifyContent="center"
-                    >
-                      <IconButton
-                        size="small"
-                        onClick={() => handleVer(row)}
-                      >
-                        <VisibilityIcon
-                          fontSize="small"
-                          sx={{ color: "#0ea5e9" }}
-                        />
-                      </IconButton>
-
-                      <IconButton
-                        size="small"
-                        onClick={() => handleEditar(row)}
-                      >
-                        <EditIcon
-                          fontSize="small"
-                          sx={{ color: "#f59e0b" }}
-                        />
-                      </IconButton>
-
-                      <IconButton
-                        size="small"
-                        onClick={() => handleEliminar(row)}
-                      >
-                        <DeleteIcon
-                          fontSize="small"
-                          sx={{ color: "#ef4444" }}
-                        />
-                      </IconButton>
-                    </Stack>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
+        <DataTable
+          columns={columnas}
+          data={datosFiltrados}
+          actions={acciones}
+        />
       </Paper>
 
       {/* MODAL CREAR / EDITAR / VER */}

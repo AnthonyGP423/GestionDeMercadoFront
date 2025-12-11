@@ -1,5 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-import { Box, Paper, Typography } from "@mui/material";
+
+import {
+  Box,
+  Paper,
+  Typography,
+  Chip,
+  CircularProgress,
+} from "@mui/material";
 
 import FiltersBar from "../../components/shared/FiltersBar";
 import DataTable from "../../components/shared/DataTable";
@@ -53,9 +60,7 @@ export default function ProductoAdmin() {
   // ========= OPCIONES PARA FILTROS =========
   const categoriasOptions = useMemo(
     () =>
-      Array.from(new Set(productos.map((p) => p.categoria))).filter(
-        Boolean
-      ),
+      Array.from(new Set(productos.map((p) => p.categoria))).filter(Boolean),
     [productos]
   );
   const standsOptions = useMemo(
@@ -77,123 +82,120 @@ export default function ProductoAdmin() {
 
   // ========= COLUMNAS =========
   const columnas = [
-  { title: "Nombre", field: "nombre", type: "text" as const },
-  { title: "Categoría", field: "categoria", type: "text" as const },
-  { title: "Stand", field: "stand", type: "text" as const },
-  { title: "Unidad", field: "unidad", type: "text" as const },
-  {
-    title: "Precio normal",
-    field: "precioNormalTexto",
-    type: "text" as const,
-  },
-  {
-    title: "Precio oferta",
-    field: "precioOfertaTexto",
-    type: "text" as const,
-  },
-  {
-    title: "Oferta",
-    field: "ofertaStatus",
-    type: "status" as const,
-    render: (row: ProductoRow) =>
-      row.tieneOferta ? (
-        <span
-          style={{
-            backgroundColor: "#16a34a20",
-            color: "#166534",
-            padding: "3px 10px",
-            borderRadius: "12px",
-            fontWeight: 600,
-            fontSize: "0.75rem",
-          }}
-        >
-          Con oferta
-        </span>
-      ) : (
-        <span
-          style={{
-            backgroundColor: "#e5e7eb",
-            color: "#6b7280",
-            padding: "3px 10px",
-            borderRadius: "12px",
-            fontWeight: 500,
-            fontSize: "0.75rem",
-          }}
-        >
-          Sin oferta
-        </span>
-      ),
-  },
-  {
-    title: "Estado",
-    field: "estado",
-    type: "status" as const,
-    render: (row: ProductoRow) => {
-      const value = row.estado;
-
-      if (value === "En venta") {
-        return (
-          <span
-            style={{
-              backgroundColor: "#22c55e20",
-              color: "#15803d",
-              padding: "3px 10px",
-              borderRadius: "999px",
-              fontWeight: 600,
-              fontSize: "0.75rem",
-            }}
-          >
-            En venta
-          </span>
-        );
-      }
-
-      if (value === "Eliminado") {
-        return (
-          <span
-            style={{
-              backgroundColor: "#fee2e2",
-              color: "#b91c1c",
-              padding: "3px 10px",
-              borderRadius: "999px",
-              fontWeight: 600,
-              fontSize: "0.75rem",
-            }}
-          >
-            Eliminado
-          </span>
-        );
-      }
-
-      return (
-        <span
-          style={{
-            backgroundColor: "#e5e7eb",
-            color: "#6b7280",
-            padding: "3px 10px",
-            borderRadius: "999px",
-            fontWeight: 500,
-            fontSize: "0.75rem",
-          }}
-        >
-          {value}
-        </span>
-      );
+    { title: "Nombre", field: "nombre", type: "text" as const },
+    { title: "Categoría", field: "categoria", type: "text" as const },
+    { title: "Stand", field: "stand", type: "text" as const },
+    { title: "Unidad", field: "unidad", type: "text" as const },
+    {
+      title: "Precio normal",
+      field: "precioNormalTexto",
+      type: "text" as const,
     },
-  },
-];
+    {
+      title: "Precio oferta",
+      field: "precioOfertaTexto",
+      type: "text" as const,
+    },
+    {
+      title: "Oferta",
+      field: "ofertaStatus",
+      type: "status" as const,
+      render: (row: ProductoRow) =>
+        row.tieneOferta ? (
+          <Chip
+            label="Con oferta"
+            size="small"
+            sx={{
+              bgcolor: "#bbf7d0",
+              color: "#166534",
+              fontWeight: 600,
+              borderRadius: "999px",
+              fontSize: "0.75rem",
+              px: 1.5,
+            }}
+          />
+        ) : (
+          <Chip
+            label="Sin oferta"
+            size="small"
+            sx={{
+              bgcolor: "#e5e7eb",
+              color: "#374151",
+              fontWeight: 500,
+              borderRadius: "999px",
+              fontSize: "0.75rem",
+              px: 1.5,
+            }}
+          />
+        ),
+    },
+    {
+      title: "Estado",
+      field: "estado",
+      type: "status" as const,
+      render: (row: ProductoRow) => {
+        const value = row.estado;
+
+        if (value === "En venta") {
+          return (
+            <Chip
+              label="En venta"
+              size="small"
+              sx={{
+                bgcolor: "#22c55e20",
+                color: "#15803d",
+                fontWeight: 600,
+                borderRadius: "999px",
+                fontSize: "0.75rem",
+                px: 1.5,
+              }}
+            />
+          );
+        }
+
+        if (value === "Eliminado") {
+          return (
+            <Chip
+              label="Eliminado"
+              size="small"
+              sx={{
+                bgcolor: "#fee2e2",
+                color: "#b91c1c",
+                fontWeight: 600,
+                borderRadius: "999px",
+                fontSize: "0.75rem",
+                px: 1.5,
+              }}
+            />
+          );
+        }
+
+        return (
+          <Chip
+            label={value}
+            size="small"
+            sx={{
+              bgcolor: "#e5e7eb",
+              color: "#6b7280",
+              fontWeight: 500,
+              borderRadius: "999px",
+              fontSize: "0.75rem",
+              px: 1.5,
+            }}
+          />
+        );
+      },
+    },
+  ];
 
   // ========= FILTRADO =========
   const datosFiltrados = useMemo(
     () =>
       productos.filter((row) => {
         const c1 =
-          filtroCategoria === "Todos" ||
-          row.categoria === filtroCategoria;
-        const c2 =
-          filtroStand === "Todos" || row.stand === filtroStand;
-        const c3 =
-          filtroEstado === "Todos" || row.estado === filtroEstado;
+          filtroCategoria === "Todos" || row.categoria === filtroCategoria;
+        const c2 = filtroStand === "Todos" || row.stand === filtroStand;
+        const c3 = filtroEstado === "Todos" || row.estado === filtroEstado;
         const s = search.trim().toLowerCase();
         const c4 =
           !s ||
@@ -232,18 +234,18 @@ export default function ProductoAdmin() {
 
   // ========= ADAPTAR ProductoRow -> ProductData PARA EL MODAL =========
   const buildModalDataFromRow = (row: ProductoRow): ProductData => ({
-  nombre: row.nombre,
-  descripcion: "", // si luego agregas descripción en el DTO admin, aquí la mapearías
-  unidad_medida: row.unidad,
-  precio_actual: row.precioNormal.toString(),
-  en_oferta: row.tieneOferta,
-  precio_oferta:
-    row.precioOferta !== null ? row.precioOferta.toString() : "",
-  visible_directorio: row.visible,
-  estado: row.estado === "En venta" ? "Activo" : "Inactivo",
-  id_stand: "",
-  id_categoria_producto: "",
-});
+    nombre: row.nombre,
+    descripcion: "",
+    unidad_medida: row.unidad,
+    precio_actual: row.precioNormal.toString(),
+    en_oferta: row.tieneOferta,
+    precio_oferta:
+      row.precioOferta !== null ? row.precioOferta.toString() : "",
+    visible_directorio: row.visible,
+    estado: row.estado === "En venta" ? "Activo" : "Inactivo",
+    id_stand: "",
+    id_categoria_producto: "",
+  });
 
   // ========= SUBMIT DEL MODAL (VISIBILIDAD) =========
   const handleModalSubmit = async (data: ProductData) => {
@@ -256,7 +258,6 @@ export default function ProductoAdmin() {
         nuevoVisible
       );
 
-      // Recargamos el listado desde backend para ver el cambio
       await fetchProductos();
 
       showToast(
@@ -280,65 +281,82 @@ export default function ProductoAdmin() {
 
   return (
     <>
-      {/* Título + descripción amigable */}
-      <Typography variant="h4" sx={{ mb: 1, fontWeight: "bold" }}>
-        Gestión de Productos (Administración)
-      </Typography>
-
-      <Typography
-        variant="body2"
-        sx={{ mb: 3, color: "text.secondary", maxWidth: 900 }}
-      >
-        Vista de auditoría para <strong>ADMIN / SUPERVISOR</strong>. Aquí
-        puedes revisar la información de los productos, comparar precios
-        normales y de oferta, y controlar su{" "}
-        <strong>visibilidad en el directorio público</strong>. La creación
-        y edición de productos se realiza desde el portal de SOCIOS.
-      </Typography>
-
-      {/* Filtros dentro de una tarjeta limpia */}
-      <Paper
-        elevation={1}
-        sx={{
-          p: 2,
-          mb: 2,
-          borderRadius: 3,
-          bgcolor: "#f9fafb",
-          border: "1px solid",
-          borderColor: "divider",
-        }}
-      >
-        <FiltersBar
-          filters={filtros}
-          searchValue={search}
-          onSearchChange={setSearch}
-          onFilterChange={(field, value) => {
-            if (field === "categoria") setFiltroCategoria(value);
-            if (field === "stand") setFiltroStand(value);
-            if (field === "estado") setFiltroEstado(value);
+      {/* CABECERA AL ESTILO ROL */}
+      <Box sx={{ mb: 4 }}>
+        <Typography
+          variant="h4"
+          sx={{
+            fontWeight: 800,
+            fontFamily:
+              `"Poppins","Inter",system-ui,-apple-system,BlinkMacSystemFont`,
           }}
-          // NOTA: no hay botón "Nuevo producto" para admin
-          onAdd={undefined}
-        />
-      </Paper>
+        >
+          Productos (Administración)
+        </Typography>
+        <Typography
+          variant="body1"
+          color="text.secondary"
+          sx={{ mt: 0.5, maxWidth: 720 }}
+        >
+          Vista de auditoría para{" "}
+          <strong>ADMIN / SUPERVISOR</strong>. Revisa el catálogo de
+          productos, compara precios normales y de oferta, y controla su{" "}
+          <strong>visibilidad en el directorio público</strong>.
+        </Typography>
+      </Box>
 
-      {/* Tabla */}
+      {/* BARRA DE FILTROS, SIN BOTÓN NUEVO, ESTILO LIMPIO */}
+      <FiltersBar
+        filters={filtros}
+        searchValue={search}
+        onSearchChange={setSearch}
+        onFilterChange={(field, value) => {
+          if (field === "categoria") setFiltroCategoria(value);
+          if (field === "stand") setFiltroStand(value);
+          if (field === "estado") setFiltroEstado(value);
+        }}
+        onAdd={undefined}
+      />
+
+      {/* TABLA AL ESTILO "ROLES" */}
       {loading ? (
-        <Box sx={{ mt: 2 }}>
-          <Typography
-            variant="caption"
-            sx={{ mb: 1, color: "text.secondary", display: "block" }}
-          >
-            La columna <strong>Oferta</strong> indica si el producto tiene un precio
-            promocional activo en el directorio. 
-          </Typography>
+        <Box
+          sx={{
+            mt: 6,
+            display: "flex",
+            justifyContent: "center",
+          }}
+        >
+          <CircularProgress />
         </Box>
       ) : (
-        <DataTable
-          columns={columnas}
-          data={datosFiltrados}
-          actions={acciones}
-        />
+        <Paper
+          elevation={0}
+          sx={{
+            mt: 3,
+            borderRadius: 4,
+            overflow: "hidden",
+            boxShadow: "0 18px 40px rgba(15, 23, 42, 0.06)",
+          }}
+        >
+          <Box sx={{ p: 1.5 }}>
+            <DataTable columns={columnas} data={datosFiltrados} actions={acciones} />
+          </Box>
+        </Paper>
+      )}
+
+      {!loading && (
+        <Box sx={{ mt: 1.5 }}>
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            sx={{ display: "block" }}
+          >
+            * La columna <strong>Oferta</strong> indica si el producto tiene un
+            precio promocional activo, y <strong>Estado</strong> refleja su
+            situación actual en el módulo administrativo.
+          </Typography>
+        </Box>
       )}
 
       {/* Modal de detalle / visibilidad */}
@@ -351,7 +369,7 @@ export default function ProductoAdmin() {
             setModalMode(null);
           }}
           initialData={buildModalDataFromRow(selectedProducto)}
-          mode={modalMode} // "view" → solo lectura / "visibilidad" → solo switch
+          mode={modalMode}
           onSubmit={modalMode === "visibilidad" ? handleModalSubmit : undefined}
         />
       )}
