@@ -9,8 +9,12 @@ import {
   Divider,
   CircularProgress,
   Alert,
+  Paper,
+  Chip,
 } from "@mui/material";
 import axios from "axios";
+import { useLocation } from "react-router-dom";
+
 import PublicHeader from "../../components/layout/store/HeaderTienda";
 import PublicFooter from "../../components/layout/store/FooterTienda";
 
@@ -21,11 +25,9 @@ import PriceComparatorBanner from "../../components/layout/store/PriceComparator
 import ProductsGrid, {
   StoreProduct,
 } from "../../components/layout/store/ProductsGrid";
-import { useLocation } from "react-router-dom";
 
-// ================== CONFIG API ==================
-const API_URL = "http://localhost:8080/api/v1/admin/productos";
-// Si de verdad tu endpoint es .../productos/1, cámbialo arriba
+// ================== CONFIG API PUBLICA ==================
+const API_URL = "http://localhost:8080/api/public/productos/buscar";
 
 // Mapa simple para conectar value del filtro con el texto de la categoría
 const CATEGORY_MAP: Record<string, string> = {
@@ -46,57 +48,59 @@ export default function PreciosProductos() {
   const [category, setCategory] = useState("todos");
   const [priceRange, setPriceRange] = useState("todos");
   const [sortBy, setSortBy] = useState("relevancia");
+
   const location = useLocation() as {
     state?: { initialCategory?: string };
   };
+
   // ===== estados de datos API =====
   const [products, setProducts] = useState<StoreProduct[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Si llegas desde otra vista con categoría inicial
   useEffect(() => {
     if (location.state?.initialCategory) {
       setCategory(location.state.initialCategory);
-      // opcional: también podrías hacer scroll top
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
   }, [location.state]);
-  // ================== FETCH A SPRING BOOT ==================
 
+  // ================== FETCH A SPRING BOOT (ENDPOINT PÚBLICO) ==================
   useEffect(() => {
     const fetchProducts = async () => {
       try {
         setLoading(true);
         setError(null);
 
-        // Si necesitas token, lo sacas de donde lo guardes (localStorage, context, etc.)
-        const token = localStorage.getItem(
-          "eyJhbGciOiJIUzI1NiJ9.eyJyb2wiOiJBRE1JTiIsInN1YiI6Implc3VzLnJhbW9zQG1lcmNhZG8uY29tIiwiaWF0IjoxNzY1MTYwMzgxLCJleHAiOjE3NjUxODkxODF9.uKjUlqw4MhKyyhQWoKMXKNWiYqI3OICdk4xkGMFhfdQ"
-        ); // ejemplo, ajusta a tu caso
-
+        // Llamamos al endpoint público usando el parámetro "nombre" para la búsqueda
         const response = await axios.get(API_URL, {
+          params: {
+            nombre: search || undefined, // si no hay búsqueda, no se envía
+            page: 0,
+            size: 200, // puedes ajustar este tamaño según la cantidad esperada
+          },
           headers: {
-            Authorization: token ? `Bearer ${token}` : "",
             Accept: "*/*",
           },
         });
 
-        // 👇 Si tu backend devuelve un array de productos directamente:
-        const data = response.data as any[];
+        // La respuesta es paginada: { content: [...] , totalPages, ... }
+        const data = response.data;
+        const content = (data?.content ?? []) as any[];
 
-        // Si lo devuelve envuelto (ej: { content: [...] }), cambiar por response.data.content
-        // const data = response.data.content as any[];
-
-        const mapped: StoreProduct[] = data.map((p: any) => {
+        const mapped: StoreProduct[] = content.map((p: any) => {
           const enOferta = p.enOferta === true;
           const tienePrecioOferta =
-            enOferta && p.precioOferta !== null && p.precioOferta !== undefined;
+            enOferta &&
+            p.precioOferta !== null &&
+            p.precioOferta !== undefined;
 
-          // precio a mostrar (si hay oferta, mostramos precioOferta, si no, precioActual)
+          // precio a mostrar (si hay oferta, mostramos precioOferta; si no, precioActual)
           const precioFinal = tienePrecioOferta
             ? p.precioOferta
             : p.precioActual;
 
-          // porcentaje de descuento (si hay oferta y precioOferta < precioActual)
           let descuentoPorc = 0;
           if (
             tienePrecioOferta &&
@@ -111,10 +115,10 @@ export default function PreciosProductos() {
 
           return {
             id: p.idProducto,
-            nombre: p.nombre,
-            categoriaTag: p.nombreCategoriaProducto ?? "Sin categoría",
-            stand: p.nombreComercialStand
-              ? `${p.nombreComercialStand} · Bloque ${p.bloqueStand}, Puesto ${p.numeroStand}`
+            nombre: p.nombreProducto,
+            categoriaTag: p.categoriaProducto ?? "Sin categoría",
+            stand: p.nombreStand
+              ? `${p.nombreStand} · Bloque ${p.bloque}, Puesto ${p.numeroStand}`
               : "Stand no asignado",
             precio: precioFinal,
             unidad: p.unidadMedida ?? "unidad",
@@ -132,33 +136,26 @@ export default function PreciosProductos() {
         setProducts(mapped);
       } catch (err) {
         console.error(err);
-        setError("No se pudieron cargar los productos desde el servidor.");
+        setError(
+          "No se pudieron cargar los productos públicos desde el servidor."
+        );
       } finally {
         setLoading(false);
       }
     };
 
+    // Cada vez que cambia la búsqueda, consultamos al backend público
     fetchProducts();
-  }, []);
+  }, [search]);
+
   // ===== ofertas del día (solo las que tienen esOferta) =====
   const offers = useMemo(() => products.filter((p) => p.esOferta), [products]);
 
-  // ===== lógica de filtrado + orden =====
+  // ===== lógica de filtrado + orden (sobre lo que trae el backend) =====
   const filteredProducts = useMemo(() => {
     let list = [...products];
 
-    // Buscar por texto
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      list = list.filter(
-        (p) =>
-          p.nombre.toLowerCase().includes(q) ||
-          p.categoriaTag.toLowerCase().includes(q) ||
-          p.stand.toLowerCase().includes(q)
-      );
-    }
-
-    // Filtrar por categoría
+    // Filtrar por categoría (a nivel de nombre de categoría pública)
     if (category !== "todos") {
       const categoriaTexto = CATEGORY_MAP[category];
       if (categoriaTexto) {
@@ -191,13 +188,14 @@ export default function PreciosProductos() {
       list = list.sort((a, b) => b.precio - a.precio);
     }
 
+    // "relevancia" deja el orden tal como viene del backend
     return list;
-  }, [products, search, category, priceRange, sortBy]);
+  }, [products, category, priceRange, sortBy]);
 
   // ===== acciones =====
   const handleViewStand = (product: StoreProduct) => {
     console.log("Ir al producto:", product.nombre);
-    // aquí luego haces navigate(`/producto/${product.id}`)
+    // aquí luego puedes hacer: navigate(`/tienda/producto/${product.id}`)
   };
 
   const handleViewAllOffers = () => {
@@ -208,7 +206,7 @@ export default function PreciosProductos() {
     <Box
       sx={{
         minHeight: "100vh",
-        bgcolor: "#f8fafc",
+        bgcolor: "linear-gradient(180deg, #f1f5f9 0%, #f8fafc 40%, #ffffff 100%)",
         display: "flex",
         flexDirection: "column",
       }}
@@ -217,124 +215,189 @@ export default function PreciosProductos() {
 
       <Box sx={{ flex: 1, py: 5 }}>
         <Container maxWidth="lg">
-          <Stack spacing={5}>
+          <Stack spacing={4}>
             {/* CABECERA */}
             <Box>
-              <Breadcrumbs sx={{ mb: 2 }} aria-label="breadcrumb">
+              <Breadcrumbs sx={{ mb: 1 }} aria-label="breadcrumb">
                 <MuiLink
                   underline="hover"
                   color="inherit"
-                  href="/"
+                  href="/tienda"
                   sx={{ display: "flex", alignItems: "center" }}
                 >
                   Inicio
                 </MuiLink>
                 <Typography color="text.primary" fontWeight={500}>
-                  Precios y productos
+                  Directorio de precios
                 </Typography>
               </Breadcrumbs>
 
               <Typography
                 variant="h3"
-                sx={{ fontWeight: 800, mb: 1, letterSpacing: "-0.02em" }}
+                sx={{
+                  fontWeight: 800,
+                  mb: 1,
+                  letterSpacing: "-0.03em",
+                }}
               >
-                Precios y Productos
+                Precios y productos del mercado
               </Typography>
               <Typography
                 variant="body1"
                 color="text.secondary"
-                sx={{ maxWidth: 700 }}
+                sx={{ maxWidth: 720 }}
               >
-                Consulta los productos frescos ofrecidos diariamente por los
-                comerciantes del mercado. Precios actualizados en tiempo real.
+                Explora los productos ofrecidos por los stands del mercado,
+                filtra por categoría y rango de precios, y encuentra las mejores
+                ofertas disponibles para hoy.
               </Typography>
             </Box>
 
-            {/* BARRA DE FILTROS */}
-            <Box>
-              <ProductFiltersBar
-                search={search}
-                onSearchChange={setSearch}
-                category={category}
-                onCategoryChange={setCategory}
-                priceRange={priceRange}
-                onPriceRangeChange={setPriceRange}
-                sortBy={sortBy}
-                onSortByChange={setSortBy}
-              />
-            </Box>
+            {/* CONTENEDOR PRINCIPAL */}
+            <Paper
+              elevation={1}
+              sx={{
+                p: 3,
+                borderRadius: 3,
+                bgcolor: "#ffffff",
+                border: "1px solid #e2e8f0",
+              }}
+            >
+              <Stack spacing={3}>
+                {/* BARRA DE FILTROS */}
+                <Box>
+                  <ProductFiltersBar
+                    search={search}
+                    onSearchChange={setSearch}
+                    category={category}
+                    onCategoryChange={setCategory}
+                    priceRange={priceRange}
+                    onPriceRangeChange={setPriceRange}
+                    sortBy={sortBy}
+                    onSortByChange={setSortBy}
+                  />
 
-            {/* LOADING / ERROR */}
-            {loading && (
-              <Box sx={{ py: 6, textAlign: "center" }}>
-                <CircularProgress />
-                <Typography
-                  variant="body2"
-                  sx={{ mt: 2 }}
-                  color="text.secondary"
-                >
-                  Cargando productos...
-                </Typography>
-              </Box>
-            )}
+                  {/* Resumen de filtros activos */}
+                  <Stack
+                    direction="row"
+                    spacing={1}
+                    mt={1.5}
+                    flexWrap="wrap"
+                    alignItems="center"
+                  >
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      sx={{ mr: 1 }}
+                    >
+                      Filtros activos:
+                    </Typography>
+                    {category !== "todos" && (
+                      <Chip
+                        size="small"
+                        label={`Categoría: ${
+                          CATEGORY_MAP[category] ?? category
+                        }`}
+                      />
+                    )}
+                    {priceRange !== "todos" && (
+                      <Chip size="small" label={`Precio: ${priceRange}`} />
+                    )}
+                    {sortBy !== "relevancia" && (
+                      <Chip size="small" label={`Orden: ${sortBy}`} />
+                    )}
+                    {category === "todos" &&
+                      priceRange === "todos" &&
+                      sortBy === "relevancia" && (
+                        <Chip size="small" variant="outlined" label="Sin filtros" />
+                      )}
+                  </Stack>
+                </Box>
 
-            {error && !loading && <Alert severity="error">{error}</Alert>}
-
-            {/* SOLO renderizamos el resto si no está cargando */}
-            {!loading && !error && (
-              <>
-                {/* OFERTAS DEL DÍA */}
-                {offers.length > 0 && !search && category === "todos" && (
-                  <Box>
-                    <OffersStrip
-                      offers={offers}
-                      onViewStand={handleViewStand}
-                      onViewAll={handleViewAllOffers}
-                    />
+                {/* LOADING / ERROR */}
+                {loading && (
+                  <Box sx={{ py: 6, textAlign: "center" }}>
+                    <CircularProgress />
+                    <Typography
+                      variant="body2"
+                      sx={{ mt: 2 }}
+                      color="text.secondary"
+                    >
+                      Cargando productos públicos...
+                    </Typography>
                   </Box>
                 )}
 
-                {/* BANNER COMPARADOR */}
-                <Box>
-                  <PriceComparatorBanner
-                    onClick={() => console.log("Abrir comparador de precios")}
-                  />
-                </Box>
+                {error && !loading && <Alert severity="error">{error}</Alert>}
 
-                {/* GRID PRINCIPAL */}
-                <Box>
-                  <Stack direction="row" alignItems="center" spacing={2} mb={3}>
-                    <Typography variant="h5" sx={{ fontWeight: 700 }}>
-                      Todos los productos
-                    </Typography>
-                    <Divider
-                      flexItem
-                      orientation="vertical"
-                      sx={{ height: 24, alignSelf: "center" }}
-                    />
-                    <Typography variant="body2" color="text.secondary">
-                      {filteredProducts.length} resultados encontrados
-                    </Typography>
-                  </Stack>
+                {/* CONTENIDO SOLO SI NO HAY ERROR NI LOADING */}
+                {!loading && !error && (
+                  <>
+                    {/* OFERTAS DEL DÍA */}
+                    {offers.length > 0 && category === "todos" && (
+                      <Box>
+                        <OffersStrip
+                          offers={offers}
+                          onViewStand={handleViewStand}
+                          onViewAll={handleViewAllOffers}
+                        />
+                      </Box>
+                    )}
 
-                  {filteredProducts.length > 0 ? (
-                    <ProductsGrid
-                      products={filteredProducts}
-                      onViewStand={handleViewStand}
-                    />
-                  ) : (
-                    <Box sx={{ py: 8, textAlign: "center" }}>
-                      <Typography variant="h6" color="text.secondary">
-                        No encontramos productos con esos filtros.
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        Intenta buscar con otros términos o limpia los filtros.
-                      </Typography>
+                    {/* BANNER COMPARADOR */}
+                    <Box>
+                      <PriceComparatorBanner
+                        onClick={() =>
+                          console.log("Abrir comparador de precios público")
+                        }
+                      />
                     </Box>
-                  )}
-                </Box>
-              </>
-            )}
+
+                    {/* GRID PRINCIPAL */}
+                    <Box>
+                      <Stack
+                        direction="row"
+                        alignItems="center"
+                        spacing={2}
+                        mb={2}
+                      >
+                        <Typography variant="h5" sx={{ fontWeight: 700 }}>
+                          Productos disponibles
+                        </Typography>
+                        <Divider
+                          flexItem
+                          orientation="vertical"
+                          sx={{ height: 24, alignSelf: "center" }}
+                        />
+                        <Typography
+                          variant="body2"
+                          color="text.secondary"
+                        >
+                          {filteredProducts.length} resultados encontrados
+                        </Typography>
+                      </Stack>
+
+                      {filteredProducts.length > 0 ? (
+                        <ProductsGrid
+                          products={filteredProducts}
+                          onViewStand={handleViewStand}
+                        />
+                      ) : (
+                        <Box sx={{ py: 6, textAlign: "center" }}>
+                          <Typography variant="h6" color="text.secondary">
+                            No encontramos productos con esos filtros.
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            Intenta buscar con otros términos o limpia los
+                            filtros para ver todos los productos disponibles.
+                          </Typography>
+                        </Box>
+                      )}
+                    </Box>
+                  </>
+                )}
+              </Stack>
+            </Paper>
           </Stack>
         </Container>
       </Box>

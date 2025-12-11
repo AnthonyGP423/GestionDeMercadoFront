@@ -1,3 +1,4 @@
+// src/pages/stand/components/modals/StandModal.tsx
 import {
   Dialog,
   DialogTitle,
@@ -10,17 +11,27 @@ import {
   MenuItem,
   Stack,
   Box,
+  Typography,
 } from "@mui/material";
 import { useState, useEffect } from "react";
 
-// --- Interfaces ---
+interface CategoriaOption {
+  id: number;
+  nombre: string;
+}
+
+interface PropietarioOption {
+  id: number;
+  nombre: string;
+}
+
 interface Props {
   open: boolean;
   onClose: () => void;
   onSubmit: (data: any) => void;
   initialData?: any;
-  categorias?: { id: number; nombre: string }[];
-  propietarios?: { id: number; nombre: string }[];
+  categorias?: CategoriaOption[];
+  propietarios?: PropietarioOption[];
 }
 
 export default function StandModal({
@@ -31,7 +42,6 @@ export default function StandModal({
   categorias = [],
   propietarios = [],
 }: Props) {
-  // --- State ---
   const [form, setForm] = useState({
     id_propietario: "",
     id_categoria_stand: "",
@@ -46,37 +56,70 @@ export default function StandModal({
 
   const [errors, setErrors] = useState<any>({});
 
-  // --- Effects ---
   useEffect(() => {
-    if (initialData) {
-      setForm(initialData);
-    } else {
-      // Reset form if opening in "New" mode (optional but recommended)
-      setForm({
-        id_propietario: "",
-        id_categoria_stand: "",
-        bloque: "",
-        numero_stand: "",
-        nombre_comercial: "",
-        descripcion_negocio: "",
-        latitud: "",
-        longitud: "",
-        estado: "Activo",
-      });
+    const emptyForm = {
+      id_propietario: "",
+      id_categoria_stand: "",
+      bloque: "",
+      numero_stand: "",
+      nombre_comercial: "",
+      descripcion_negocio: "",
+      latitud: "",
+      longitud: "",
+      estado: "Activo",
+    };
+
+    if (open) {
+      if (initialData) {
+        setForm({
+          id_propietario:
+            initialData.id_propietario != null
+              ? String(initialData.id_propietario)
+              : "",
+          id_categoria_stand:
+            initialData.id_categoria_stand != null
+              ? String(initialData.id_categoria_stand)
+              : "",
+          bloque: initialData.bloque ?? "",
+          numero_stand: initialData.numero_stand ?? "",
+          nombre_comercial: initialData.nombre_comercial ?? "",
+          descripcion_negocio: initialData.descripcion_negocio ?? "",
+          latitud:
+            initialData.latitud != null ? String(initialData.latitud) : "",
+          longitud:
+            initialData.longitud != null ? String(initialData.longitud) : "",
+          estado: initialData.estado ?? "Activo",
+        });
+      } else {
+        setForm(emptyForm);
+      }
+      setErrors({});
     }
   }, [initialData, open]);
 
-  // --- Handlers ---
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
   const validar = () => {
     const err: any = {};
-    if (!form.nombre_comercial.trim()) err.nombre_comercial = "Requerido";
-    if (!form.numero_stand.trim()) err.numero_stand = "Requerido";
-    if (!form.id_categoria_stand)
-      err.id_categoria_stand = "Seleccione una categoría";
+
+    if (!form.id_propietario) {
+      err.id_propietario = "Selecciona un propietario / socio";
+    }
+
+    // 🔹 Mientras NO tengas categorías implementadas, NO obliguemos este campo
+    if (categorias.length > 0 && !form.id_categoria_stand) {
+      err.id_categoria_stand = "Selecciona una categoría";
+    }
+
+    if (!form.nombre_comercial.trim()) {
+      err.nombre_comercial = "El nombre comercial es obligatorio";
+    }
+
+    if (!form.numero_stand.trim()) {
+      err.numero_stand = "El número de stand es obligatorio";
+    }
 
     setErrors(err);
     return Object.keys(err).length === 0;
@@ -85,62 +128,93 @@ export default function StandModal({
   const handleSave = () => {
     if (!validar()) return;
     onSubmit(form);
-    onClose();
   };
+
+  // 🔹 Evitar “out-of-range” si el valor no existe en las opciones
+  const propietarioValue = propietarios.some(
+    (p) => String(p.id) === form.id_propietario
+  )
+    ? form.id_propietario
+    : "";
+
+  const categoriaValue = categorias.some(
+    (c) => String(c.id) === form.id_categoria_stand
+  )
+    ? form.id_categoria_stand
+    : "";
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
       <DialogTitle sx={{ fontWeight: "bold" }}>
-        {initialData ? "Editar Stand" : "Registrar Stand"}
+        {initialData ? "Editar stand" : "Registrar stand"}
       </DialogTitle>
 
       <DialogContent dividers>
-        {/* Use Stack for vertical spacing between rows */}
-        <Stack spacing={2} sx={{ mt: 1 }}>
-          {/* ROW 1: Propietario */}
+        <Typography
+          variant="body2"
+          color="text.secondary"
+          sx={{ mb: 2 }}
+        >
+          Asigna el stand a un <strong>socio propietario</strong>, define su
+          ubicación y describe el negocio que atiende en este puesto.
+        </Typography>
+
+        <Stack spacing={2}>
+          {/* PROPIETARIO / SOCIO */}
           <TextField
             select
             fullWidth
+            size="small"
             name="id_propietario"
-            label="Propietario"
-            value={form.id_propietario}
+            label="Propietario / socio"
+            value={propietarioValue}
             onChange={handleChange}
+            error={!!errors.id_propietario}
+            helperText={errors.id_propietario}
           >
             {propietarios.map((p) => (
-              <MenuItem key={p.id} value={p.id}>
+              <MenuItem key={p.id} value={String(p.id)}>
                 {p.nombre}
               </MenuItem>
             ))}
           </TextField>
 
-          {/* ROW 2: Categoría */}
+          {/* CATEGORÍA DEL STAND */}
           <TextField
             select
             fullWidth
+            size="small"
             name="id_categoria_stand"
             label="Categoría del stand"
-            value={form.id_categoria_stand}
+            value={categoriaValue}
             onChange={handleChange}
             error={!!errors.id_categoria_stand}
-            helperText={errors.id_categoria_stand}
+            helperText={
+              categorias.length === 0
+                ? "Aún no hay categorías configuradas"
+                : errors.id_categoria_stand
+            }
           >
             {categorias.map((c) => (
-              <MenuItem key={c.id} value={c.id}>
+              <MenuItem key={c.id} value={String(c.id)}>
                 {c.nombre}
               </MenuItem>
             ))}
           </TextField>
 
-          {/* ROW 3: Bloque & Número (Side by Side) */}
+          {/* BLOQUE / NÚMERO */}
           <Box sx={{ display: "flex", gap: 2 }}>
             <TextField
+              size="small"
               fullWidth
               label="Bloque"
               name="bloque"
               value={form.bloque}
               onChange={handleChange}
+              placeholder="Ej. A, B, C"
             />
             <TextField
+              size="small"
               fullWidth
               label="Número de stand"
               name="numero_stand"
@@ -148,11 +222,13 @@ export default function StandModal({
               onChange={handleChange}
               error={!!errors.numero_stand}
               helperText={errors.numero_stand}
+              placeholder="Ej. 101"
             />
           </Box>
 
-          {/* ROW 4: Nombre Comercial */}
+          {/* NOMBRE COMERCIAL */}
           <TextField
+            size="small"
             fullWidth
             label="Nombre comercial"
             name="nombre_comercial"
@@ -160,10 +236,12 @@ export default function StandModal({
             onChange={handleChange}
             error={!!errors.nombre_comercial}
             helperText={errors.nombre_comercial}
+            placeholder="Ej. Frutas Don José"
           />
 
-          {/* ROW 5: Descripción */}
+          {/* DESCRIPCIÓN */}
           <TextField
+            size="small"
             fullWidth
             label="Descripción del negocio"
             name="descripcion_negocio"
@@ -172,12 +250,14 @@ export default function StandModal({
             maxRows={5}
             value={form.descripcion_negocio}
             onChange={handleChange}
+            placeholder="Productos principales, horarios, especialidad..."
           />
 
-          {/* ROW 6: Coordenadas (Side by Side) */}
+          {/* COORDENADAS */}
           <Box sx={{ display: "flex", gap: 2 }}>
             <TextField
               fullWidth
+              size="small"
               type="number"
               label="Latitud"
               name="latitud"
@@ -186,6 +266,7 @@ export default function StandModal({
             />
             <TextField
               fullWidth
+              size="small"
               type="number"
               label="Longitud"
               name="longitud"
@@ -194,24 +275,22 @@ export default function StandModal({
             />
           </Box>
 
-          {/* ROW 7: Estado Switch */}
-          <Box>
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={form.estado === "Activo"}
-                  onChange={(e) =>
-                    setForm({
-                      ...form,
-                      estado: e.target.checked ? "Activo" : "Inactivo",
-                    })
-                  }
-                  color="success"
-                />
-              }
-              label={`Estado: ${form.estado}`}
-            />
-          </Box>
+          {/* ESTADO ADMINISTRATIVO (solo informativo aquí) */}
+          <FormControlLabel
+            control={
+              <Switch
+                checked={form.estado === "Activo"}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    estado: e.target.checked ? "Activo" : "Inactivo",
+                  })
+                }
+                color="success"
+              />
+            }
+            label={`Estado administrativo: ${form.estado}`}
+          />
         </Stack>
       </DialogContent>
 

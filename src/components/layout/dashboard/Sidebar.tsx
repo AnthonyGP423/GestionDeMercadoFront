@@ -23,16 +23,23 @@ import LogoutIcon from "@mui/icons-material/Logout";
 import ExpandLess from "@mui/icons-material/ExpandLess";
 import ExpandMore from "@mui/icons-material/ExpandMore";
 import StorefrontIcon from "@mui/icons-material/Storefront";
+import ReportProblemIcon from "@mui/icons-material/ReportProblem";
+import QrCode2Icon from "@mui/icons-material/QrCode2";
 
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useState, useMemo } from "react";
-import { useAuth } from "../../../auth/useAuth"; // ajusta la ruta según tu proyecto
+import { useAuth } from "../../../auth/useAuth";
 
 const drawerWidth = 260;
 
-// Colores institucionales
-const primary = "#166534"; // verde
-const accent = "#f59e0b"; // amarillo
+// Paleta más clara / moderna
+const primary = "#16a34a";      // verde principal
+const primarySoft = "#dcfce7";  // fondo de item seleccionado / chip
+const iconDefault = "#4b5563";  // gris para iconos
+const textMain = "#111827";
+const textMuted = "#6b7280";
+const accent = "#22c55e";       // verde para reportes
+const reportColor = "#eab308";
 
 export default function Sidebar() {
   const [openStands, setOpenStands] = useState(false);
@@ -58,27 +65,35 @@ export default function Sidebar() {
 
   const isActive = (path: string) => location.pathname.startsWith(path);
 
+  // Estilo base de cada opción de menú
   const itemBaseSx = {
-    borderRadius: "999px",
-    px: 1.5,
-    my: 0.3,
+    borderRadius: 12, // menos ovalado, más ligero
+    px: 2,
+    py: 1,
+    my: 0.4,
     "& .MuiListItemIcon-root": {
       minWidth: 40,
+      color: iconDefault,
+    },
+    "& .MuiListItemText-primary": {
+      fontSize: 14,
+      fontWeight: 500,
+      color: textMain,
+    },
+    "&:hover": {
+      backgroundColor: "#f3f4f6",
     },
   };
 
+  // Estilo cuando está seleccionado (pill verde claro, sin barra lateral)
   const selectedSx = {
-    backgroundColor: `${primary}15`,
-    "&::before": {
-      content: '""',
-      position: "absolute",
-      left: 8,
-      top: "50%",
-      transform: "translateY(-50%)",
-      width: 4,
-      height: 24,
-      borderRadius: 999,
-      backgroundColor: primary,
+    backgroundColor: primarySoft,
+    "& .MuiListItemIcon-root": {
+      color: primary,
+    },
+    "& .MuiListItemText-primary": {
+      color: primary,
+      fontWeight: 600,
     },
   };
 
@@ -96,7 +111,7 @@ export default function Sidebar() {
           flexDirection: "column",
           justifyContent: "space-between",
           height: "100vh",
-          backgroundColor: "#f9fafb", // fondo suave
+          backgroundColor: "#ffffff",
           borderRight: "1px solid #e5e7eb",
         },
       }}
@@ -114,10 +129,10 @@ export default function Sidebar() {
         >
           <Box
             sx={{
-              width: 40,
-              height: 40,
-              borderRadius: "999px",
-              background: `${primary}10`,
+              width: 44,
+              height: 44,
+              borderRadius: 14,           // cuadrado redondeado, no tan ovalado
+              background: primarySoft,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -133,7 +148,7 @@ export default function Sidebar() {
                 textTransform: "uppercase",
                 fontSize: 10,
                 letterSpacing: ".16em",
-                color: "#6b7280",
+                color: textMuted,
               }}
             >
               Panel Admin
@@ -143,33 +158,33 @@ export default function Sidebar() {
               sx={{
                 fontWeight: 700,
                 letterSpacing: "-0.03em",
-                color: "#111827",
+                color: textMain,
               }}
             >
-              Mercado Mayorista
+              Mercado Mayorista de Santa Anita
             </Typography>
           </Box>
         </Box>
 
-        {/* Tarjeta de usuario */}
+        {/* Tarjeta de usuario (más ligera) */}
         <Box
           sx={{
-            borderRadius: 3,
-            p: 1.5,
-            backgroundColor: "#ffffff",
+            borderRadius: 2,
+            p: 1.25,
+            backgroundColor: "#f9fafb",
             border: "1px solid #e5e7eb",
             display: "flex",
             alignItems: "center",
-            gap: 1.5,
+            gap: 1.25,
           }}
         >
           <Avatar
             sx={{
-              width: 48,
-              height: 48,
+              width: 44,
+              height: 44,
               bgcolor: primary,
               fontWeight: "bold",
-              fontSize: 22,
+              fontSize: 20,
             }}
           >
             {avatarInitial}
@@ -178,7 +193,7 @@ export default function Sidebar() {
             <Typography
               variant="body2"
               noWrap
-              sx={{ fontWeight: 600, color: "#111827" }}
+              sx={{ fontWeight: 600, color: textMain }}
             >
               {displayName}
             </Typography>
@@ -186,7 +201,7 @@ export default function Sidebar() {
               <Typography
                 variant="caption"
                 noWrap
-                sx={{ color: "#6b7280", display: "block" }}
+                sx={{ color: textMuted, display: "block" }}
               >
                 {user.email}
               </Typography>
@@ -196,12 +211,13 @@ export default function Sidebar() {
               size="small"
               sx={{
                 mt: 0.5,
-                height: 22,
+                height: 20,
                 fontSize: 10,
                 fontWeight: 600,
-                backgroundColor: `${primary}10`,
+                backgroundColor: primarySoft,
                 color: primary,
                 textTransform: "uppercase",
+                borderRadius: 999,
               }}
             />
           </Box>
@@ -219,6 +235,7 @@ export default function Sidebar() {
           py: 1,
         }}
       >
+        {/* === BLOQUE ADMINISTRACIÓN (misma posición) === */}
         <Typography
           variant="caption"
           sx={{
@@ -242,11 +259,10 @@ export default function Sidebar() {
             selected={isActive("/dashboard/principal")}
             sx={{
               ...itemBaseSx,
-              position: "relative",
               "&.Mui-selected": selectedSx,
             }}
           >
-            <ListItemIcon sx={{ color: primary }}>
+            <ListItemIcon>
               <DashboardIcon />
             </ListItemIcon>
             <ListItemText primary="Dashboard" />
@@ -259,11 +275,10 @@ export default function Sidebar() {
             selected={isActive("/dashboard/usuario")}
             sx={{
               ...itemBaseSx,
-              position: "relative",
               "&.Mui-selected": selectedSx,
             }}
           >
-            <ListItemIcon sx={{ color: primary }}>
+            <ListItemIcon>
               <PeopleIcon />
             </ListItemIcon>
             <ListItemText primary="Usuarios" />
@@ -276,17 +291,48 @@ export default function Sidebar() {
             selected={isActive("/dashboard/rol")}
             sx={{
               ...itemBaseSx,
-              position: "relative",
               "&.Mui-selected": selectedSx,
             }}
           >
-            <ListItemIcon sx={{ color: primary }}>
+            <ListItemIcon>
               <SecurityIcon />
             </ListItemIcon>
             <ListItemText primary="Roles" />
           </ListItemButton>
 
-          {/* SEPARADOR LÓGICO */}
+          {/* INCIDENCIAS */}
+          <ListItemButton
+            component={Link}
+            to="/dashboard/incidencias"
+            selected={isActive("/dashboard/incidencias")}
+            sx={{
+              ...itemBaseSx,
+              "&.Mui-selected": selectedSx,
+            }}
+          >
+            <ListItemIcon>
+              <ReportProblemIcon />
+            </ListItemIcon>
+            <ListItemText primary="Incidencias" />
+          </ListItemButton>
+
+          {/* CREDENCIAL QR */}
+          <ListItemButton
+            component={Link}
+            to="/dashboard/credenciales-qr"
+            selected={isActive("/dashboard/credenciales-qr")}
+            sx={{
+              ...itemBaseSx,
+              "&.Mui-selected": selectedSx,
+            }}
+          >
+            <ListItemIcon>
+              <QrCode2Icon />
+            </ListItemIcon>
+            <ListItemText primary="Credencial QR" />
+          </ListItemButton>
+
+          {/* === BLOQUE MERCADO (misma posición, mismo orden) === */}
           <Typography
             variant="caption"
             sx={{
@@ -303,14 +349,12 @@ export default function Sidebar() {
             Mercado
           </Typography>
 
-          {/* PRODUCTOS */}
+          {/* PRODUCTOS (colapsable) */}
           <ListItemButton
             onClick={() => setOpenProductos(!openProductos)}
-            sx={{
-              ...itemBaseSx,
-            }}
+            sx={itemBaseSx}
           >
-            <ListItemIcon sx={{ color: primary }}>
+            <ListItemIcon>
               <ShoppingCartIcon />
             </ListItemIcon>
             <ListItemText primary="Productos" />
@@ -325,7 +369,6 @@ export default function Sidebar() {
                 selected={isActive("/dashboard/producto")}
                 sx={{
                   ...itemBaseSx,
-                  position: "relative",
                   "&.Mui-selected": selectedSx,
                 }}
               >
@@ -338,7 +381,6 @@ export default function Sidebar() {
                 selected={isActive("/dashboard/categoria-producto")}
                 sx={{
                   ...itemBaseSx,
-                  position: "relative",
                   "&.Mui-selected": selectedSx,
                 }}
               >
@@ -347,14 +389,12 @@ export default function Sidebar() {
             </List>
           </Collapse>
 
-          {/* STANDS */}
+          {/* STANDS (colapsable) */}
           <ListItemButton
             onClick={() => setOpenStands(!openStands)}
-            sx={{
-              ...itemBaseSx,
-            }}
+            sx={itemBaseSx}
           >
-            <ListItemIcon sx={{ color: primary }}>
+            <ListItemIcon>
               <StoreIcon />
             </ListItemIcon>
             <ListItemText primary="Stands" />
@@ -369,7 +409,6 @@ export default function Sidebar() {
                 selected={isActive("/dashboard/stand")}
                 sx={{
                   ...itemBaseSx,
-                  position: "relative",
                   "&.Mui-selected": selectedSx,
                 }}
               >
@@ -382,7 +421,6 @@ export default function Sidebar() {
                 selected={isActive("/dashboard/categoria-stand")}
                 sx={{
                   ...itemBaseSx,
-                  position: "relative",
                   "&.Mui-selected": selectedSx,
                 }}
               >
@@ -398,38 +436,42 @@ export default function Sidebar() {
             selected={isActive("/dashboard/pagos")}
             sx={{
               ...itemBaseSx,
-              position: "relative",
               "&.Mui-selected": selectedSx,
             }}
           >
-            <ListItemIcon sx={{ color: primary }}>
+            <ListItemIcon>
               <PaymentsIcon />
             </ListItemIcon>
             <ListItemText primary="Pagos" />
           </ListItemButton>
 
           {/* REPORTES */}
-          <ListItemButton
-            component={Link}
-            to="/dashboard/reporte"
-            selected={isActive("/dashboard/reporte")}
-            sx={{
-              ...itemBaseSx,
-              position: "relative",
-              "&.Mui-selected": {
-                ...selectedSx,
-                "&::before": {
-                  ...selectedSx["&::before"],
-                  backgroundColor: accent,
-                },
-              },
-            }}
-          >
-            <ListItemIcon sx={{ color: accent }}>
-              <BarChartIcon />
-            </ListItemIcon>
-            <ListItemText primary="Reportes" />
-          </ListItemButton>
+<ListItemButton
+  component={Link}
+  to="/dashboard/reporte"
+  selected={isActive("/dashboard/reporte")}
+  sx={{
+    ...itemBaseSx,
+    "& .MuiListItemIcon-root": {
+      color: reportColor,        // ICONO SIEMPRE AMARILLO
+    },
+    "&.Mui-selected": {
+      backgroundColor: primarySoft,
+      "& .MuiListItemIcon-root": {
+        color: reportColor,      // ICONO EN SELECCIÓN
+      },
+      "& .MuiListItemText-primary": {
+        color: reportColor,      // TEXTO EN SELECCIÓN
+        fontWeight: 600,
+      },
+    },
+  }}
+>
+  <ListItemIcon>
+    <BarChartIcon />
+  </ListItemIcon>
+  <ListItemText primary="Reportes" />
+</ListItemButton>
         </List>
       </Box>
 
@@ -440,13 +482,15 @@ export default function Sidebar() {
           onClick={handleLogout}
           sx={{
             ...itemBaseSx,
-            borderRadius: "999px",
+            borderRadius: 999,
+            "& .MuiListItemIcon-root": { color: "#b91c1c" },
+            "& .MuiListItemText-primary": { color: "#7f1d1d" },
             "&:hover": {
               backgroundColor: "#fee2e2",
             },
           }}
         >
-          <ListItemIcon sx={{ color: "#b91c1c" }}>
+          <ListItemIcon>
             <LogoutIcon />
           </ListItemIcon>
           <ListItemText primary="Cerrar sesión" />

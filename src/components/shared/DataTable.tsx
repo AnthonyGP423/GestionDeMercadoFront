@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import {
   Table,
   TableBody,
@@ -15,11 +16,12 @@ import {
 
 import StatusChip from "../ui/StatusChip";
 
-interface Column {
-  title: string; // Título de la columna
-  field: string; // Propiedad del objeto
-  type?: "text" | "status"; // Para chips o texto normal
-}
+type Column = {
+  title: string;
+  field: string;
+  type?: "text" | "status";
+  render?: (row: any) => ReactNode;
+};
 
 interface Action {
   icon: React.ReactNode;
@@ -62,11 +64,14 @@ export default function DataTable({
               <TableRow key={idx}>
                 {columns.map((col) => (
                   <TableCell key={col.field}>
-                    {col.type === "status" ? (
-                      <StatusChip value={row[col.field]} />
-                    ) : (
-                      row[col.field]
-                    )}
+                    {/* ✅ Prioridad: si la columna trae render, usamos eso */}
+                    {col.render
+                      ? col.render(row)
+                      : col.type === "status"
+                      ? // Si no hay render pero es "status", usamos el chip estándar
+                        <StatusChip value={row[col.field]} />
+                      : // Caso normal: texto / valor plano
+                        row[col.field]}
                   </TableCell>
                 ))}
 
