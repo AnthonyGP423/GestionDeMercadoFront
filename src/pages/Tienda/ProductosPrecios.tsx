@@ -92,9 +92,7 @@ export default function PreciosProductos() {
         const mapped: StoreProduct[] = content.map((p: any) => {
           const enOferta = p.enOferta === true;
           const tienePrecioOferta =
-            enOferta &&
-            p.precioOferta !== null &&
-            p.precioOferta !== undefined;
+            enOferta && p.precioOferta !== null && p.precioOferta !== undefined;
 
           // precio a mostrar (si hay oferta, mostramos precioOferta; si no, precioActual)
           const precioFinal = tienePrecioOferta
@@ -206,7 +204,8 @@ export default function PreciosProductos() {
     <Box
       sx={{
         minHeight: "100vh",
-        bgcolor: "linear-gradient(180deg, #f1f5f9 0%, #f8fafc 40%, #ffffff 100%)",
+        bgcolor:
+          "linear-gradient(180deg, #f1f5f9 0%, #f8fafc 40%, #ffffff 100%)",
         display: "flex",
         flexDirection: "column",
       }}
@@ -309,7 +308,11 @@ export default function PreciosProductos() {
                     {category === "todos" &&
                       priceRange === "todos" &&
                       sortBy === "relevancia" && (
-                        <Chip size="small" variant="outlined" label="Sin filtros" />
+                        <Chip
+                          size="small"
+                          variant="outlined"
+                          label="Sin filtros"
+                        />
                       )}
                   </Stack>
                 </Box>
@@ -369,10 +372,7 @@ export default function PreciosProductos() {
                           orientation="vertical"
                           sx={{ height: 24, alignSelf: "center" }}
                         />
-                        <Typography
-                          variant="body2"
-                          color="text.secondary"
-                        >
+                        <Typography variant="body2" color="text.secondary">
                           {filteredProducts.length} resultados encontrados
                         </Typography>
                       </Stack>

@@ -10,7 +10,7 @@ import {
   Tabs,
   Tab,
 } from "@mui/material";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 
 import MapIcon from "@mui/icons-material/Map";
 import GridViewIcon from "@mui/icons-material/GridView";
@@ -104,8 +104,15 @@ const STANDS: Stand[] = [
 
 export default function MapaMercado() {
   const navigate = useNavigate();
+  const location = useLocation();
 
-  const [bloqueActual, setBloqueActual] = useState<Bloque>("A");
+  const initialBlockFromState = (location.state as any)?.initialBlock as
+    | Bloque
+    | undefined;
+
+  const [bloqueActual, setBloqueActual] = useState<Bloque>(
+    initialBlockFromState || "A" // si no viene nada, por defecto A
+  );
   const [pasilloActual, setPasilloActual] = useState<Pasillo>(1);
   const [standSeleccionado, setStandSeleccionado] = useState<Stand | null>(
     null

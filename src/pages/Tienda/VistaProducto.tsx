@@ -106,7 +106,6 @@ export default function VistaProducto() {
         <ProductOffersSection ofertas={otrasOfertas} />
 
         {/* comentarios */}
-        <ProductReviewsSection />
       </Container>
 
       <PublicFooter />
