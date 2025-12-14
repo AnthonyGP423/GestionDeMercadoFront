@@ -16,6 +16,7 @@ import FacebookIcon from "@mui/icons-material/Facebook";
 import InstagramIcon from "@mui/icons-material/Instagram";
 import TwitterIcon from "@mui/icons-material/Twitter";
 import CopyrightIcon from "@mui/icons-material/Copyright";
+import StorefrontIcon from "@mui/icons-material/Storefront";
 
 export default function FooterTienda() {
   const year = new Date().getFullYear();
@@ -78,7 +79,8 @@ export default function FooterTienda() {
           left: 0,
           right: 0,
           height: "1px",
-          background: "linear-gradient(90deg, transparent, #22c55e, transparent)",
+          background:
+            "linear-gradient(90deg, transparent, #22c55e, transparent)",
         },
       }}
     >
@@ -105,23 +107,15 @@ export default function FooterTienda() {
                   height: 48,
                   borderRadius: 3,
                   bgcolor: "#16a34a",
-                  background: "linear-gradient(135deg, #16a34a 0%, #22c55e 100%)",
+                  background:
+                    "linear-gradient(135deg, #16a34a 0%, #22c55e 100%)",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
                   boxShadow: "0 8px 24px rgba(22, 163, 74, 0.3)",
                 }}
               >
-                <Box
-                  sx={{
-                    color: "white",
-                    fontWeight: 800,
-                    fontSize: "1.5rem",
-                    fontFamily: '"Inter", sans-serif',
-                  }}
-                >
-                  SM
-                </Box>
+                <StorefrontIcon />
               </Box>
               <Box>
                 <Typography
@@ -129,7 +123,8 @@ export default function FooterTienda() {
                   sx={{
                     fontWeight: 800,
                     fontFamily: '"Inter", "Poppins", sans-serif',
-                    background: "linear-gradient(135deg, #ffffff 0%, #94a3b8 100%)",
+                    background:
+                      "linear-gradient(135deg, #ffffff 0%, #94a3b8 100%)",
                     WebkitBackgroundClip: "text",
                     WebkitTextFillColor: "transparent",
                   }}
@@ -143,8 +138,7 @@ export default function FooterTienda() {
                     fontWeight: 500,
                     letterSpacing: "0.5px",
                   }}
-                >
-                </Typography>
+                ></Typography>
               </Box>
             </Box>
 
@@ -157,7 +151,8 @@ export default function FooterTienda() {
               }}
             >
               Plataforma digital oficial del Mercado Mayorista de Santa Anita.
-              Conectamos a productores, comerciantes y clientes en un solo lugar.
+              Conectamos a productores, comerciantes y clientes en un solo
+              lugar.
             </Typography>
 
             {/* INFO DE CONTACTO */}

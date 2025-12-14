@@ -139,7 +139,7 @@ export default function HeaderTienda() {
           >
             <Button
               component={Link}
-              to="/auth/login-cliente"
+              to="/login"
               variant="contained"
               size="small"
               sx={{
@@ -161,7 +161,7 @@ export default function HeaderTienda() {
 
             <Button
               component={Link}
-              to="/auth/registro-cliente"
+              to="/registrate"
               variant="text"
               size="small"
               sx={{

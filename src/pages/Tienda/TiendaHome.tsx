@@ -51,16 +51,17 @@ export default function TiendaHome() {
   };
 
   const irLoginCliente = () => {
-    navigate("/auth/login-cliente");
+    navigate("/login");
   };
 
   const irRegistroCliente = () => {
-    navigate("/auth/registro-cliente");
+    navigate("/registrate");
   };
 
   // === DATOS ===
   const bloques = [
     {
+      id: "A",
       nombre: "Bloque A",
       detalle: "42 Puestos · Frutas y Verduras",
       icon: <LocalFloristIcon />,
@@ -69,6 +70,7 @@ export default function TiendaHome() {
       color: "#10b981",
     },
     {
+      id: "B",
       nombre: "Bloque B",
       detalle: "38 Puestos · Verduras y Hortalizas",
       icon: <EcoIcon />,
@@ -77,6 +79,7 @@ export default function TiendaHome() {
       color: "#0ea5e9",
     },
     {
+      id: "C",
       nombre: "Bloque C",
       detalle: "25 Puestos · Carnes y Aves",
       icon: <KebabDiningIcon />,
@@ -85,6 +88,7 @@ export default function TiendaHome() {
       color: "#ef4444",
     },
     {
+      id: "D",
       nombre: "Bloque D",
       detalle: "50 Puestos · Abarrotes y Lácteos",
       icon: <StorefrontIcon />,
@@ -194,7 +198,8 @@ export default function TiendaHome() {
             left: 0,
             right: 0,
             bottom: 0,
-            background: "linear-gradient(135deg, transparent 30%, rgba(22, 163, 74, 0.1) 100%)",
+            background:
+              "linear-gradient(135deg, transparent 30%, rgba(22, 163, 74, 0.1) 100%)",
             pointerEvents: "none",
           },
         }}
@@ -234,7 +239,8 @@ export default function TiendaHome() {
                   mb: 3,
                   fontFamily: '"Inter", "Poppins", sans-serif',
                   fontSize: { xs: "2.75rem", md: "3.75rem" },
-                  background: "linear-gradient(135deg, #ffffff 0%, #e5e7eb 100%)",
+                  background:
+                    "linear-gradient(135deg, #ffffff 0%, #e5e7eb 100%)",
                   WebkitBackgroundClip: "text",
                   WebkitTextFillColor: "transparent",
                   textShadow: "0 2px 4px rgba(0,0,0,0.1)",
@@ -279,10 +285,12 @@ export default function TiendaHome() {
                     fontSize: "1.05rem",
                     textTransform: "none",
                     backgroundColor: "#16a34a",
-                    background: "linear-gradient(135deg, #16a34a 0%, #22c55e 100%)",
+                    background:
+                      "linear-gradient(135deg, #16a34a 0%, #22c55e 100%)",
                     boxShadow: "0 8px 32px rgba(22,163,74,0.4)",
                     "&:hover": {
-                      background: "linear-gradient(135deg, #15803d 0%, #16a34a 100%)",
+                      background:
+                        "linear-gradient(135deg, #15803d 0%, #16a34a 100%)",
                       boxShadow: "0 12px 40px rgba(22,163,74,0.6)",
                       transform: "translateY(-2px)",
                     },
@@ -305,10 +313,12 @@ export default function TiendaHome() {
                     fontSize: "1.05rem",
                     textTransform: "none",
                     backgroundColor: "#f59e0b",
-                    background: "linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%)",
+                    background:
+                      "linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%)",
                     boxShadow: "0 8px 32px rgba(245,158,11,0.4)",
                     "&:hover": {
-                      background: "linear-gradient(135deg, #d97706 0%, #f59e0b 100%)",
+                      background:
+                        "linear-gradient(135deg, #d97706 0%, #f59e0b 100%)",
                       boxShadow: "0 12px 40px rgba(217,119,6,0.6)",
                       transform: "translateY(-2px)",
                     },
@@ -456,6 +466,11 @@ export default function TiendaHome() {
               <Paper
                 key={i}
                 elevation={0}
+                onClick={() =>
+                  navigate("/tienda/mapa-stand", {
+                    state: { initialBlock: b.id },
+                  })
+                }
                 sx={{
                   borderRadius: 4,
                   overflow: "hidden",
