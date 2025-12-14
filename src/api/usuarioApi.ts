@@ -8,7 +8,7 @@ export interface UsuarioRow {
   estado: string;
 }
 
-// DTO que viene del backend (ajusta nombres si es necesario)
+// Lo que responde el backend
 export interface UsuarioBackend {
   id?: number;
   idUsuario?: number;
@@ -23,7 +23,6 @@ export interface UsuarioBackend {
   estado?: string;
   estadoUsuario?: string;
 
-  // Campos adicionales para el modal
   telefono?: string;
   dni?: string;
   ruc?: string;
@@ -31,6 +30,27 @@ export interface UsuarioBackend {
 
   fotoUrl?: string;
   foto_url?: string;
+}
+
+// Lo que ESPERA el backend al crear usuario
+export interface UsuarioCreateBackend {
+  idRol: number;
+  email: string;
+  password: string;
+  telefono?: string | null;
+  dni?: string | null;
+  ruc?: string | null;
+  razonSocial?: string | null;
+  nombres: string;
+  apellidos: string;
+}
+
+// Para actualizar (tú decides qué campos permites)
+export interface UsuarioUpdateBackend {
+  nombres?: string;
+  apellidos?: string;
+  telefono?: string | null;
+  fotoUrl?: string | null;
 }
 
 const mapUsuarioToRow = (u: UsuarioBackend): UsuarioRow => {
@@ -60,7 +80,6 @@ export const usuarioApi = {
     return res.data.map(mapUsuarioToRow);
   },
 
-  /** Obtener detalle por id para ver/editar */
   obtener: async (id: number): Promise<UsuarioBackend> => {
     const res = await http.get<UsuarioBackend>(
       `/api/v1/admin/usuarios/${id}`
@@ -68,12 +87,15 @@ export const usuarioApi = {
     return res.data;
   },
 
-  crear: async (body: any): Promise<UsuarioRow> => {
+  crear: async (body: UsuarioCreateBackend): Promise<UsuarioRow> => {
     const res = await http.post<UsuarioBackend>("/api/v1/admin/usuarios", body);
     return mapUsuarioToRow(res.data);
   },
 
-  actualizar: async (id: number, body: any): Promise<UsuarioRow> => {
+  actualizar: async (
+    id: number,
+    body: UsuarioUpdateBackend
+  ): Promise<UsuarioRow> => {
     const res = await http.put<UsuarioBackend>(
       `/api/v1/admin/usuarios/${id}`,
       body

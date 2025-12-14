@@ -8,7 +8,9 @@ import {
 } from "@mui/material";
 
 import FiltersBar from "../../components/shared/FiltersBar";
-import NewUserModal from "./components/modals/UserModal";
+import NewUserModal, {
+  UsuarioFormData,
+} from "./components/modals/UserModal";
 import { useToast } from "../../components/ui/Toast";
 
 import VisibilityIcon from "@mui/icons-material/Visibility";
@@ -23,19 +25,6 @@ import {
 import DataTable from "../../components/shared/DataTable";
 
 type ModalMode = "create" | "edit" | "view";
-
-interface UsuarioFormData {
-  nombre: string;
-  apellidos: string;
-  email: string;
-  password: string;
-  telefono: string;
-  dni: string;
-  ruc: string;
-  razonSocial: string;
-  rol: string;
-  foto?: string;
-}
 
 export default function Usuario() {
   const { showToast } = useToast();
@@ -53,12 +42,13 @@ export default function Usuario() {
 
   const [usuarioSeleccionado, setUsuarioSeleccionado] =
     useState<UsuarioRow | null>(null);
+
   const [initialFormData, setInitialFormData] =
     useState<UsuarioFormData | undefined>();
 
-  // ===========================
-  //   CARGAR LISTA DESDE BACKEND
-  // ===========================
+  // =====================================================
+  // CARGAR USUARIOS
+  // =====================================================
   const cargarUsuarios = async () => {
     try {
       setLoading(true);
@@ -80,9 +70,9 @@ export default function Usuario() {
     cargarUsuarios();
   }, []);
 
-  // ===========================
-  //   FILTROS
-  // ===========================
+  // =====================================================
+  // FILTROS
+  // =====================================================
   const filtros = [
     {
       label: "Rol",
@@ -102,8 +92,8 @@ export default function Usuario() {
         const coincideRol = filtroRol === "Todos" || row.rol === filtroRol;
         const coincideEstado =
           filtroEstado === "Todos" || row.estado === filtroEstado;
-        const q = busqueda.toLowerCase();
 
+        const q = busqueda.toLowerCase();
         const coincideBusqueda =
           row.nombre.toLowerCase().includes(q) ||
           row.email.toLowerCase().includes(q);
@@ -113,30 +103,59 @@ export default function Usuario() {
     [usuarios, filtroRol, filtroEstado, busqueda]
   );
 
-  // ===========================
-  //   MAPEO DETALLE → FORM
-  // ===========================
-  const mapBackendToForm = (u: UsuarioBackend): UsuarioFormData => ({
-    nombre: u.nombres ?? "",
-    apellidos: u.apellidos ?? "",
-    email: u.email,
-    password: "",
-    telefono: u.telefono ?? "",
-    dni: u.dni ?? "",
-    ruc: u.ruc ?? "",
-    razonSocial: u.razonSocial ?? "",
-    rol:
+  // =====================================================
+  // MAPEO DEL BACKEND → FORM
+  // =====================================================
+  const mapBackendToForm = (u: UsuarioBackend): UsuarioFormData => {
+    const nombreRol =
       typeof u.rol === "string"
         ? u.rol
         : u.rol && "nombreRol" in u.rol
         ? u.rol.nombreRol
-        : "",
-    foto: u.fotoUrl ?? u.foto_url ?? "",
-  });
+        : "";
 
-  // ===========================
-  //   ACCIONES POR FILA
-  // ===========================
+    // nombreRol → idRol de TEXT (string)
+    let rolId = "";
+    switch (nombreRol.toUpperCase()) {
+      case "ADMIN":
+        rolId = "1";
+        break;
+      case "SUPERVISOR":
+        rolId = "2";
+        break;
+      case "SOCIO":
+        rolId = "3";
+        break;
+      case "CLIENTE":
+        rolId = "4";
+        break;
+      case "TRABAJADOR":
+        rolId = "5";
+        break;
+      case "VISITANTE":
+        rolId = "6";
+        break;
+      default:
+        rolId = "";
+    }
+
+    return {
+      nombre: u.nombres ?? "",
+      apellidos: u.apellidos ?? "",
+      email: u.email,
+      password: "",
+      telefono: u.telefono ?? "",
+      dni: u.dni ?? "",
+      ruc: u.ruc ?? "",
+      razonSocial: u.razonSocial ?? "",
+      rol: rolId,
+      foto: u.fotoUrl ?? u.foto_url ?? "",
+    };
+  };
+
+  // =====================================================
+  // ACCIONES
+  // =====================================================
   const abrirModalConDetalle = async (row: UsuarioRow, mode: ModalMode) => {
     try {
       setModalMode(mode);
@@ -157,13 +176,8 @@ export default function Usuario() {
     }
   };
 
-  const handleVer = (row: UsuarioRow) => {
-    abrirModalConDetalle(row, "view");
-  };
-
-  const handleEditar = (row: UsuarioRow) => {
-    abrirModalConDetalle(row, "edit");
-  };
+  const handleVer = (row: UsuarioRow) => abrirModalConDetalle(row, "view");
+  const handleEditar = (row: UsuarioRow) => abrirModalConDetalle(row, "edit");
 
   const handleEliminar = async (row: UsuarioRow) => {
     if (
@@ -188,30 +202,36 @@ export default function Usuario() {
     }
   };
 
-  // ===========================
-  //   CREAR / EDITAR (MODAL)
-  // ===========================
+  // =====================================================
+  // CREAR / EDITAR
+  // =====================================================
   const handleSubmitModal = async (formData: UsuarioFormData) => {
     try {
-      const body: any = {
-        email: formData.email,
-        nombres: formData.nombre,
-        apellidos: formData.apellidos,
-        telefono: formData.telefono,
-        dni: formData.dni,
-        ruc: formData.ruc,
-        razonSocial: formData.razonSocial,
-        rol: formData.rol,
-      };
+      const esEdicion = modalMode === "edit" && usuarioSeleccionado;
 
-      if (formData.password) {
-        body.password = formData.password;
-      }
+      if (esEdicion) {
+        // backend NO permite editar email, rol, password
+        const body = {
+          nombres: formData.nombre,
+          apellidos: formData.apellidos,
+          telefono: formData.telefono || null,
+        };
 
-      if (modalMode === "edit" && usuarioSeleccionado) {
-        await usuarioApi.actualizar(usuarioSeleccionado.id, body);
+        await usuarioApi.actualizar(usuarioSeleccionado!.id, body);
         showToast("Usuario actualizado correctamente", "success");
       } else {
+        const body = {
+          idRol: Number(formData.rol), // convertir "3" → 3
+          email: formData.email,
+          password: formData.password,
+          telefono: formData.telefono || null,
+          dni: formData.dni || null,
+          ruc: formData.ruc || null,
+          razonSocial: formData.razonSocial || null,
+          nombres: formData.nombre,
+          apellidos: formData.apellidos,
+        };
+
         await usuarioApi.crear(body);
         showToast("Usuario creado correctamente", "success");
       }
@@ -243,13 +263,13 @@ export default function Usuario() {
     setInitialFormData(undefined);
   };
 
-  // ===========================
-  //   CHIP DE ESTADO
-  // ===========================
+  // =====================================================
+  // CHIP ESTADO
+  // =====================================================
   const renderEstadoChip = (estado: string) => {
     const e = estado.toUpperCase();
 
-    if (e === "ACTIVO") {
+    if (e === "ACTIVO")
       return (
         <Chip
           label="ACTIVO"
@@ -263,9 +283,8 @@ export default function Usuario() {
           }}
         />
       );
-    }
 
-    if (e === "SUSPENDIDO") {
+    if (e === "SUSPENDIDO")
       return (
         <Chip
           label="SUSPENDIDO"
@@ -279,7 +298,6 @@ export default function Usuario() {
           }}
         />
       );
-    }
 
     return (
       <Chip
@@ -296,25 +314,13 @@ export default function Usuario() {
     );
   };
 
-  // ===========================
-  //   COLUMNAS + ACCIONES PARA DataTable
-  // ===========================
+  // =====================================================
+  // TABLA
+  // =====================================================
   const columnas = [
-    {
-      title: "Nombre completo",
-      field: "nombre",
-      type: "text" as const,
-    },
-    {
-      title: "Email",
-      field: "email",
-      type: "text" as const,
-    },
-    {
-      title: "Rol",
-      field: "rol",
-      type: "text" as const,
-    },
+    { title: "Nombre completo", field: "nombre", type: "text" as const },
+    { title: "Email", field: "email", type: "text" as const },
+    { title: "Rol", field: "rol", type: "text" as const },
     {
       title: "Estado",
       field: "estado",
@@ -338,9 +344,9 @@ export default function Usuario() {
     },
   ];
 
-  // ===========================
-  //   RENDER
-  // ===========================
+  // =====================================================
+  // LOADING / ERROR
+  // =====================================================
   if (loading) {
     return (
       <Box
@@ -379,9 +385,11 @@ export default function Usuario() {
     );
   }
 
+  // =====================================================
+  // RENDER PRINCIPAL
+  // =====================================================
   return (
     <>
-      {/* CABECERA — MATCH CON ROLES */}
       <Box sx={{ mb: 4 }}>
         <Typography
           variant="h4"
@@ -401,7 +409,6 @@ export default function Usuario() {
         </Typography>
       </Box>
 
-      {/* BARRA DE FILTROS + BOTÓN NUEVO USUARIO */}
       <FiltersBar
         filters={filtros}
         searchValue={busqueda}
@@ -427,7 +434,6 @@ export default function Usuario() {
         }}
       />
 
-      {/* CARD + TABLA CON PAGINADO INTERNO (DataTable) */}
       <Paper
         elevation={0}
         sx={{
@@ -437,18 +443,15 @@ export default function Usuario() {
           boxShadow: "0 18px 40px rgba(15, 23, 42, 0.06)",
         }}
       >
-        <DataTable
-          columns={columnas}
-          data={datosFiltrados}
-          actions={acciones}
-        />
+        <DataTable columns={columnas} data={datosFiltrados} actions={acciones} />
       </Paper>
 
-      {/* MODAL CREAR / EDITAR / VER */}
       <NewUserModal
         open={openModal}
         onClose={handleCloseModal}
-        onSubmit={handleSubmitModal}
+        onSubmit={(data) => {
+          void handleSubmitModal(data);
+        }}
         initialData={initialFormData}
         mode={modalMode}
       />

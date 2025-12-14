@@ -1,3 +1,4 @@
+// src/pages/usuario/components/modals/UserModal.tsx
 import {
   Dialog,
   DialogTitle,
@@ -14,7 +15,7 @@ import {
 import { useState, useEffect } from "react";
 import PhotoCamera from "@mui/icons-material/PhotoCamera";
 
-interface UsuarioFormData {
+export interface UsuarioFormData {
   nombre: string;
   apellidos: string;
   email: string;
@@ -23,6 +24,7 @@ interface UsuarioFormData {
   dni: string;
   ruc: string;
   razonSocial: string;
+  // id de rol como string: "1", "2", "3", ...
   rol: string;
   foto?: string;
 }
@@ -109,7 +111,10 @@ export default function NewUserModal({
       if (!/^\d*$/.test(value)) return;
     }
 
-    setForm((prev) => ({ ...prev, [name]: value }));
+    setForm((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
   };
 
   const handleFoto = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -261,9 +266,13 @@ export default function NewUserModal({
             onChange={handleChange}
             disabled={readOnly}
           >
-            <MenuItem value="ADMIN">Admin</MenuItem>
-            <MenuItem value="SUPERVISOR">Supervisor</MenuItem>
-            <MenuItem value="SOCIO">Socio</MenuItem>
+            {/* IDs como string para que coincidan con Usuario.tsx */}
+            <MenuItem value="1">Admin</MenuItem>
+            <MenuItem value="2">Supervisor</MenuItem>
+            <MenuItem value="3">Socio</MenuItem>
+            <MenuItem value="4">Cliente</MenuItem>
+            <MenuItem value="5">Trabajador</MenuItem>
+            <MenuItem value="6">Visitante</MenuItem>
           </TextField>
         </Box>
       </DialogContent>
