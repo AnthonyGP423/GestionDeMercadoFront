@@ -1,14 +1,14 @@
 import { Box, Typography, Paper, Stack, Chip, Rating } from "@mui/material";
 
-type StandOferta = {
-  id: number;
-  nombreStand: string;
-  bloque: string;
-  numeroStand: string;
-  precio: number;
-  unidad: string;
-  rating: number;
-  totalValoraciones: number;
+export type StandOferta = {
+  id: number; // id de la oferta / relación
+  nombreStand: string; // viene de la API
+  bloque: string; // bloque del stand
+  numeroStand: string; // número de puesto
+  precio: number; // Number(precio) en el mapeo desde el backend
+  unidad: string; // "kg", "unidad", etc.
+  rating?: number | null; // puede venir null o no venir
+  totalValoraciones?: number | null;
 };
 
 interface Props {
@@ -38,117 +38,131 @@ export default function ProductOffersSection({ ofertas }: Props) {
           gap: 3,
         }}
       >
-        {ofertas.map((oferta) => (
-          <Paper
-            key={oferta.id}
-            elevation={0}
-            sx={{
-              p: 3,
-              borderRadius: 3,
-              bgcolor: "#ffffff",
-              boxShadow:
-                "0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05)",
-              display: "flex",
-              flexDirection: "column",
-              gap: 1.5,
-              transition: "all 0.3s ease",
-              "&:hover": {
-                transform: "translateY(-5px)",
-                boxShadow:
-                  "0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)",
-              },
-            }}
-          >
-            <Stack
-              direction="row"
-              justifyContent="space-between"
-              alignItems="flex-start"
-            >
-              <Box>
-                <Typography
-                  variant="subtitle1"
-                  sx={{ fontWeight: 700, fontSize: "1.1rem" }}
-                >
-                  {oferta.nombreStand}
-                </Typography>
-                <Typography
-                  variant="body2"
-                  color="text.secondary"
-                  sx={{ display: "flex", alignItems: "center", gap: 0.5 }}
-                >
-                  📍 Bloque {oferta.bloque}, Puesto {oferta.numeroStand}
-                </Typography>
-              </Box>
-              <Chip
-                label="Alternativa"
-                size="small"
-                sx={{
-                  bgcolor: "#f3f4f6",
-                  fontWeight: 600,
-                  fontSize: "0.75rem",
-                }}
-              />
-            </Stack>
+        {ofertas.map((oferta) => {
+          const ratingValue = oferta.rating ?? 0;
+          const totalValoraciones = oferta.totalValoraciones ?? 0;
 
-            <Stack
-              direction="row"
-              justifyContent="space-between"
-              alignItems="flex-end"
+          return (
+            <Paper
+              key={oferta.id}
+              elevation={0}
+              sx={{
+                p: 3,
+                borderRadius: 3,
+                bgcolor: "#ffffff",
+                boxShadow:
+                  "0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05)",
+                display: "flex",
+                flexDirection: "column",
+                gap: 1.5,
+                transition: "all 0.3s ease",
+                "&:hover": {
+                  transform: "translateY(-5px)",
+                  boxShadow:
+                    "0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)",
+                },
+              }}
             >
-              <Box>
-                <Typography
-                  variant="caption"
-                  color="text.secondary"
-                  fontWeight={600}
-                >
-                  Precio
-                </Typography>
-                <Stack direction="row" spacing={0.5} alignItems="baseline">
+              <Stack
+                direction="row"
+                justifyContent="space-between"
+                alignItems="flex-start"
+              >
+                <Box>
                   <Typography
-                    variant="h5"
-                    sx={{ fontWeight: 800, color: "text.primary" }}
+                    variant="subtitle1"
+                    sx={{ fontWeight: 700, fontSize: "1.1rem" }}
                   >
-                    S/. {oferta.precio.toFixed(2)}
+                    {oferta.nombreStand}
                   </Typography>
                   <Typography
                     variant="body2"
                     color="text.secondary"
-                    fontWeight={500}
+                    sx={{ display: "flex", alignItems: "center", gap: 0.5 }}
                   >
-                    / {oferta.unidad}
+                    📍 Bloque {oferta.bloque}, Puesto {oferta.numeroStand}
                   </Typography>
-                </Stack>
-              </Box>
-
-              <Stack alignItems="flex-end">
-                <Stack
-                  direction="row"
-                  spacing={0.5}
-                  alignItems="center"
+                </Box>
+                <Chip
+                  label="Alternativa"
+                  size="small"
                   sx={{
-                    bgcolor: "#fffbeb",
-                    py: 0.5,
-                    px: 1,
-                    borderRadius: 1,
+                    bgcolor: "#f3f4f6",
+                    fontWeight: 600,
+                    fontSize: "0.75rem",
                   }}
-                >
-                  <Rating
-                    value={oferta.rating}
-                    readOnly
-                    size="small"
-                    sx={{ color: "#fbbf24", fontSize: "1rem" }}
-                  />
-                  <Typography variant="subtitle2" fontWeight={700}>
-                    {oferta.rating.toFixed(1)}
-                  </Typography>
-                </Stack>
-                <Typography variant="caption" color="text.secondary">
-                  {oferta.totalValoraciones} opiniones
-                </Typography>
+                />
               </Stack>
-            </Stack>
-          </Paper>
-        ))}
+
+              <Stack
+                direction="row"
+                justifyContent="space-between"
+                alignItems="flex-end"
+              >
+                <Box>
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    fontWeight={600}
+                  >
+                    Precio
+                  </Typography>
+                  <Stack direction="row" spacing={0.5} alignItems="baseline">
+                    <Typography
+                      variant="h5"
+                      sx={{ fontWeight: 800, color: "text.primary" }}
+                    >
+                      S/. {oferta.precio.toFixed(2)}
+                    </Typography>
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      fontWeight={500}
+                    >
+                      / {oferta.unidad}
+                    </Typography>
+                  </Stack>
+                </Box>
+
+                <Stack alignItems="flex-end">
+                  {ratingValue > 0 ? (
+                    <>
+                      <Stack
+                        direction="row"
+                        spacing={0.5}
+                        alignItems="center"
+                        sx={{
+                          bgcolor: "#fffbeb",
+                          py: 0.5,
+                          px: 1,
+                          borderRadius: 1,
+                        }}
+                      >
+                        <Rating
+                          value={ratingValue}
+                          readOnly
+                          size="small"
+                          precision={0.5}
+                          sx={{ color: "#fbbf24", fontSize: "1rem" }}
+                        />
+                        <Typography variant="subtitle2" fontWeight={700}>
+                          {ratingValue.toFixed(1)}
+                        </Typography>
+                      </Stack>
+                      <Typography variant="caption" color="text.secondary">
+                        {totalValoraciones} opiniones
+                      </Typography>
+                    </>
+                  ) : (
+                    <Typography variant="caption" color="text.secondary">
+                      Sin valoraciones
+                    </Typography>
+                  )}
+                </Stack>
+              </Stack>
+            </Paper>
+          );
+        })}
       </Box>
     </Box>
   );

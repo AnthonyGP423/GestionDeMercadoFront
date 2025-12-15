@@ -1,3 +1,4 @@
+// src/pages/Store/PreciosProductos.tsx
 import { useEffect, useMemo, useState } from "react";
 import {
   Box,
@@ -13,7 +14,7 @@ import {
   Chip,
 } from "@mui/material";
 import axios from "axios";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 
 import PublicHeader from "../../components/layout/store/HeaderTienda";
 import PublicFooter from "../../components/layout/store/FooterTienda";
@@ -43,22 +44,24 @@ const CATEGORY_MAP: Record<string, string> = {
 };
 
 export default function PreciosProductos() {
+  // ===== router =====
+  const navigate = useNavigate();
+  const location = useLocation() as {
+    state?: { initialCategory?: string };
+  };
+
   // ===== estados de filtros =====
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("todos");
   const [priceRange, setPriceRange] = useState("todos");
   const [sortBy, setSortBy] = useState("relevancia");
 
-  const location = useLocation() as {
-    state?: { initialCategory?: string };
-  };
-
   // ===== estados de datos API =====
   const [products, setProducts] = useState<StoreProduct[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Si llegas desde otra vista con categoría inicial
+  // Si llegas desde otra vista con categoría inicial (Home)
   useEffect(() => {
     if (location.state?.initialCategory) {
       setCategory(location.state.initialCategory);
@@ -73,19 +76,17 @@ export default function PreciosProductos() {
         setLoading(true);
         setError(null);
 
-        // Llamamos al endpoint público usando el parámetro "nombre" para la búsqueda
         const response = await axios.get(API_URL, {
           params: {
             nombre: search || undefined, // si no hay búsqueda, no se envía
             page: 0,
-            size: 200, // puedes ajustar este tamaño según la cantidad esperada
+            size: 200,
           },
           headers: {
             Accept: "*/*",
           },
         });
 
-        // La respuesta es paginada: { content: [...] , totalPages, ... }
         const data = response.data;
         const content = (data?.content ?? []) as any[];
 
@@ -94,7 +95,6 @@ export default function PreciosProductos() {
           const tienePrecioOferta =
             enOferta && p.precioOferta !== null && p.precioOferta !== undefined;
 
-          // precio a mostrar (si hay oferta, mostramos precioOferta; si no, precioActual)
           const precioFinal = tienePrecioOferta
             ? p.precioOferta
             : p.precioActual;
@@ -142,7 +142,6 @@ export default function PreciosProductos() {
       }
     };
 
-    // Cada vez que cambia la búsqueda, consultamos al backend público
     fetchProducts();
   }, [search]);
 
@@ -153,7 +152,7 @@ export default function PreciosProductos() {
   const filteredProducts = useMemo(() => {
     let list = [...products];
 
-    // Filtrar por categoría (a nivel de nombre de categoría pública)
+    // Filtrar por categoría
     if (category !== "todos") {
       const categoriaTexto = CATEGORY_MAP[category];
       if (categoriaTexto) {
@@ -186,14 +185,13 @@ export default function PreciosProductos() {
       list = list.sort((a, b) => b.precio - a.precio);
     }
 
-    // "relevancia" deja el orden tal como viene del backend
     return list;
   }, [products, category, priceRange, sortBy]);
 
   // ===== acciones =====
   const handleViewStand = (product: StoreProduct) => {
-    console.log("Ir al producto:", product.nombre);
-    // aquí luego puedes hacer: navigate(`/tienda/producto/${product.id}`)
+    // aquí ya vas al detalle del producto
+    navigate(`/tienda/producto/${product.id}`);
   };
 
   const handleViewAllOffers = () => {
@@ -204,7 +202,7 @@ export default function PreciosProductos() {
     <Box
       sx={{
         minHeight: "100vh",
-        bgcolor:
+        background:
           "linear-gradient(180deg, #f1f5f9 0%, #f8fafc 40%, #ffffff 100%)",
         display: "flex",
         flexDirection: "column",

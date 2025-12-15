@@ -27,12 +27,14 @@ import CredencialesQrAdmin from "../pages/Dashboard/CredencialesQrAdmin";
 const AppRoutes = () => {
   return (
     <Routes>
+      {/* Redirige raíz a /tienda */}
       <Route path="/" element={<Navigate to="/tienda" />} />
 
+      {/* Auth */}
       <Route path="/login" element={<Login />} />
       <Route path="/registrate" element={<Registrate />} />
 
-      {/* /dashboard protegido */}
+      {/* Dashboard protegido */}
       <Route
         path="/dashboard"
         element={
@@ -55,14 +57,20 @@ const AppRoutes = () => {
         <Route path="incidencias" element={<IncidenciasAdmin />} />
         <Route path="credenciales-qr" element={<CredencialesQrAdmin />} />
       </Route>
+
+      {/* TIENDA PÚBLICA */}
       <Route path="/tienda" element={<TiendaHome />} />
       <Route path="/tienda/precios-productos" element={<PreciosProductos />} />
       <Route path="/tienda/contacto" element={<Contacto />} />
-      <Route path="/tienda/producto" element={<VistaProducto />} />
+
+      {/* 👇 IMPORTANTE: con :id */}
+      <Route path="/tienda/producto/:id" element={<VistaProducto />} />
+
       <Route path="/tienda/perfil-usuario" element={<PerfilUsuario />} />
-      <Route path="/tienda/perfil-stand" element={<PerfilStand />} />
+      <Route path="/tienda/stand/:id" element={<PerfilStand />} />
       <Route path="/tienda/mapa-stand" element={<MapaStand />} />
 
+      {/* Fallback */}
       <Route path="*" element={<Navigate to="/tienda" replace />} />
     </Routes>
   );

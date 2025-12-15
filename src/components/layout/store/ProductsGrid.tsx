@@ -7,7 +7,6 @@ import {
   Chip,
   Button,
 } from "@mui/material";
-import { useNavigate } from "react-router-dom"; // 👈 IMPORTANTE
 
 export interface StoreProduct {
   id: number;
@@ -31,8 +30,6 @@ export default function ProductsGrid({
   products,
   onViewStand,
 }: ProductsGridProps) {
-  const navigate = useNavigate(); // 👈 HOOK DEL ROUTER
-
   return (
     <Box
       sx={{
@@ -144,10 +141,7 @@ export default function ProductsGrid({
               fullWidth
               variant="contained"
               color="success"
-              onClick={() => {
-                onViewStand(p); // 👈 si quieres seguir usando el callback
-                navigate("/tienda/producto"); // 👈 aquí navega a la página
-              }}
+              onClick={() => onViewStand(p)}
               sx={{ borderRadius: 2, textTransform: "none", fontWeight: 600 }}
             >
               Ver Detalles
