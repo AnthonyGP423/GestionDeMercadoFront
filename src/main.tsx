@@ -1,11 +1,10 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
-import AppRoutes from "./routes/routes";
+import AppRoutes from "./app/routes/routes";
 import { ToastProvider } from "./components/ui/Toast";
 import { AuthProvider } from "./auth/AuthContext";
-import "./index.css";
-import ScrollToTop from "./components/layout/scrolltop";
+import ScrollToTop from "./features/store/components/scrolltop";
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
