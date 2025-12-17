@@ -44,7 +44,11 @@ const Login = () => {
         rol: data.rol,
       });
 
-      navigate("/dashboard/principal");
+      if (data.rol === "CLIENTE") {
+        navigate("/");
+      } else {
+        navigate("/dashboard/principal");
+      }
     } catch (error: any) {
       console.error(error);
       const mensajeBackend =
@@ -70,8 +74,7 @@ const Login = () => {
         justifyContent: "center",
         alignItems: "center",
         px: 2,
-        background:
-          "linear-gradient(to bottom right, #f5f5f5, #e5e7eb)", // mismo tono claro, más moderno
+        background: "linear-gradient(to bottom right, #f5f5f5, #e5e7eb)", // mismo tono claro, más moderno
       }}
     >
       <Paper
@@ -107,8 +110,7 @@ const Login = () => {
               mt: 1,
               mb: 1,
               fontWeight: 800,
-              fontFamily:
-                `"Poppins","Inter",system-ui,-apple-system,BlinkMacSystemFont`,
+              fontFamily: `"Poppins","Inter",system-ui,-apple-system,BlinkMacSystemFont`,
             }}
           >
             Gestión de Mercado Mayorista
