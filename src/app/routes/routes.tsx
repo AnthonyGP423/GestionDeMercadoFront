@@ -23,6 +23,16 @@ import MapaStand from "../../features/store/pages/MapaStand";
 import IncidenciasAdmin from "../../features/admin/pages/Incidencias";
 import CredencialesQrAdmin from "../../features/admin/pages/CredencialesQrAdmin";
 
+import PanelSocio from "../../layouts/dashboard/PanelSocioLayout";
+
+// Socio
+import DashboardSocioHome from "../../features/socio/pages/DashboardSocioHome";
+import MisStands from "../../features/socio/pages/MisStands";
+import MisCuotas from "../../features/socio/pages/MisCuotas";
+import ProductosSocio from "../../features/socio/pages/ProductosSocio";
+import IncidenciasSocio from "../../features/socio/pages/IncidenciasSocio";
+import CredencialQrSocio from "../../features/socio/pages/CredencialQrSocio";
+
 const AppRoutes = () => {
   return (
     <Routes>
@@ -56,12 +66,29 @@ const AppRoutes = () => {
         <Route path="credenciales-qr" element={<CredencialesQrAdmin />} />
       </Route>
 
+      {/* SOCIO protegido */}
+      <Route
+        path="/socio"
+        element={
+          <PrivateRoute>
+            <PanelSocio />
+          </PrivateRoute>
+        }
+      >
+        <Route index element={<Navigate to="/socio/principal" replace />} />
+        <Route path="principal" element={<DashboardSocioHome />} />
+        <Route path="mis-stands" element={<MisStands />} />
+        <Route path="mis-cuotas" element={<MisCuotas />} />
+        <Route path="productos" element={<ProductosSocio />} />
+        <Route path="incidencias" element={<IncidenciasSocio />} />
+        <Route path="credencial-qr" element={<CredencialQrSocio />} />
+      </Route>
+
       {/* TIENDA PÚBLICA */}
       <Route path="/tienda" element={<TiendaHome />} />
       <Route path="/tienda/precios-productos" element={<PreciosProductos />} />
       <Route path="/tienda/contacto" element={<Contacto />} />
 
-      {/* 👇 IMPORTANTE: con :id */}
       <Route path="/tienda/producto/:id" element={<VistaProducto />} />
 
       <Route path="/tienda/perfil-usuario" element={<PerfilUsuario />} />

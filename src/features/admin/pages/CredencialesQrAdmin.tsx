@@ -71,6 +71,10 @@ export default function CredencialesQrAdmin() {
   const [credencialGenerada, setCredencialGenerada] =
     useState<CredencialResponseDto | null>(null);
 
+  // ✅ NUEVO: credencial seleccionada para la vista previa
+  const [selectedPreview, setSelectedPreview] =
+    useState<CredencialResponseDto | null>(null);
+
   // Historial de credenciales del usuario
   const [historial, setHistorial] = useState<CredencialResponseDto[]>([]);
   const [loadingHistorial, setLoadingHistorial] = useState(false);
@@ -83,6 +87,9 @@ export default function CredencialesQrAdmin() {
 
   // 🔹 ref para imprimir solo el carnet
   const cardRef = useRef<HTMLDivElement | null>(null);
+
+  // ✅ La credencial que se muestra en la vista previa
+  const preview = selectedPreview ?? credencialGenerada;
 
   // ===== CARGAR USUARIOS ACTIVO =====
   useEffect(() => {
@@ -145,6 +152,7 @@ export default function CredencialesQrAdmin() {
   // Cuando se selecciona usuario, limpiar credencial mostrada y cargar historial
   useEffect(() => {
     setCredencialGenerada(null);
+    setSelectedPreview(null); // ✅ NUEVO
     setHistorial([]);
     setResultadoValidacion(null);
 
@@ -155,7 +163,12 @@ export default function CredencialesQrAdmin() {
         const data = await credencialesQrAdminApi.listarHistorialPorUsuario(
           selectedUsuario.idUsuario
         );
+
         setHistorial(data);
+
+        // ✅ UX: selecciona vigente por defecto (o la primera si no hay)
+        const vigente = data.find((x) => x.vigente);
+        setSelectedPreview(vigente ?? data[0] ?? null);
       } catch (error) {
         console.error(error);
         showToast("No se pudo cargar el historial de credenciales", "error");
@@ -192,7 +205,9 @@ export default function CredencialesQrAdmin() {
       };
 
       const cred = await credencialesQrAdminApi.crear(body);
+
       setCredencialGenerada(cred);
+      setSelectedPreview(cred); // ✅ NUEVO: lo que generas pasa directo a preview
       showToast("Credencial generada correctamente", "success");
 
       // Refrescamos historial después de generar
@@ -201,14 +216,17 @@ export default function CredencialesQrAdmin() {
           selectedUsuario.idUsuario
         );
         setHistorial(data);
+
+        // si backend marca vigente la nueva, manténla seleccionada
+        const encontrada = data.find((x) => x.idCredencial === cred.idCredencial);
+        setSelectedPreview(encontrada ?? cred);
       } catch {
-        // si falla, solo ignoramos
+        // si falla, no rompemos nada
       }
     } catch (error: any) {
       console.error(error);
       showToast(
-        error?.response?.data?.mensaje ||
-          "No se pudo generar la credencial QR",
+        error?.response?.data?.mensaje || "No se pudo generar la credencial QR",
         "error"
       );
     } finally {
@@ -265,26 +283,23 @@ export default function CredencialesQrAdmin() {
     printWindow.document.close();
     printWindow.focus();
     printWindow.print();
-    // printWindow.close(); // opcional
   };
 
+  // ✅ UX: imprime lo que estás viendo (preview)
   const handleImprimir = () => {
-    if (!credencialGenerada) {
-      showToast("Genera primero una credencial", "warning");
+    if (!preview) {
+      showToast("Selecciona una credencial del historial o genera una", "warning");
       return;
     }
     printCardOnly();
   };
 
   const handleExportarPdf = () => {
-    if (!credencialGenerada) {
-      showToast("Genera primero una credencial", "warning");
+    if (!preview) {
+      showToast("Selecciona una credencial del historial o genera una", "warning");
       return;
     }
-    showToast(
-      "En el cuadro de impresión selecciona 'Guardar como PDF'.",
-      "info"
-    );
+    showToast("En el cuadro de impresión selecciona 'Guardar como PDF'.", "info");
     printCardOnly();
   };
 
@@ -297,15 +312,15 @@ export default function CredencialesQrAdmin() {
 
     try {
       setLoadingValidacion(true);
-      const result =
-        await credencialesQrAdminApi.validarPorCodigo(codigoValidar.trim());
+      const result = await credencialesQrAdminApi.validarPorCodigo(
+        codigoValidar.trim()
+      );
       setResultadoValidacion(result);
       showToast(result.mensaje, result.valida ? "success" : "error");
     } catch (error: any) {
       console.error(error);
       showToast(
-        error?.response?.data?.mensaje ||
-          "No se pudo validar el código QR",
+        error?.response?.data?.mensaje || "No se pudo validar el código QR",
         "error"
       );
     } finally {
@@ -314,19 +329,13 @@ export default function CredencialesQrAdmin() {
   };
 
   const tipoChipColor = (tipo: TipoUsuario) => {
-    if (tipo === "TRABAJADOR") {
-      return { bgcolor: "#dbeafe", color: "#1d4ed8" };
-    }
-    if (tipo === "SOCIO") {
-      return { bgcolor: "#dcfce7", color: "#166534" };
-    }
+    if (tipo === "TRABAJADOR") return { bgcolor: "#dbeafe", color: "#1d4ed8" };
+    if (tipo === "SOCIO") return { bgcolor: "#dcfce7", color: "#166534" };
     return { bgcolor: "#e5e7eb", color: "#374151" };
   };
 
   const vigenteChipColor = (vigente?: boolean | null) => {
-    if (vigente) {
-      return { bgcolor: "#dcfce7", color: "#166534" };
-    }
+    if (vigente) return { bgcolor: "#dcfce7", color: "#166534" };
     return { bgcolor: "#fee2e2", color: "#b91c1c" };
   };
 
@@ -338,20 +347,13 @@ export default function CredencialesQrAdmin() {
           variant="h4"
           sx={{
             fontWeight: 800,
-            fontFamily:
-              '"Poppins","Inter",system-ui,-apple-system,BlinkMacSystemFont',
+            fontFamily: '"Poppins","Inter",system-ui,-apple-system,BlinkMacSystemFont',
           }}
         >
           Credenciales QR
         </Typography>
-        <Typography
-          variant="body1"
-          color="text.secondary"
-          sx={{ mt: 0.5, maxWidth: 620 }}
-        >
-          Genera credenciales QR para socios y personal autorizado. Al crear
-          una nueva credencial, la anterior se marca automáticamente como no
-          vigente. También puedes validar códigos QR y revisar el historial.
+        <Typography variant="body1" color="text.secondary" sx={{ mt: 0.5, maxWidth: 620 }}>
+          Genera credenciales QR para socios y personal autorizado. Al crear una nueva credencial, la anterior se marca automáticamente como no vigente. También puedes validar códigos QR y revisar el historial.
         </Typography>
       </Box>
 
@@ -363,14 +365,7 @@ export default function CredencialesQrAdmin() {
           boxShadow: "0 18px 40px rgba(15, 23, 42, 0.06)",
         }}
       >
-        {/* Layout principal sin Grid, usando Box */}
-        <Box
-          sx={{
-            display: "flex",
-            flexDirection: { xs: "column", md: "row" },
-            gap: 3,
-          }}
-        >
+        <Box sx={{ display: "flex", flexDirection: { xs: "column", md: "row" }, gap: 3 }}>
           {/* IZQUIERDA: FORMULARIO */}
           <Box sx={{ flex: 1, minWidth: 0 }}>
             <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 2 }}>
@@ -378,15 +373,12 @@ export default function CredencialesQrAdmin() {
             </Typography>
 
             <Stack spacing={2.5}>
-              {/* SELECCIÓN DE USUARIO */}
               <Autocomplete
                 options={usuarios}
                 loading={loadingUsuarios}
                 value={selectedUsuario}
                 onChange={(_, newValue) => setSelectedUsuario(newValue)}
-                getOptionLabel={(opt) =>
-                  `${opt.nombreCompleto} (${opt.rol || "SIN ROL"})`
-                }
+                getOptionLabel={(opt) => `${opt.nombreCompleto} (${opt.rol || "SIN ROL"})`}
                 filterOptions={(options, state) =>
                   options.filter((opt) =>
                     `${opt.nombreCompleto} ${opt.email} ${opt.rol}`
@@ -402,9 +394,7 @@ export default function CredencialesQrAdmin() {
                     : "Otros"
                 }
                 noOptionsText={
-                  loadingUsuarios
-                    ? "Cargando usuarios..."
-                    : "No se encontraron usuarios"
+                  loadingUsuarios ? "Cargando usuarios..." : "No se encontraron usuarios"
                 }
                 renderInput={(params) => (
                   <TextField
@@ -416,9 +406,7 @@ export default function CredencialesQrAdmin() {
                       ...params.InputProps,
                       endAdornment: (
                         <>
-                          {loadingUsuarios ? (
-                            <CircularProgress color="inherit" size={16} />
-                          ) : null}
+                          {loadingUsuarios ? <CircularProgress color="inherit" size={16} /> : null}
                           {params.InputProps.endAdornment}
                         </>
                       ),
@@ -427,7 +415,6 @@ export default function CredencialesQrAdmin() {
                 )}
               />
 
-              {/* RESUMEN DEL USUARIO + CHIP TIPO */}
               <Box
                 sx={{
                   p: 1.5,
@@ -436,12 +423,7 @@ export default function CredencialesQrAdmin() {
                   border: "1px dashed #e5e7eb",
                 }}
               >
-                <Stack
-                  direction="row"
-                  spacing={1.5}
-                  alignItems="center"
-                  flexWrap="wrap"
-                >
+                <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap">
                   <Typography variant="body2" sx={{ flex: 1, minWidth: 0 }}>
                     {usuarioResumen}
                   </Typography>
@@ -466,7 +448,6 @@ export default function CredencialesQrAdmin() {
                 </Stack>
               </Box>
 
-              {/* TIPO DE CREDENCIAL */}
               <TextField
                 select
                 fullWidth
@@ -482,7 +463,6 @@ export default function CredencialesQrAdmin() {
                 <MenuItem value="VISITANTE">VISITANTE</MenuItem>
               </TextField>
 
-              {/* FECHA DE VENCIMIENTO */}
               <TextField
                 fullWidth
                 label="Fecha de vencimiento"
@@ -493,7 +473,6 @@ export default function CredencialesQrAdmin() {
                 InputLabelProps={{ shrink: true }}
               />
 
-              {/* BOTONES DE ACCIÓN */}
               <Stack direction="row" spacing={1.5} flexWrap="wrap">
                 <Button
                   variant="contained"
@@ -513,7 +492,7 @@ export default function CredencialesQrAdmin() {
                 <Button
                   variant="outlined"
                   onClick={handleImprimir}
-                  disabled={!credencialGenerada}
+                  disabled={!preview}
                   sx={{
                     borderRadius: "999px",
                     textTransform: "none",
@@ -527,7 +506,7 @@ export default function CredencialesQrAdmin() {
                   variant="outlined"
                   color="success"
                   onClick={handleExportarPdf}
-                  disabled={!credencialGenerada}
+                  disabled={!preview}
                   sx={{
                     borderRadius: "999px",
                     textTransform: "none",
@@ -546,7 +525,7 @@ export default function CredencialesQrAdmin() {
               Vista previa en formato carnet
             </Typography>
 
-            {credencialGenerada ? (
+            {preview ? (
               <Paper
                 elevation={0}
                 sx={{
@@ -559,7 +538,6 @@ export default function CredencialesQrAdmin() {
                   justifyContent: "center",
                 }}
               >
-                {/* 👇 SOLO ESTE BOX SE IMPRIME / EXPORTA */}
                 <Box
                   ref={cardRef}
                   sx={{
@@ -572,22 +550,8 @@ export default function CredencialesQrAdmin() {
                     flexDirection: "column",
                   }}
                 >
-                  {/* Header verde */}
-                  <Box
-                    sx={{
-                      bgcolor: "#16a34a",
-                      color: "#ecfdf5",
-                      px: 2,
-                      py: 1.2,
-                    }}
-                  >
-                    <Typography
-                      variant="subtitle2"
-                      sx={{
-                        fontWeight: 700,
-                        letterSpacing: 0.3,
-                      }}
-                    >
+                  <Box sx={{ bgcolor: "#16a34a", color: "#ecfdf5", px: 2, py: 1.2 }}>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 700, letterSpacing: 0.3 }}>
                       Mercado Mayorista de Santa Anita
                     </Typography>
                     <Typography variant="caption" sx={{ opacity: 0.9 }}>
@@ -595,16 +559,7 @@ export default function CredencialesQrAdmin() {
                     </Typography>
                   </Box>
 
-                  {/* Contenido carnet */}
-                  <Box
-                    sx={{
-                      flex: 1,
-                      display: "flex",
-                      p: 1.5,
-                      gap: 1.5,
-                    }}
-                  >
-                    {/* QR lado izquierdo */}
+                  <Box sx={{ flex: 1, display: "flex", p: 1.5, gap: 1.5 }}>
                     <Box
                       sx={{
                         flex: 0.95,
@@ -615,39 +570,19 @@ export default function CredencialesQrAdmin() {
                         borderRadius: 2,
                       }}
                     >
-                      <QRCode
-                        value={credencialGenerada.codigoQr}
-                        size={140}
-                        style={{ display: "block" }}
-                      />
+                      <QRCode value={preview.codigoQr} size={140} style={{ display: "block" }} />
                     </Box>
 
-                    {/* Datos lado derecho */}
-                    <Box
-                      sx={{
-                        flex: 1.3,
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: 0.4,
-                      }}
-                    >
-                      <Typography
-                        variant="subtitle1"
-                        sx={{ fontWeight: 700, lineHeight: 1.2 }}
-                      >
-                        {credencialGenerada.nombres}{" "}
-                        {credencialGenerada.apellidos}
+                    <Box sx={{ flex: 1.3, display: "flex", flexDirection: "column", gap: 0.4 }}>
+                      <Typography variant="subtitle1" sx={{ fontWeight: 700, lineHeight: 1.2 }}>
+                        {preview.nombres} {preview.apellidos}
                       </Typography>
-                      <Typography
-                        variant="caption"
-                        color="text.secondary"
-                        sx={{ mb: 0.5 }}
-                      >
-                        {credencialGenerada.email}
+                      <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5 }}>
+                        {preview.email}
                       </Typography>
 
                       <Chip
-                        label={credencialGenerada.tipoCredencial}
+                        label={preview.tipoCredencial}
                         size="small"
                         sx={{
                           alignSelf: "flex-start",
@@ -661,38 +596,25 @@ export default function CredencialesQrAdmin() {
                       />
 
                       <Typography variant="caption" color="text.secondary">
-                        Emisión:{" "}
-                        <strong>{credencialGenerada.fechaEmision}</strong>
+                        Emisión: <strong>{preview.fechaEmision}</strong>
                       </Typography>
                       <Typography variant="caption" color="text.secondary">
-                        Vence:{" "}
-                        <strong>
-                          {credencialGenerada.fechaVencimiento || "—"}
-                        </strong>
+                        Vence: <strong>{preview.fechaVencimiento || "—"}</strong>
                       </Typography>
                       <Typography variant="caption" color="text.secondary">
-                        Código interno:{" "}
-                        <strong>{credencialGenerada.codigoQr}</strong>
+                        Código interno: <strong>{preview.codigoQr}</strong>
                       </Typography>
 
                       <Chip
-                        label={
-                          credencialGenerada.vigente
-                            ? "Vigente"
-                            : "No vigente"
-                        }
+                        label={preview.vigente ? "Vigente" : "No vigente"}
                         size="small"
                         sx={{
                           mt: 0.8,
                           borderRadius: 999,
                           fontSize: 11,
                           fontWeight: 600,
-                          bgcolor: credencialGenerada.vigente
-                            ? "#dbeafe"
-                            : "#fee2e2",
-                          color: credencialGenerada.vigente
-                            ? "#1d4ed8"
-                            : "#b91c1c",
+                          bgcolor: preview.vigente ? "#dbeafe" : "#fee2e2",
+                          color: preview.vigente ? "#1d4ed8" : "#b91c1c",
                           alignSelf: "flex-start",
                         }}
                       />
@@ -712,22 +634,14 @@ export default function CredencialesQrAdmin() {
                 }}
               >
                 <Typography variant="body2">
-                  Aún no se ha generado ninguna credencial. Completa los datos
-                  del usuario y haz clic en{" "}
-                  <Box component="span" sx={{ fontWeight: 700 }}>
-                    “Generar credencial QR”
-                  </Box>{" "}
-                  para ver la vista previa en formato carnet.
+                  Aún no hay credenciales para mostrar. Selecciona un usuario y elige una del historial o genera una nueva.
                 </Typography>
               </Box>
             )}
 
-            {/* HISTORIAL DE CREDENCIALES */}
+            {/* HISTORIAL */}
             <Box>
-              <Typography
-                variant="subtitle2"
-                sx={{ fontWeight: 700, mb: 1 }}
-              >
+              <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
                 Historial de credenciales
               </Typography>
 
@@ -736,73 +650,89 @@ export default function CredencialesQrAdmin() {
                   <CircularProgress size={20} />
                 </Box>
               ) : historial.length === 0 ? (
-                <Typography
-                  variant="body2"
-                  color="text.secondary"
-                  sx={{ fontStyle: "italic" }}
-                >
+                <Typography variant="body2" color="text.secondary" sx={{ fontStyle: "italic" }}>
                   No hay credenciales previas para este usuario.
                 </Typography>
               ) : (
-                <Stack spacing={1.2} sx={{ maxHeight: 210, overflowY: "auto" }}>
-                  {historial.map((h) => (
-                    <Box
-                      key={h.idCredencial}
-                      sx={{
-                        p: 1.2,
-                        borderRadius: 2,
-                        bgcolor: "#f9fafb",
-                        border: "1px solid #e5e7eb",
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: 0.3,
-                      }}
-                    >
-                      <Stack
-                        direction="row"
-                        spacing={1}
-                        alignItems="center"
-                        justifyContent="space-between"
-                      >
-                        <Typography
-                          variant="body2"
-                          sx={{ fontWeight: 600 }}
-                        >
-                          ID #{h.idCredencial}
-                        </Typography>
-                        <Chip
-                          label={h.vigente ? "Vigente" : "No vigente"}
-                          size="small"
-                          sx={{
-                            borderRadius: 999,
-                            fontSize: 10,
-                            fontWeight: 600,
-                            ...vigenteChipColor(h.vigente),
-                          }}
-                        />
-                      </Stack>
-                      <Typography
-                        variant="caption"
-                        color="text.secondary"
-                      >
-                        Tipo: <strong>{h.tipoCredencial}</strong> • Emisión:{" "}
-                        <strong>{h.fechaEmision}</strong> • Vence:{" "}
-                        <strong>{h.fechaVencimiento || "—"}</strong>
-                      </Typography>
-                      <Typography
-                        variant="caption"
-                        color="text.secondary"
+                <Stack spacing={1.2} sx={{ maxHeight: 260, overflowY: "auto" }}>
+                  {historial.map((h) => {
+                    const isSelected = Boolean(preview?.idCredencial && preview.idCredencial === h.idCredencial);
+
+                    return (
+                      <Box
+                        key={h.idCredencial}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => setSelectedPreview(h)}
+                        onKeyDown={(e) => e.key === "Enter" && setSelectedPreview(h)}
                         sx={{
-                          display: "-webkit-box",
-                          WebkitLineClamp: 1,
-                          WebkitBoxOrient: "vertical",
-                          overflow: "hidden",
+                          p: 1.2,
+                          borderRadius: 2,
+                          bgcolor: "#f9fafb",
+                          border: isSelected ? "2px solid #16a34a" : "1px solid #e5e7eb",
+                          boxShadow: isSelected ? "0 10px 24px rgba(22,163,74,0.14)" : "none",
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: 0.3,
+                          cursor: "pointer",
+                          outline: "none",
+                          "&:hover": { borderColor: "#16a34a" },
                         }}
                       >
-                        Código: {h.codigoQr}
-                      </Typography>
-                    </Box>
-                  ))}
+                        <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between">
+                          <Stack direction="row" spacing={1} alignItems="center">
+                            <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                              ID #{h.idCredencial}
+                            </Typography>
+
+                            {isSelected && (
+                              <Chip
+                                label="PREVIEW"
+                                size="small"
+                                sx={{
+                                  borderRadius: 999,
+                                  fontSize: 10,
+                                  fontWeight: 900,
+                                  bgcolor: "#ecfdf5",
+                                  color: "#166534",
+                                }}
+                              />
+                            )}
+                          </Stack>
+
+                          <Chip
+                            label={h.vigente ? "Vigente" : "No vigente"}
+                            size="small"
+                            sx={{
+                              borderRadius: 999,
+                              fontSize: 10,
+                              fontWeight: 700,
+                              ...vigenteChipColor(h.vigente),
+                            }}
+                          />
+                        </Stack>
+
+                        <Typography variant="caption" color="text.secondary">
+                          Tipo: <strong>{h.tipoCredencial}</strong> • Emisión:{" "}
+                          <strong>{h.fechaEmision}</strong> • Vence:{" "}
+                          <strong>{h.fechaVencimiento || "—"}</strong>
+                        </Typography>
+
+                        <Typography
+                          variant="caption"
+                          color="text.secondary"
+                          sx={{
+                            display: "-webkit-box",
+                            WebkitLineClamp: 1,
+                            WebkitBoxOrient: "vertical",
+                            overflow: "hidden",
+                          }}
+                        >
+                          Código: {h.codigoQr}
+                        </Typography>
+                      </Box>
+                    );
+                  })}
                 </Stack>
               )}
             </Box>
@@ -810,7 +740,7 @@ export default function CredencialesQrAdmin() {
         </Box>
       </Paper>
 
-      {/* SECCIÓN: VALIDACIÓN RÁPIDA DE CÓDIGO QR (pensada para móvil / seguridad) */}
+      {/* VALIDACIÓN */}
       <Paper
         elevation={0}
         sx={{
@@ -822,31 +752,16 @@ export default function CredencialesQrAdmin() {
         }}
       >
         <Stack spacing={2}>
-          <Stack
-            direction={{ xs: "column", sm: "row" }}
-            alignItems={{ xs: "flex-start", sm: "center" }}
-            justifyContent="space-between"
-            spacing={1.5}
-          >
-            <Box>
-              <Typography
-                variant="subtitle1"
-                sx={{ fontWeight: 700 }}
-              >
-                Validación rápida de QR
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Ingresa o escanea el código QR para validar si la credencial es
-                válida, está vigente y pertenece a un usuario activo.
-              </Typography>
-            </Box>
-          </Stack>
+          <Box>
+            <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+              Validación rápida de QR
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Ingresa o escanea el código QR para validar si la credencial es válida y está vigente.
+            </Typography>
+          </Box>
 
-          <Stack
-            direction={{ xs: "column", sm: "row" }}
-            spacing={1.5}
-            alignItems={{ xs: "stretch", sm: "center" }}
-          >
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} alignItems={{ xs: "stretch", sm: "center" }}>
             <TextField
               fullWidth
               label="Código QR"
@@ -877,22 +792,14 @@ export default function CredencialesQrAdmin() {
               <Stack spacing={1.2}>
                 <Stack direction="row" spacing={1.5} alignItems="center">
                   <Chip
-                    label={
-                      resultadoValidacion.valida
-                        ? "Credencial válida"
-                        : "No válida"
-                    }
+                    label={resultadoValidacion.valida ? "Credencial válida" : "No válida"}
                     size="small"
                     sx={{
                       borderRadius: 999,
                       fontSize: 11,
-                      fontWeight: 600,
-                      bgcolor: resultadoValidacion.valida
-                        ? "#dcfce7"
-                        : "#fee2e2",
-                      color: resultadoValidacion.valida
-                        ? "#166534"
-                        : "#b91c1c",
+                      fontWeight: 700,
+                      bgcolor: resultadoValidacion.valida ? "#dcfce7" : "#fee2e2",
+                      color: resultadoValidacion.valida ? "#166534" : "#b91c1c",
                     }}
                   />
                   <Typography variant="body2" color="text.secondary">
@@ -904,32 +811,22 @@ export default function CredencialesQrAdmin() {
                   <Typography variant="body2">
                     Usuario:{" "}
                     <strong>
-                      {resultadoValidacion.nombres}{" "}
-                      {resultadoValidacion.apellidos}
+                      {resultadoValidacion.nombres} {resultadoValidacion.apellidos}
                     </strong>{" "}
-                    • Estado:{" "}
-                    <strong>{resultadoValidacion.estadoUsuario}</strong>
+                    • Estado: <strong>{resultadoValidacion.estadoUsuario}</strong>
                   </Typography>
                 )}
 
                 {resultadoValidacion.tipoCredencial && (
                   <Typography variant="body2" color="text.secondary">
-                    Tipo de credencial:{" "}
-                    <strong>{resultadoValidacion.tipoCredencial}</strong>
+                    Tipo de credencial: <strong>{resultadoValidacion.tipoCredencial}</strong>
                   </Typography>
                 )}
 
-                {(resultadoValidacion.fechaEmision ||
-                  resultadoValidacion.fechaVencimiento) && (
+                {(resultadoValidacion.fechaEmision || resultadoValidacion.fechaVencimiento) && (
                   <Typography variant="body2" color="text.secondary">
-                    Emisión:{" "}
-                    <strong>
-                      {resultadoValidacion.fechaEmision || "—"}
-                    </strong>{" "}
-                    • Vence:{" "}
-                    <strong>
-                      {resultadoValidacion.fechaVencimiento || "—"}
-                    </strong>
+                    Emisión: <strong>{resultadoValidacion.fechaEmision || "—"}</strong> • Vence:{" "}
+                    <strong>{resultadoValidacion.fechaVencimiento || "—"}</strong>
                   </Typography>
                 )}
               </Stack>
