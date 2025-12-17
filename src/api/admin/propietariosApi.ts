@@ -71,18 +71,14 @@ const toDetalle = (u: PropietarioBackend): PropietarioDetalle => ({
 // Solo usuarios activos
 const estaActivo = (u: PropietarioBackend): boolean => {
   const estado = (u.estadoUsuario ?? u.estado ?? "").toUpperCase();
-  // Si no viene nada en estado, lo consideramos activo por defecto
+  
   return estado === "" || estado === "ACTIVO";
 };
 
-// Si luego quieres filtrar solo SOCIO / PROPIETARIO, aquí lo puedes ajustar.
 const esPropietario = (u: PropietarioBackend): boolean => {
   const r = u.rol;
     typeof r === "string" ? r : r?.nombreRol;
 
-  // Por ahora dejamos que cualquier rol activo sea elegible.
-  // Si tu rol de socio se llama "SOCIO", podrías hacer:
-  // return nombreRol?.toUpperCase() === "SOCIO";
   return true;
 };
 

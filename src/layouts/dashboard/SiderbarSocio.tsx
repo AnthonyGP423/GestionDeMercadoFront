@@ -8,44 +8,35 @@ import {
   ListItemButton,
   ListItemIcon,
   ListItemText,
-  Collapse,
   Chip,
   Tooltip,
 } from "@mui/material";
 
 import DashboardIcon from "@mui/icons-material/Dashboard";
-import PeopleIcon from "@mui/icons-material/People";
-import SecurityIcon from "@mui/icons-material/Security";
 import StoreIcon from "@mui/icons-material/Store";
 import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
-import BarChartIcon from "@mui/icons-material/BarChart";
 import PaymentsIcon from "@mui/icons-material/Payments";
 import LogoutIcon from "@mui/icons-material/Logout";
-import ExpandMore from "@mui/icons-material/ExpandMore";
 import StorefrontIcon from "@mui/icons-material/Storefront";
 import ReportProblemIcon from "@mui/icons-material/ReportProblem";
 import QrCode2Icon from "@mui/icons-material/QrCode2";
 
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { useState, useMemo } from "react";
+import { useMemo } from "react";
 import { useAuth } from "../../auth/useAuth";
 
 const drawerWidth = 280;
 
-// Paleta mejorada
-const primary = "#16a34a";
-const primaryLight = "#22c55e";
-const primarySoft = "#dcfce7";
-const iconDefault = "#6b7280";
-const textMain = "#111827";
-const textMuted = "#9ca3af";
-const reportColor = "#eab308";
-const bgHover = "#f9fafb";
+// Paleta ámbar mostaza mejorada
+const primary = "#d97706";
+const primaryLight = "#f59e0b";
+const primarySoft = "#fef3c7";
+const iconDefault = "#78716c";
+const textMain = "#1c1917";
+const textMuted = "#78716c";
+const bgHover = "#fafaf9";
 
-export default function Sidebar() {
-  const [openStands, setOpenStands] = useState(false);
-  const [openProductos, setOpenProductos] = useState(false);
-
+export default function SidebarSocio() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
@@ -53,17 +44,11 @@ export default function Sidebar() {
   const displayName = useMemo(() => {
     if (user?.nombreCompleto) return user.nombreCompleto;
     if (user?.email) return user.email.split("@")[0];
-    return "Administrador";
+    return "Socio";
   }, [user]);
 
   const avatarInitial = displayName.charAt(0).toUpperCase();
-  const rolLabel = user?.rol ?? "ADMIN";
-
-  const role = (user?.rol ?? "ADMIN").toUpperCase();
-  const isAdmin = role === "ADMIN";
-  const canSeeRoles = isAdmin;
-  const canSeeCategoriasStand = isAdmin;
-  const canSeeCategoriasProducto = isAdmin;
+  const rolLabel = user?.rol ?? "SOCIO";
 
   const handleLogout = () => {
     logout();
@@ -117,7 +102,7 @@ export default function Sidebar() {
   // Estilo seleccionado mejorado
   const selectedSx = {
     backgroundColor: primarySoft,
-    boxShadow: "0 2px 8px rgba(22, 163, 74, 0.15)",
+    boxShadow: "0 2px 8px rgba(217, 119, 6, 0.15)",
     "&::before": {
       backgroundColor: primary,
     },
@@ -163,7 +148,7 @@ export default function Sidebar() {
             gap: 1.5,
             mb: 3,
             pb: 2.5,
-            borderBottom: "1px solid #f3f4f6",
+            borderBottom: "1px solid #f5f5f4",
           }}
         >
           <Box
@@ -176,7 +161,7 @@ export default function Sidebar() {
               alignItems: "center",
               justifyContent: "center",
               color: "white",
-              boxShadow: "0 8px 16px rgba(22, 163, 74, 0.25)",
+              boxShadow: "0 8px 16px rgba(217, 119, 6, 0.25)",
               position: "relative",
               "&::before": {
                 content: '""',
@@ -184,7 +169,7 @@ export default function Sidebar() {
                 inset: -1,
                 borderRadius: "17px",
                 padding: "1px",
-                background: `linear-gradient(135deg, rgba(34,197,94,0.3), transparent)`,
+                background: `linear-gradient(135deg, rgba(245,158,11,0.3), transparent)`,
                 WebkitMask:
                   "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
                 WebkitMaskComposite: "xor",
@@ -206,7 +191,7 @@ export default function Sidebar() {
                 display: "block",
               }}
             >
-              Panel Admin
+              Panel Socio
             </Typography>
             <Typography
               variant="subtitle1"
@@ -230,7 +215,7 @@ export default function Sidebar() {
             borderRadius: "16px",
             p: 1.75,
             background: `linear-gradient(135deg, ${bgHover} 0%, #ffffff 100%)`,
-            border: "1px solid #e5e7eb",
+            border: "1px solid #e7e5e4",
             display: "flex",
             alignItems: "center",
             gap: 1.5,
@@ -250,7 +235,7 @@ export default function Sidebar() {
                 background: `linear-gradient(135deg, ${primary} 0%, ${primaryLight} 100%)`,
                 fontWeight: 800,
                 fontSize: 20,
-                boxShadow: "0 4px 12px rgba(22, 163, 74, 0.3)",
+                boxShadow: "0 4px 12px rgba(217, 119, 6, 0.3)",
               }}
             >
               {avatarInitial}
@@ -263,7 +248,7 @@ export default function Sidebar() {
                 width: 14,
                 height: 14,
                 borderRadius: "50%",
-                backgroundColor: "#22c55e",
+                backgroundColor: "#f59e0b",
                 border: "2px solid white",
                 boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
               }}
@@ -309,7 +294,7 @@ export default function Sidebar() {
                 height: 22,
                 fontSize: 10,
                 fontWeight: 700,
-                background: `linear-gradient(135deg, ${primarySoft} 0%, #d1fae5 100%)`,
+                background: `linear-gradient(135deg, ${primarySoft} 0%, #fef9c3 100%)`,
                 color: primary,
                 textTransform: "uppercase",
                 borderRadius: "6px",
@@ -338,10 +323,10 @@ export default function Sidebar() {
             background: "transparent",
           },
           "&::-webkit-scrollbar-thumb": {
-            background: "#e5e7eb",
+            background: "#e7e5e4",
             borderRadius: "10px",
             "&:hover": {
-              background: "#d1d5db",
+              background: "#d6d3d1",
             },
           },
         }}
@@ -360,15 +345,15 @@ export default function Sidebar() {
             fontSize: 10,
           }}
         >
-          Administración
+          Gestión de Socio
         </Typography>
 
         <List disablePadding>
           {/* DASHBOARD */}
           <ListItemButton
             component={Link}
-            to="/dashboard/principal"
-            selected={isActive("/dashboard/principal")}
+            to="/socio/principal"
+            selected={isActive("/socio/principal")}
             sx={{ ...itemBaseSx, "&.Mui-selected": selectedSx }}
           >
             <ListItemIcon>
@@ -377,39 +362,50 @@ export default function Sidebar() {
             <ListItemText primary="Dashboard" />
           </ListItemButton>
 
-          {/* USUARIOS */}
+          {/* MIS PUESTOS */}
           <ListItemButton
             component={Link}
-            to="/dashboard/usuario"
-            selected={isActive("/dashboard/usuario")}
+            to="/socio/mis-stands"
+            selected={isActive("/socio/mis-stands")}
             sx={{ ...itemBaseSx, "&.Mui-selected": selectedSx }}
           >
             <ListItemIcon>
-              <PeopleIcon />
+              <StoreIcon />
             </ListItemIcon>
-            <ListItemText primary="Usuarios" />
+            <ListItemText primary="Mis puestos" />
           </ListItemButton>
 
-          {/* ROLES */}
-          {canSeeRoles && (
-            <ListItemButton
-              component={Link}
-              to="/dashboard/rol"
-              selected={isActive("/dashboard/rol")}
-              sx={{ ...itemBaseSx, "&.Mui-selected": selectedSx }}
-            >
-              <ListItemIcon>
-                <SecurityIcon />
-              </ListItemIcon>
-              <ListItemText primary="Roles" />
-            </ListItemButton>
-          )}
+          {/* CUOTAS Y PAGOS */}
+          <ListItemButton
+            component={Link}
+            to="/socio/mis-cuotas"
+            selected={isActive("/socio/mis-cuotas")}
+            sx={{ ...itemBaseSx, "&.Mui-selected": selectedSx }}
+          >
+            <ListItemIcon>
+              <PaymentsIcon />
+            </ListItemIcon>
+            <ListItemText primary="Cuotas y pagos" />
+          </ListItemButton>
+
+          {/* PRODUCTOS Y PRECIOS */}
+          <ListItemButton
+            component={Link}
+            to="/socio/productos"
+            selected={isActive("/socio/productos")}
+            sx={{ ...itemBaseSx, "&.Mui-selected": selectedSx }}
+          >
+            <ListItemIcon>
+              <ShoppingCartIcon />
+            </ListItemIcon>
+            <ListItemText primary="Productos y precios" />
+          </ListItemButton>
 
           {/* INCIDENCIAS */}
           <ListItemButton
             component={Link}
-            to="/dashboard/incidencias"
-            selected={isActive("/dashboard/incidencias")}
+            to="/socio/incidencias"
+            selected={isActive("/socio/incidencias")}
             sx={{ ...itemBaseSx, "&.Mui-selected": selectedSx }}
           >
             <ListItemIcon>
@@ -421,8 +417,8 @@ export default function Sidebar() {
           {/* CREDENCIAL QR */}
           <ListItemButton
             component={Link}
-            to="/dashboard/credenciales-qr"
-            selected={isActive("/dashboard/credenciales-qr")}
+            to="/socio/credencial-qr"
+            selected={isActive("/socio/credencial-qr")}
             sx={{ ...itemBaseSx, "&.Mui-selected": selectedSx }}
           >
             <ListItemIcon>
@@ -430,197 +426,12 @@ export default function Sidebar() {
             </ListItemIcon>
             <ListItemText primary="Credencial QR" />
           </ListItemButton>
-
-          {/* SEPARADOR MERCADO */}
-          <Typography
-            variant="caption"
-            sx={{
-              px: 1,
-              mt: 2.5,
-              mb: 1,
-              display: "block",
-              textTransform: "uppercase",
-              letterSpacing: ".18em",
-              color: textMuted,
-              fontWeight: 700,
-              fontSize: 10,
-            }}
-          >
-            Mercado
-          </Typography>
-
-          {/* PRODUCTOS (colapsable mejorado) */}
-          <ListItemButton
-            onClick={() => setOpenProductos(!openProductos)}
-            sx={{
-              ...itemBaseSx,
-              backgroundColor: openProductos ? bgHover : "transparent",
-            }}
-          >
-            <ListItemIcon>
-              <ShoppingCartIcon />
-            </ListItemIcon>
-            <ListItemText primary="Productos" />
-            <Box
-              sx={{
-                transform: openProductos ? "rotate(180deg)" : "rotate(0deg)",
-                transition: "transform 0.3s ease",
-              }}
-            >
-              <ExpandMore sx={{ fontSize: 20, color: iconDefault }} />
-            </Box>
-          </ListItemButton>
-
-          <Collapse in={openProductos} timeout="auto" unmountOnExit>
-            <List component="div" disablePadding sx={{ pl: 2, mt: 0.5 }}>
-              <ListItemButton
-                component={Link}
-                to="/dashboard/producto"
-                selected={isActive("/dashboard/producto")}
-                sx={{
-                  ...itemBaseSx,
-                  py: 1,
-                  "&.Mui-selected": selectedSx,
-                }}
-              >
-                <ListItemText
-                  primary="Lista de productos"
-                  primaryTypographyProps={{ fontSize: 13 }}
-                />
-              </ListItemButton>
-
-              {canSeeCategoriasProducto && (
-                <ListItemButton
-                  component={Link}
-                  to="/dashboard/categoria-producto"
-                  selected={isActive("/dashboard/categoria-producto")}
-                  sx={{
-                    ...itemBaseSx,
-                    py: 1,
-                    "&.Mui-selected": selectedSx,
-                  }}
-                >
-                  <ListItemText
-                    primary="Categorías de producto"
-                    primaryTypographyProps={{ fontSize: 13 }}
-                  />
-                </ListItemButton>
-              )}
-            </List>
-          </Collapse>
-
-          {/* STANDS (colapsable mejorado) */}
-          <ListItemButton
-            onClick={() => setOpenStands(!openStands)}
-            sx={{
-              ...itemBaseSx,
-              backgroundColor: openStands ? bgHover : "transparent",
-            }}
-          >
-            <ListItemIcon>
-              <StoreIcon />
-            </ListItemIcon>
-            <ListItemText primary="Stands" />
-            <Box
-              sx={{
-                transform: openStands ? "rotate(180deg)" : "rotate(0deg)",
-                transition: "transform 0.3s ease",
-              }}
-            >
-              <ExpandMore sx={{ fontSize: 20, color: iconDefault }} />
-            </Box>
-          </ListItemButton>
-
-          <Collapse in={openStands} timeout="auto" unmountOnExit>
-            <List component="div" disablePadding sx={{ pl: 2, mt: 0.5 }}>
-              <ListItemButton
-                component={Link}
-                to="/dashboard/stand"
-                selected={isActive("/dashboard/stand")}
-                sx={{
-                  ...itemBaseSx,
-                  py: 1,
-                  "&.Mui-selected": selectedSx,
-                }}
-              >
-                <ListItemText
-                  primary="Lista de stands"
-                  primaryTypographyProps={{ fontSize: 13 }}
-                />
-              </ListItemButton>
-
-              {canSeeCategoriasStand && (
-                <ListItemButton
-                  component={Link}
-                  to="/dashboard/categoria-stand"
-                  selected={isActive("/dashboard/categoria-stand")}
-                  sx={{
-                    ...itemBaseSx,
-                    py: 1,
-                    "&.Mui-selected": selectedSx,
-                  }}
-                >
-                  <ListItemText
-                    primary="Categorías de stands"
-                    primaryTypographyProps={{ fontSize: 13 }}
-                  />
-                </ListItemButton>
-              )}
-            </List>
-          </Collapse>
-
-          {/* PAGOS */}
-          <ListItemButton
-            component={Link}
-            to="/dashboard/pagos"
-            selected={isActive("/dashboard/pagos")}
-            sx={{ ...itemBaseSx, "&.Mui-selected": selectedSx }}
-          >
-            <ListItemIcon>
-              <PaymentsIcon />
-            </ListItemIcon>
-            <ListItemText primary="Pagos" />
-          </ListItemButton>
-
-          {/* REPORTES */}
-          <ListItemButton
-            component={Link}
-            to="/dashboard/reporte"
-            selected={isActive("/dashboard/reporte")}
-            sx={{
-              ...itemBaseSx,
-              "&.Mui-selected": {
-                backgroundColor: "#fef3c7",
-                boxShadow: "0 2px 8px rgba(234, 179, 8, 0.15)",
-                "&::before": {
-                  backgroundColor: reportColor,
-                },
-                "& .MuiListItemIcon-root": {
-                  color: reportColor,
-                },
-                "& .MuiListItemText-primary": {
-                  color: "#854d0e",
-                  fontWeight: 700,
-                },
-              },
-              "&:hover": {
-                "& .MuiListItemIcon-root": {
-                  color: reportColor,
-                },
-              },
-            }}
-          >
-            <ListItemIcon>
-              <BarChartIcon />
-            </ListItemIcon>
-            <ListItemText primary="Reportes" />
-          </ListItemButton>
         </List>
       </Box>
 
       {/* FOOTER MEJORADO */}
       <Box sx={{ px: 2.5, pb: 3, pt: 2 }}>
-        <Divider sx={{ mb: 2, borderColor: "#f3f4f6" }} />
+        <Divider sx={{ mb: 2, borderColor: "#f5f5f4" }} />
         <ListItemButton
           onClick={handleLogout}
           sx={{

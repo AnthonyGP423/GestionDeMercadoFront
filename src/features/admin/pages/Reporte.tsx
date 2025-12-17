@@ -16,11 +16,15 @@ import {
   TableCell,
   TableBody,
   LinearProgress,
+  Divider,
+  Tooltip,
+  IconButton,
 } from "@mui/material";
 import AssessmentIcon from "@mui/icons-material/Assessment";
 import ReportProblemIcon from "@mui/icons-material/ReportProblem";
 import StoreIcon from "@mui/icons-material/Store";
 import Inventory2Icon from "@mui/icons-material/Inventory2";
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 
 import { useEffect, useMemo, useState } from "react";
 import axios from "axios";
@@ -75,10 +79,13 @@ interface CategoriaStandDto {
 
 interface StandDto {
   id: number;
+  idPropietario?: number | null;
+  nombrePropietario?: string | null;
+
   nombreComercial?: string;
   bloque?: string;
   numeroStand?: string;
-  estado?: string; // ACTIVO / CLAUSURADO / etc.
+  estado?: string; // ABIERTO / CERRADO / CLAUSURADO
   idCategoriaStand?: number;
   nombreCategoriaStand?: string;
 }
@@ -146,6 +153,25 @@ function exportToCsv(filename: string, rows: any[]) {
 }
 
 // ======================
+// UI helpers (Ocupación)
+// ======================
+const kpiCardSx = {
+  p: 2.25,
+  borderRadius: 4,
+  border: "1px solid #e5e7eb",
+  bgcolor: "#fff",
+  boxShadow: "0 10px 25px rgba(15,23,42,0.05)",
+};
+
+function fmtPct(n: number) {
+  if (!isFinite(n)) return "0.0%";
+  return `${n.toFixed(1)}%`;
+}
+
+const norm = (v: any) => String(v ?? "").trim().toUpperCase();
+const hasOwner = (idPropietario: any) => Number(idPropietario ?? 0) > 0;
+
+// ======================
 // Componente principal
 // ======================
 export default function Reportes() {
@@ -189,7 +215,7 @@ export default function Reportes() {
   const [stands, setStands] = useState<StandDto[]>([]);
   const [loadingOcupacion, setLoadingOcupacion] = useState(false);
   const [filtrosOcupacion, setFiltrosOcupacion] = useState({
-    estado: "TODOS",
+    estado: "TODOS", // TODOS | ABIERTO | CERRADO | CLAUSURADO
     bloque: "Todos",
     idCategoriaStand: "",
   });
@@ -347,10 +373,7 @@ export default function Reportes() {
 
   const deudaTotalMorosos = useMemo(
     () =>
-      dataMorosidad.reduce(
-        (acc, m) => acc + Number(m.saldoPendiente || 0),
-        0
-      ),
+      dataMorosidad.reduce((acc, m) => acc + Number(m.saldoPendiente || 0), 0),
     [dataMorosidad]
   );
 
@@ -365,17 +388,42 @@ export default function Reportes() {
       const token = localStorage.getItem("token");
       if (!token) {
         setError("No se encontró token de sesión. Inicia sesión nuevamente.");
-        setLoadingIncidencias(false);
         return;
       }
 
       const headers = { Authorization: `Bearer ${token}` };
 
-      const res = await axios.get<IncidenciaDto[]>(
-        `${API_BASE_URL}/api/v1/admin/incidencias`,
-        { headers }
-      );
-      setIncidencias(res.data || []);
+      const params: any = {
+        page: 0,
+        size: 1000,
+      };
+
+      if (filtrosIncidencias.estado !== "TODAS")
+        params.estado = filtrosIncidencias.estado;
+      if (filtrosIncidencias.prioridad !== "TODAS")
+        params.prioridad = filtrosIncidencias.prioridad;
+
+      const res = await axios.get(`${API_BASE_URL}/api/v1/admin/incidencias`, {
+        headers,
+        params,
+      });
+
+      const content = Array.isArray(res.data) ? res.data : res.data?.content;
+
+      const normalizadas: IncidenciaDto[] = (content || []).map((x: any) => ({
+        idIncidencia: x.idIncidencia,
+        titulo: x.titulo,
+        descripcion: x.descripcion,
+        estado: x.estado,
+        prioridad: x.prioridad,
+        fechaRegistro: x.fechaReporte ?? x.fechaRegistro ?? "",
+        responsableNombre: x.nombreResponsable ?? x.responsableNombre ?? null,
+        standNombre: x.nombreStand ?? x.standNombre ?? null,
+        bloque: x.bloque ?? null,
+        numeroStand: x.numeroStand ?? null,
+      }));
+
+      setIncidencias(normalizadas);
     } catch (err: any) {
       console.error("Error generando reporte de incidencias:", err);
       setError(
@@ -441,10 +489,11 @@ export default function Reportes() {
 
       const headers = { Authorization: `Bearer ${token}` };
 
-      const res = await axios.get<StandDto[]>(
-        `${API_BASE_URL}/api/v1/stands`,
-        { headers }
-      );
+      // Puedes pasar filtros al backend si lo implementas (bloque/idCategoria/estado),
+      // pero por ahora traemos todo y filtramos en frontend para no romper nada.
+      const res = await axios.get<StandDto[]>(`${API_BASE_URL}/api/v1/stands`, {
+        headers,
+      });
       setStands(res.data || []);
     } catch (err: any) {
       console.error("Error generando reporte de ocupación:", err);
@@ -461,41 +510,87 @@ export default function Reportes() {
     return stands.filter((s) => {
       const { estado, bloque, idCategoriaStand } = filtrosOcupacion;
 
-      let okEstado =
+      const okEstado =
         estado === "TODOS" ||
-        (s.estado || "").toUpperCase() === estado.toUpperCase();
+        norm(s.estado) === norm(estado);
 
-      let okBloque =
-        bloque === "Todos" ||
-        (s.bloque || "").toUpperCase() === bloque.toUpperCase();
+      const okBloque =
+        bloque === "Todos" || norm(s.bloque) === norm(bloque);
 
-      let okCategoria =
-        !idCategoriaStand ||
-        s.idCategoriaStand === Number(idCategoriaStand);
+      const okCategoria =
+        !idCategoriaStand || s.idCategoriaStand === Number(idCategoriaStand);
 
       return okEstado && okBloque && okCategoria;
     });
   }, [stands, filtrosOcupacion]);
 
+  // ===== Resumen Ocupación (Operatividad + Disponibilidad comercial)
   const resumenOcupacion = useMemo(() => {
     const total = standsFiltradosOcupacion.length;
 
-    let activos = 0;
+    // Operatividad
+    let abiertos = 0;
+    let cerrados = 0;
     let clausurados = 0;
 
-    const porBloque: Record<string, { activos: number; clausurados: number }> =
-      {};
+    // Disponibilidad comercial
+    let disponibles = 0; // sin propietario y NO clausurado
+    let ocupados = 0; // con propietario
+
+    const porBloque: Record<
+      string,
+      {
+        abiertos: number;
+        cerrados: number;
+        clausurados: number;
+        disponibles: number;
+        ocupados: number;
+        pctOperativo: number; // abiertos / total bloque
+        pctDisponible: number; // disponibles / total bloque
+      }
+    > = {};
+
     const porCategoria: Record<string, number> = {};
 
     standsFiltradosOcupacion.forEach((s) => {
-      const est = (s.estado || "").toUpperCase();
-      if (est === "ACTIVO") activos++;
-      else if (est === "CLAUSURADO") clausurados++;
+      const est = norm(s.estado);
+      const bloque = norm(s.bloque || "SIN_BLOQUE");
+      const owner = hasOwner((s as any).idPropietario);
 
-      const bloque = (s.bloque || "SIN_BLOQUE").toUpperCase();
-      if (!porBloque[bloque]) porBloque[bloque] = { activos: 0, clausurados: 0 };
-      if (est === "ACTIVO") porBloque[bloque].activos++;
-      else if (est === "CLAUSURADO") porBloque[bloque].clausurados++;
+      if (!porBloque[bloque]) {
+        porBloque[bloque] = {
+          abiertos: 0,
+          cerrados: 0,
+          clausurados: 0,
+          disponibles: 0,
+          ocupados: 0,
+          pctOperativo: 0,
+          pctDisponible: 0,
+        };
+      }
+
+      // Operatividad
+      if (est === "ABIERTO") {
+        abiertos++;
+        porBloque[bloque].abiertos++;
+      } else if (est === "CERRADO") {
+        cerrados++;
+        porBloque[bloque].cerrados++;
+      } else if (est === "CLAUSURADO") {
+        clausurados++;
+        porBloque[bloque].clausurados++;
+      }
+
+      // Disponibilidad comercial
+      if (owner) {
+        ocupados++;
+        porBloque[bloque].ocupados++;
+      } else {
+        if (est !== "CLAUSURADO") {
+          disponibles++;
+          porBloque[bloque].disponibles++;
+        }
+      }
 
       const cat =
         s.nombreCategoriaStand ||
@@ -504,11 +599,85 @@ export default function Reportes() {
       porCategoria[cat] = (porCategoria[cat] || 0) + 1;
     });
 
-    const porcentajeOcupacion =
-      total > 0 ? (activos * 100.0) / total : 0;
+    Object.keys(porBloque).forEach((b) => {
+      const info = porBloque[b];
+      const totalB = info.abiertos + info.cerrados + info.clausurados;
+      info.pctOperativo = totalB > 0 ? (info.abiertos * 100) / totalB : 0;
+      info.pctDisponible = totalB > 0 ? (info.disponibles * 100) / totalB : 0;
+    });
 
-    return { total, activos, clausurados, porcentajeOcupacion, porBloque, porCategoria };
+    const porcentajeOperativo = total > 0 ? (abiertos * 100) / total : 0;
+    const porcentajeDisponible = total > 0 ? (disponibles * 100) / total : 0;
+
+    return {
+      total,
+      // operatividad
+      abiertos,
+      cerrados,
+      clausurados,
+      porcentajeOperativo,
+      // disponibilidad
+      disponibles,
+      ocupados,
+      porcentajeDisponible,
+      // breakdown
+      porBloque,
+      porCategoria,
+    };
   }, [standsFiltradosOcupacion, categoriasStand]);
+
+  // Rankings UX (Ocupación)
+  const topBloques = useMemo(() => {
+    const entries = Object.entries(resumenOcupacion.porBloque).map(
+      ([bloque, v]) => {
+        const totalB = v.abiertos + v.cerrados + v.clausurados;
+        return {
+          bloque,
+          abiertos: v.abiertos,
+          cerrados: v.cerrados,
+          clausurados: v.clausurados,
+          total: totalB,
+          pctOperativo: v.pctOperativo,
+          pctDisponible: v.pctDisponible,
+        };
+      }
+    );
+
+    return entries
+      .sort((a, b) => b.clausurados - a.clausurados || b.total - a.total)
+      .slice(0, 6);
+  }, [resumenOcupacion.porBloque]);
+
+  const topCategorias = useMemo(() => {
+    const entries = Object.entries(resumenOcupacion.porCategoria).map(
+      ([cat, count]) => ({ cat, count })
+    );
+    return entries.sort((a, b) => b.count - a.count).slice(0, 8);
+  }, [resumenOcupacion.porCategoria]);
+
+  const standsDetalle = useMemo(() => {
+    return [...standsFiltradosOcupacion].sort((a, b) => {
+      const ea = norm(a.estado);
+      const eb = norm(b.estado);
+
+      // CLAUSURADO primero
+      if (ea === "CLAUSURADO" && eb !== "CLAUSURADO") return -1;
+      if (eb === "CLAUSURADO" && ea !== "CLAUSURADO") return 1;
+
+      // luego ABIERTO, luego CERRADO
+      const rank = (e: string) =>
+        e === "ABIERTO" ? 0 : e === "CERRADO" ? 1 : e === "CLAUSURADO" ? -1 : 2;
+
+      const ra = rank(ea);
+      const rb = rank(eb);
+      if (ra !== rb) return ra - rb;
+
+      return (
+        String(a.bloque || "").localeCompare(String(b.bloque || "")) ||
+        String(a.numeroStand || "").localeCompare(String(b.numeroStand || ""))
+      );
+    });
+  }, [standsFiltradosOcupacion]);
 
   // ======================
   // Generar reporte de Productos
@@ -547,11 +716,10 @@ export default function Reportes() {
     return productos.filter((p) => {
       const { estado, idCategoriaProducto } = filtrosProductos;
 
-      let okEstado =
-        estado === "TODOS" ||
-        (p.estado || "").toUpperCase() === estado.toUpperCase();
+      const okEstado =
+        estado === "TODOS" || norm(p.estado) === norm(estado);
 
-      let okCategoria =
+      const okCategoria =
         !idCategoriaProducto ||
         p.idCategoriaProducto === Number(idCategoriaProducto);
 
@@ -567,7 +735,7 @@ export default function Reportes() {
     const porCategoria: Record<string, number> = {};
 
     productosFiltrados.forEach((p) => {
-      const est = (p.estado || "").toUpperCase();
+      const est = norm(p.estado);
       if (est === "ACTIVO") activos++;
       else if (est === "INACTIVO") inactivos++;
 
@@ -651,7 +819,7 @@ export default function Reportes() {
                   onChange={(e) =>
                     handleChangeFiltrosMorosidad(
                       "idCategoriaStand",
-                      e.target.value
+                      String(e.target.value)
                     )
                   }
                 >
@@ -746,7 +914,7 @@ export default function Reportes() {
                   label="Estado"
                   value={filtrosIncidencias.estado}
                   onChange={(e) =>
-                    handleChangeFiltrosIncidencias("estado", e.target.value)
+                    handleChangeFiltrosIncidencias("estado", String(e.target.value))
                   }
                 >
                   <MenuItem value="TODAS">Todas</MenuItem>
@@ -762,7 +930,7 @@ export default function Reportes() {
                   label="Prioridad"
                   value={filtrosIncidencias.prioridad}
                   onChange={(e) =>
-                    handleChangeFiltrosIncidencias("prioridad", e.target.value)
+                    handleChangeFiltrosIncidencias("prioridad", String(e.target.value))
                   }
                 >
                   <MenuItem value="TODAS">Todas</MenuItem>
@@ -825,11 +993,12 @@ export default function Reportes() {
                   label="Estado del stand"
                   value={filtrosOcupacion.estado}
                   onChange={(e) =>
-                    handleChangeFiltrosOcupacion("estado", e.target.value)
+                    handleChangeFiltrosOcupacion("estado", String(e.target.value))
                   }
                 >
                   <MenuItem value="TODOS">Todos</MenuItem>
-                  <MenuItem value="ACTIVO">Activo</MenuItem>
+                  <MenuItem value="ABIERTO">Abierto</MenuItem>
+                  <MenuItem value="CERRADO">Cerrado</MenuItem>
                   <MenuItem value="CLAUSURADO">Clausurado</MenuItem>
                 </Select>
               </FormControl>
@@ -852,7 +1021,7 @@ export default function Reportes() {
                   onChange={(e) =>
                     handleChangeFiltrosOcupacion(
                       "idCategoriaStand",
-                      e.target.value
+                      String(e.target.value)
                     )
                   }
                 >
@@ -918,7 +1087,7 @@ export default function Reportes() {
                   label="Estado del producto"
                   value={filtrosProductos.estado}
                   onChange={(e) =>
-                    handleChangeFiltrosProductos("estado", e.target.value)
+                    handleChangeFiltrosProductos("estado", String(e.target.value))
                   }
                 >
                   <MenuItem value="TODOS">Todos</MenuItem>
@@ -935,7 +1104,7 @@ export default function Reportes() {
                   onChange={(e) =>
                     handleChangeFiltrosProductos(
                       "idCategoriaProducto",
-                      e.target.value
+                      String(e.target.value)
                     )
                   }
                 >
@@ -1169,9 +1338,7 @@ export default function Reportes() {
             <Stack direction="row" spacing={1}>
               <Chip
                 size="small"
-                label={`Abiertas: ${
-                  resumenIncidencias.porEstado["ABIERTA"] || 0
-                }`}
+                label={`Abiertas: ${resumenIncidencias.porEstado["ABIERTA"] || 0}`}
                 sx={{
                   bgcolor: "#fee2e2",
                   color: "#b91c1c",
@@ -1193,9 +1360,7 @@ export default function Reportes() {
               />
               <Chip
                 size="small"
-                label={`Cerradas: ${
-                  resumenIncidencias.porEstado["CERRADA"] || 0
-                }`}
+                label={`Cerradas: ${resumenIncidencias.porEstado["CERRADA"] || 0}`}
                 sx={{
                   bgcolor: "#dcfce7",
                   color: "#166534",
@@ -1297,6 +1462,9 @@ export default function Reportes() {
       );
     }
 
+    // ======================
+    // OCUPACIÓN (Operatividad + Disponibilidad real por propietario)
+    // ======================
     if (reporteSeleccionado === "ocupacion") {
       return (
         <Paper
@@ -1306,6 +1474,7 @@ export default function Reportes() {
             boxShadow: "0 18px 40px rgba(15,23,42,0.06)",
           }}
         >
+          {/* Header */}
           <Stack
             direction={{ xs: "column", md: "row" }}
             justifyContent="space-between"
@@ -1314,48 +1483,29 @@ export default function Reportes() {
             sx={{ mb: 2 }}
           >
             <Box>
-              <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                Ocupación del mercado
-              </Typography>
+              <Stack direction="row" alignItems="center" spacing={1}>
+                <Typography variant="h6" sx={{ fontWeight: 800 }}>
+                  Ocupación del mercado
+                </Typography>
+
+                <Tooltip
+                  title={
+                    "Operatividad: % de stands ABIERTO.\n" +
+                    "Disponibilidad: stands sin propietario (idPropietario vacío/0) y NO clausurados."
+                  }
+                >
+                  <IconButton size="small">
+                    <InfoOutlinedIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              </Stack>
+
               <Typography variant="caption" color="text.secondary">
-                Total stands filtrados: {resumenOcupacion.total}
+                Total stands en el reporte: {resumenOcupacion.total}
               </Typography>
             </Box>
 
             <Stack direction="row" spacing={1}>
-              <Chip
-                size="small"
-                label={`Activos: ${resumenOcupacion.activos}`}
-                sx={{
-                  bgcolor: "#dcfce7",
-                  color: "#166534",
-                  fontWeight: 600,
-                  borderRadius: 999,
-                }}
-              />
-              <Chip
-                size="small"
-                label={`Clausurados: ${resumenOcupacion.clausurados}`}
-                sx={{
-                  bgcolor: "#fee2e2",
-                  color: "#b91c1c",
-                  fontWeight: 600,
-                  borderRadius: 999,
-                }}
-              />
-              <Chip
-                size="small"
-                label={`Ocupación: ${resumenOcupacion.porcentajeOcupacion.toFixed(
-                  1
-                )}%`}
-                sx={{
-                  bgcolor: "#e0f2fe",
-                  color: "#0369a1",
-                  fontWeight: 600,
-                  borderRadius: 999,
-                }}
-              />
-
               <Button
                 variant="outlined"
                 size="small"
@@ -1363,14 +1513,20 @@ export default function Reportes() {
                   const rows = standsFiltradosOcupacion.map((s) => ({
                     Id: s.id,
                     Stand: s.nombreComercial,
-                    Bloque: s.bloque,
-                    NumeroStand: s.numeroStand,
+                    Ubicacion:
+                      s.bloque && s.numeroStand ? `${s.bloque}-${s.numeroStand}` : "",
                     Estado: s.estado,
                     Categoria:
                       s.nombreCategoriaStand ||
-                      categoriasStand.find(
-                        (c) => c.id === s.idCategoriaStand
-                      )?.nombre,
+                      categoriasStand.find((c) => c.id === s.idCategoriaStand)
+                        ?.nombre ||
+                      "Sin categoría",
+                    IdPropietario: (s as any).idPropietario ?? "",
+                    Propietario: (s as any).nombrePropietario ?? "",
+                    Disponible:
+                      !hasOwner((s as any).idPropietario) && norm(s.estado) !== "CLAUSURADO"
+                        ? "SI"
+                        : "NO",
                   }));
                   exportToCsv("reporte_ocupacion.csv", rows);
                 }}
@@ -1386,48 +1542,228 @@ export default function Reportes() {
             </Box>
           )}
 
-          {/* Resumen por bloque */}
+          {/* KPIs */}
           <Box sx={{ mb: 3 }}>
             <Typography
               variant="caption"
               sx={{ color: "#9ca3af", textTransform: "uppercase" }}
             >
-              Ocupación por bloque
+              Operatividad (hoy)
             </Typography>
-            <Stack direction="row" spacing={1} flexWrap="wrap" mt={1}>
-              {Object.entries(resumenOcupacion.porBloque).map(
-                ([bloque, info]) => (
-                  <Chip
-                    key={bloque}
-                    label={`${bloque}: ${info.activos} activos / ${info.clausurados} clausurados`}
-                    size="small"
-                    sx={{
-                      bgcolor: "#f9fafb",
-                      color: "#374151",
-                      borderRadius: 999,
-                      border: "1px solid #e5e7eb",
-                    }}
-                  />
-                )
-              )}
-              {Object.keys(resumenOcupacion.porBloque).length === 0 && (
-                <Typography variant="body2" color="text.secondary">
-                  No hay datos para los filtros actuales.
+
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: { xs: "1fr", md: "repeat(4, 1fr)" },
+                gap: 2,
+                mt: 1,
+              }}
+            >
+              <Paper sx={kpiCardSx}>
+                <Typography variant="caption" sx={{ color: "#6b7280", fontWeight: 700 }}>
+                  % Operativo
                 </Typography>
-              )}
-            </Stack>
+                <Typography variant="h5" sx={{ fontWeight: 900, mt: 0.5 }}>
+                  {fmtPct(resumenOcupacion.porcentajeOperativo)}
+                </Typography>
+                <Typography variant="body2" sx={{ color: "text.secondary", mt: 1 }}>
+                  ABIERTO / Total (según filtros)
+                </Typography>
+              </Paper>
+
+              <Paper sx={kpiCardSx}>
+                <Typography variant="caption" sx={{ color: "#6b7280", fontWeight: 700 }}>
+                  Abiertos
+                </Typography>
+                <Typography variant="h5" sx={{ fontWeight: 900, mt: 0.5 }}>
+                  {resumenOcupacion.abiertos}
+                </Typography>
+                <Typography variant="body2" sx={{ color: "text.secondary", mt: 1 }}>
+                  Atendiendo ahora
+                </Typography>
+              </Paper>
+
+              <Paper sx={kpiCardSx}>
+                <Typography variant="caption" sx={{ color: "#6b7280", fontWeight: 700 }}>
+                  Cerrados
+                </Typography>
+                <Typography variant="h5" sx={{ fontWeight: 900, mt: 0.5 }}>
+                  {resumenOcupacion.cerrados}
+                </Typography>
+                <Typography variant="body2" sx={{ color: "text.secondary", mt: 1 }}>
+                  Puede abrir luego
+                </Typography>
+              </Paper>
+
+              <Paper sx={kpiCardSx}>
+                <Typography variant="caption" sx={{ color: "#6b7280", fontWeight: 700 }}>
+                  Clausurados
+                </Typography>
+                <Typography variant="h5" sx={{ fontWeight: 900, mt: 0.5 }}>
+                  {resumenOcupacion.clausurados}
+                </Typography>
+                <Typography variant="body2" sx={{ color: "text.secondary", mt: 1 }}>
+                  Cierre forzoso (admin)
+                </Typography>
+              </Paper>
+            </Box>
+
+            <Box sx={{ mt: 2 }}>
+              <LinearProgress
+                variant="determinate"
+                value={Math.max(0, Math.min(100, resumenOcupacion.porcentajeOperativo))}
+                sx={{ height: 10, borderRadius: 999 }}
+              />
+              <Stack direction="row" justifyContent="space-between" sx={{ mt: 0.75 }}>
+                <Typography variant="caption" color="text.secondary">
+                  {resumenOcupacion.abiertos} abiertos
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {resumenOcupacion.total - resumenOcupacion.abiertos} no abiertos
+                </Typography>
+              </Stack>
+            </Box>
           </Box>
 
-          {/* Tabla por categoría */}
+          <Divider sx={{ my: 2 }} />
+
+          <Box sx={{ mb: 3 }}>
+            <Typography
+              variant="caption"
+              sx={{ color: "#9ca3af", textTransform: "uppercase" }}
+            >
+              Disponibilidad (asignación a socio)
+            </Typography>
+
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: { xs: "1fr", md: "repeat(3, 1fr)" },
+                gap: 2,
+                mt: 1,
+              }}
+            >
+              <Paper sx={kpiCardSx}>
+                <Typography variant="caption" sx={{ color: "#6b7280", fontWeight: 700 }}>
+                  % Disponible
+                </Typography>
+                <Typography variant="h5" sx={{ fontWeight: 900, mt: 0.5 }}>
+                  {fmtPct(resumenOcupacion.porcentajeDisponible)}
+                </Typography>
+                <Typography variant="body2" sx={{ color: "text.secondary", mt: 1 }}>
+                  Sin propietario y no clausurado
+                </Typography>
+              </Paper>
+
+              <Paper sx={kpiCardSx}>
+                <Typography variant="caption" sx={{ color: "#6b7280", fontWeight: 700 }}>
+                  Disponibles
+                </Typography>
+                <Typography variant="h5" sx={{ fontWeight: 900, mt: 0.5 }}>
+                  {resumenOcupacion.disponibles}
+                </Typography>
+                <Typography variant="body2" sx={{ color: "text.secondary", mt: 1 }}>
+                  Listos para asignar
+                </Typography>
+              </Paper>
+
+              <Paper sx={kpiCardSx}>
+                <Typography variant="caption" sx={{ color: "#6b7280", fontWeight: 700 }}>
+                  Ocupados
+                </Typography>
+                <Typography variant="h5" sx={{ fontWeight: 900, mt: 0.5 }}>
+                  {resumenOcupacion.ocupados}
+                </Typography>
+                <Typography variant="body2" sx={{ color: "text.secondary", mt: 1 }}>
+                  Con propietario asignado
+                </Typography>
+              </Paper>
+            </Box>
+          </Box>
+
+          <Divider sx={{ my: 2 }} />
+
+          {/* Insights rápidos */}
+          <Box sx={{ mb: 3 }}>
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
+                gap: 2,
+              }}
+            >
+              <Paper sx={kpiCardSx}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 1 }}>
+                  Bloques con más clausurados
+                </Typography>
+
+                {topBloques.length === 0 ? (
+                  <Typography variant="body2" color="text.secondary">
+                    No hay datos para los filtros actuales.
+                  </Typography>
+                ) : (
+                  <Stack spacing={1}>
+                    {topBloques.map((b) => (
+                      <Box
+                        key={b.bloque}
+                        sx={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          gap: 2,
+                        }}
+                      >
+                        <Typography sx={{ fontWeight: 700 }}>{b.bloque}</Typography>
+                        <Typography color="text.secondary">
+                          {b.clausurados} clausurados • {b.abiertos} abiertos •{" "}
+                          {fmtPct(b.pctOperativo)}
+                        </Typography>
+                      </Box>
+                    ))}
+                  </Stack>
+                )}
+              </Paper>
+
+              <Paper sx={kpiCardSx}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 1 }}>
+                  Categorías con más stands
+                </Typography>
+
+                {topCategorias.length === 0 ? (
+                  <Typography variant="body2" color="text.secondary">
+                    No hay información de categorías con los filtros actuales.
+                  </Typography>
+                ) : (
+                  <Stack direction="row" spacing={1} flexWrap="wrap">
+                    {topCategorias.map((c) => (
+                      <Chip
+                        key={c.cat}
+                        label={`${c.cat}: ${c.count}`}
+                        size="small"
+                        sx={{
+                          bgcolor: "#f9fafb",
+                          border: "1px solid #e5e7eb",
+                          borderRadius: 999,
+                          fontWeight: 600,
+                        }}
+                      />
+                    ))}
+                  </Stack>
+                )}
+              </Paper>
+            </Box>
+          </Box>
+
+          {/* Detalle */}
           <Typography
             variant="caption"
             sx={{ color: "#9ca3af", textTransform: "uppercase" }}
           >
-            Stands por categoría
+            Detalle de stands (clausurados primero)
           </Typography>
-          {Object.keys(resumenOcupacion.porCategoria).length === 0 ? (
+
+          {standsDetalle.length === 0 && !loadingOcupacion ? (
             <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-              No hay información de categorías para los filtros seleccionados.
+              No hay stands para los filtros seleccionados.
             </Typography>
           ) : (
             <Table size="small" sx={{ mt: 1 }}>
@@ -1441,21 +1777,91 @@ export default function Reportes() {
                     },
                   }}
                 >
+                  <TableCell>Stand</TableCell>
+                  <TableCell>Ubicación</TableCell>
                   <TableCell>Categoría</TableCell>
-                  <TableCell align="right"># Stands</TableCell>
+                  <TableCell>Estado</TableCell>
+                  <TableCell>Disponibilidad</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
-                {Object.entries(resumenOcupacion.porCategoria).map(
-                  ([cat, count]) => (
-                    <TableRow key={cat} hover>
-                      <TableCell sx={{ fontSize: 13 }}>{cat}</TableCell>
-                      <TableCell align="right" sx={{ fontSize: 13 }}>
-                        {count}
+                {standsDetalle.map((s) => {
+                  const cat =
+                    s.nombreCategoriaStand ||
+                    categoriasStand.find((c) => c.id === s.idCategoriaStand)
+                      ?.nombre ||
+                    "Sin categoría";
+
+                  const estado = norm(s.estado);
+                  const owner = hasOwner((s as any).idPropietario);
+                  const disponible = !owner && estado !== "CLAUSURADO";
+
+                  const estadoChip = (() => {
+                    if (estado === "ABIERTO")
+                      return { bg: "#dcfce7", fg: "#166534" };
+                    if (estado === "CERRADO")
+                      return { bg: "#fef3c7", fg: "#92400e" };
+                    if (estado === "CLAUSURADO")
+                      return { bg: "#fee2e2", fg: "#b91c1c" };
+                    return { bg: "#f3f4f6", fg: "#374151" };
+                  })();
+
+                  return (
+                    <TableRow key={s.id} hover>
+                      <TableCell sx={{ fontWeight: 600, fontSize: 13 }}>
+                        {s.nombreComercial || `Stand #${s.id}`}
+                      </TableCell>
+
+                      <TableCell sx={{ fontSize: 12, color: "text.secondary" }}>
+                        {s.bloque && s.numeroStand ? `${s.bloque}-${s.numeroStand}` : "-"}
+                      </TableCell>
+
+                      <TableCell sx={{ fontSize: 12 }}>{cat}</TableCell>
+
+                      <TableCell sx={{ fontSize: 12 }}>
+                        <Chip
+                          size="small"
+                          label={estado || "-"}
+                          sx={{
+                            borderRadius: 999,
+                            fontWeight: 800,
+                            bgcolor: estadoChip.bg,
+                            color: estadoChip.fg,
+                          }}
+                        />
+                      </TableCell>
+
+                      <TableCell sx={{ fontSize: 12 }}>
+                        <Chip
+                          size="small"
+                          label={
+                            estado === "CLAUSURADO"
+                              ? "No disponible"
+                              : disponible
+                              ? "Disponible"
+                              : "Ocupado"
+                          }
+                          sx={{
+                            borderRadius: 999,
+                            fontWeight: 800,
+                            bgcolor:
+                              estado === "CLAUSURADO"
+                                ? "#fee2e2"
+                                : disponible
+                                ? "#e0f2fe"
+                                : "#f3f4f6",
+                            color:
+                              estado === "CLAUSURADO"
+                                ? "#b91c1c"
+                                : disponible
+                                ? "#0369a1"
+                                : "#374151",
+                          }}
+                        />
                       </TableCell>
                     </TableRow>
-                  )
-                )}
+                  );
+                })}
               </TableBody>
             </Table>
           )}
@@ -1525,9 +1931,7 @@ export default function Reportes() {
                       )?.nombre,
                     Stand: p.standNombre,
                     Ubicacion:
-                      p.bloque && p.numeroStand
-                        ? `${p.bloque}-${p.numeroStand}`
-                        : "",
+                      p.bloque && p.numeroStand ? `${p.bloque}-${p.numeroStand}` : "",
                     Precio: p.precio,
                   }));
                   exportToCsv("reporte_productos.csv", rows);
@@ -1636,9 +2040,7 @@ export default function Reportes() {
                       {p.standNombre || "-"}
                     </TableCell>
                     <TableCell sx={{ fontSize: 12 }}>
-                      {p.bloque && p.numeroStand
-                        ? `${p.bloque}-${p.numeroStand}`
-                        : "-"}
+                      {p.bloque && p.numeroStand ? `${p.bloque}-${p.numeroStand}` : "-"}
                     </TableCell>
                     <TableCell sx={{ fontSize: 12 }}>
                       {(p.estado || "").toUpperCase()}
@@ -1647,9 +2049,7 @@ export default function Reportes() {
                       align="right"
                       sx={{ fontSize: 12, color: "text.secondary" }}
                     >
-                      {p.precio != null
-                        ? `S/. ${Number(p.precio).toFixed(2)}`
-                        : "-"}
+                      {p.precio != null ? `S/. ${Number(p.precio).toFixed(2)}` : "-"}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -1730,7 +2130,8 @@ export default function Reportes() {
             Ocupación del mercado
           </Typography>
           <Typography fontSize={14} color="text.secondary">
-            Stands activos por bloque y categoría.
+            Operatividad (abierto/cerrado/clausurado) y disponibilidad real por
+            propietario.
           </Typography>
         </Paper>
 
@@ -1774,5 +2175,4 @@ export default function Reportes() {
       {renderResultados()}
     </Box>
   );
-
 }
