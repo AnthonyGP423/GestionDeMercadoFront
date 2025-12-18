@@ -1,6 +1,5 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import Login from "../../features/auth/Login";
-import Registrate from "../../features/auth/Register";
 
 import ClienteLogin from "../../features/auth/ClienteLogin";
 import ClienteRegistro from "../../features/auth/ClienteRegistro";
@@ -47,7 +46,6 @@ const AppRoutes = () => {
 
       {/* Auth (Intranet / Admin-Socio-Supervisor) */}
       <Route path="/login" element={<Login />} />
-      <Route path="/registrate" element={<Registrate />} />
 
       {/* ✅ Auth Cliente */}
       <Route path="/cliente/login" element={<ClienteLogin />} />

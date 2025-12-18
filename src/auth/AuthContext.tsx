@@ -17,7 +17,6 @@ type AuthContextType = {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// ✅ Separamos llaves por tipo de sesión
 const TOKEN_INTRANET_KEY = "token_intranet";
 const USER_INTRANET_KEY = "user_intranet";
 
@@ -34,7 +33,7 @@ function isClienteRole(rol?: string) {
 }
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  // ✅ Al iniciar: si hay sesión de cliente, úsala; sino intranet.
+
   const [user, setUser] = useState<User | null>(() => {
     const storedCliente = localStorage.getItem(USER_CLIENTE_KEY);
     const storedIntranet = localStorage.getItem(USER_INTRANET_KEY);
@@ -68,8 +67,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   setToken(newToken);
   if (userData) setUser(userData);
 
-  // ✅ Si todavía no llegó userData (muchos logins primero guardan token),
-  // persistimos al menos el token como INTRANET para que el dashboard no muera.
   if (!userData) {
     localStorage.setItem(TOKEN_INTRANET_KEY, newToken);
 
@@ -81,7 +78,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const rol = userData.rol;
 
-  // ✅ Si es cliente -> guardamos en keys de cliente
+  // Si es cliente -> guardamos en keys de cliente
   if (isClienteRole(rol)) {
     localStorage.setItem(TOKEN_CLIENTE_KEY, newToken);
     localStorage.setItem(USER_CLIENTE_KEY, JSON.stringify(userData));
@@ -92,7 +89,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return;
   }
 
-  // ✅ Si es intranet (ADMIN/SUPERVISOR/SOCIO) -> guardamos en intranet
+  // Si es intranet (ADMIN/SUPERVISOR/SOCIO) -> guardamos en intranet
   localStorage.setItem(TOKEN_INTRANET_KEY, newToken);
   localStorage.setItem(USER_INTRANET_KEY, JSON.stringify(userData));
 

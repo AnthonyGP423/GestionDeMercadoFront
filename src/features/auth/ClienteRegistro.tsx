@@ -8,6 +8,8 @@ import {
   Stack,
   InputAdornment,
   IconButton,
+  Snackbar,
+  Alert,
 } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
@@ -19,11 +21,16 @@ import StorefrontIcon from "@mui/icons-material/Storefront";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import PhoneIphoneOutlinedIcon from "@mui/icons-material/PhoneIphoneOutlined";
 
-// ✅ Importar la API real
+// Importar la API
 import { clientePublicApi } from "../../api/public/clientePublicApi";
+
+// Login real + AuthContext (para quedar logueado y entrar a /tienda)
+import { authApi } from "../../api//auth/authApi";
+import { useAuthContext } from "../../auth/AuthContext";
 
 const Registrate = () => {
   const navigate = useNavigate();
+  const { login } = useAuthContext();
 
   const [nombres, setNombres] = useState<string>("");
   const [apellidos, setApellidos] = useState<string>("");
@@ -34,15 +41,23 @@ const Registrate = () => {
 
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
-  
+
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  const [successOpen, setSuccessOpen] = useState(false);
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    // ✅ Validación con los campos correctos
-    if (!nombres.trim() || !apellidos.trim() || !email.trim() || !pass.trim() || !confirmPass.trim()) {
+    // Validación con los campos correctos
+    if (
+      !nombres.trim() ||
+      !apellidos.trim() ||
+      !email.trim() ||
+      !pass.trim() ||
+      !confirmPass.trim()
+    ) {
       setErrorMsg("Por favor completa todos los campos obligatorios.");
       return;
     }
@@ -56,7 +71,7 @@ const Registrate = () => {
     setLoading(true);
 
     try {
-      // ✅ Llamada REAL al API de registro de clientes
+      // 1) Registro REAL al API de clientes
       await clientePublicApi.registrar({
         email: email.trim(),
         password: pass,
@@ -65,8 +80,17 @@ const Registrate = () => {
         telefono: telefono.trim() || undefined,
       });
 
-      // ✅ Redirigir al LOGIN DE CLIENTE después de registrar exitosamente
-      navigate("/cliente/login", { replace: true });
+      // 2) Auto-login REAL (obtener token)
+      const resp = await authApi.login({ email: email.trim(), password: pass });
+
+      // 3) Guardar sesión en AuthContext (debe guardar como CLIENTE si rol es CLIENTE/ROLE_CLIENTE)
+      login(resp.data.token, { email: resp.data.email, rol: resp.data.rol });
+
+      // 4) Aviso + redirección a /tienda logueado
+      setSuccessOpen(true);
+      setTimeout(() => {
+        navigate("/tienda", { replace: true });
+      }, 900);
     } catch (error: any) {
       console.error("Error al registrar cliente:", error);
       const mensajeBackend =
@@ -79,7 +103,7 @@ const Registrate = () => {
     }
   };
 
-  // ✅ Navegar al LOGIN DE CLIENTE, no al admin
+  // Navegar al LOGIN DE CLIENTE, no al admin
   const handleGoLogin = () => navigate("/cliente/login");
 
   return (
@@ -90,7 +114,8 @@ const Registrate = () => {
         justifyContent: "center",
         alignItems: "center",
         px: 2,
-        background: "linear-gradient(135deg, #fffbeb 0%, #fef3c7 50%, #fde68a 100%)",
+        background:
+          "linear-gradient(135deg, #fffbeb 0%, #fef3c7 50%, #fde68a 100%)",
         position: "relative",
         overflow: "hidden",
         "&::before": {
@@ -101,7 +126,8 @@ const Registrate = () => {
           width: "600px",
           height: "600px",
           borderRadius: "50%",
-          background: "radial-gradient(circle, rgba(245,158,11,0.08) 0%, transparent 70%)",
+          background:
+            "radial-gradient(circle, rgba(245,158,11,0.08) 0%, transparent 70%)",
           animation: "float 20s ease-in-out infinite",
         },
         "&::after": {
@@ -112,7 +138,8 @@ const Registrate = () => {
           width: "500px",
           height: "500px",
           borderRadius: "50%",
-          background: "radial-gradient(circle, rgba(217,119,6,0.06) 0%, transparent 70%)",
+          background:
+            "radial-gradient(circle, rgba(217,119,6,0.06) 0%, transparent 70%)",
           animation: "float 15s ease-in-out infinite reverse",
         },
         "@keyframes float": {
@@ -129,14 +156,16 @@ const Registrate = () => {
           maxWidth: 500,
           borderRadius: 5,
           bgcolor: "#ffffff",
-          boxShadow: "0 25px 50px -12px rgba(0,0,0,0.08), 0 0 0 1px rgba(0,0,0,0.02)",
+          boxShadow:
+            "0 25px 50px -12px rgba(0,0,0,0.08), 0 0 0 1px rgba(0,0,0,0.02)",
           border: "1px solid rgba(245,158,11,0.08)",
           position: "relative",
           zIndex: 1,
           backdropFilter: "blur(20px)",
           transition: "all 0.3s ease",
           "&:hover": {
-            boxShadow: "0 30px 60px -15px rgba(0,0,0,0.12), 0 0 0 1px rgba(245,158,11,0.15)",
+            boxShadow:
+              "0 30px 60px -15px rgba(0,0,0,0.12), 0 0 0 1px rgba(245,158,11,0.15)",
             transform: "translateY(-2px)",
           },
         }}
@@ -166,8 +195,10 @@ const Registrate = () => {
                 inset: -2,
                 borderRadius: "22px",
                 padding: "2px",
-                background: "linear-gradient(135deg, rgba(245,158,11,0.4), rgba(217,119,6,0.2))",
-                WebkitMask: "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
+                background:
+                  "linear-gradient(135deg, rgba(245,158,11,0.4), rgba(217,119,6,0.2))",
+                WebkitMask:
+                  "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
                 WebkitMaskComposite: "xor",
                 maskComposite: "exclude",
               },
@@ -204,7 +235,8 @@ const Registrate = () => {
               WebkitBackgroundClip: "text",
               WebkitTextFillColor: "transparent",
               backgroundClip: "text",
-              fontFamily: '"Poppins","Inter",system-ui,-apple-system,BlinkMacSystemFont',
+              fontFamily:
+                '"Poppins","Inter",system-ui,-apple-system,BlinkMacSystemFont',
               lineHeight: 1.2,
             }}
           >
@@ -221,7 +253,8 @@ const Registrate = () => {
               mx: "auto",
             }}
           >
-            Regístrate para acceder a favoritos, calificaciones y funciones de la tienda
+            Regístrate para acceder a favoritos, calificaciones y funciones de la
+            tienda
           </Typography>
         </Box>
 
@@ -309,7 +342,9 @@ const Registrate = () => {
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
-                    <PhoneIphoneOutlinedIcon sx={{ color: "#f59e0b", fontSize: 20 }} />
+                    <PhoneIphoneOutlinedIcon
+                      sx={{ color: "#f59e0b", fontSize: 20 }}
+                    />
                   </InputAdornment>
                 ),
                 sx: {
@@ -394,7 +429,11 @@ const Registrate = () => {
                       size="small"
                       sx={{ color: "text.secondary" }}
                     >
-                      {showPassword ? <VisibilityOff fontSize="small" /> : <Visibility fontSize="small" />}
+                      {showPassword ? (
+                        <VisibilityOff fontSize="small" />
+                      ) : (
+                        <Visibility fontSize="small" />
+                      )}
                     </IconButton>
                   </InputAdornment>
                 ),
@@ -432,18 +471,26 @@ const Registrate = () => {
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
-                    <CheckCircleOutlineIcon sx={{ color: "#f59e0b", fontSize: 20 }} />
+                    <CheckCircleOutlineIcon
+                      sx={{ color: "#f59e0b", fontSize: 20 }}
+                    />
                   </InputAdornment>
                 ),
                 endAdornment: (
                   <InputAdornment position="end">
                     <IconButton
-                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      onClick={() =>
+                        setShowConfirmPassword(!showConfirmPassword)
+                      }
                       edge="end"
                       size="small"
                       sx={{ color: "text.secondary" }}
                     >
-                      {showConfirmPassword ? <VisibilityOff fontSize="small" /> : <Visibility fontSize="small" />}
+                      {showConfirmPassword ? (
+                        <VisibilityOff fontSize="small" />
+                      ) : (
+                        <Visibility fontSize="small" />
+                      )}
                     </IconButton>
                   </InputAdornment>
                 ),
@@ -524,12 +571,14 @@ const Registrate = () => {
                   content: '""',
                   position: "absolute",
                   inset: 0,
-                  background: "linear-gradient(135deg, rgba(255,255,255,0.2), transparent)",
+                  background:
+                    "linear-gradient(135deg, rgba(255,255,255,0.2), transparent)",
                   opacity: 0,
                   transition: "opacity 0.3s",
                 },
                 "&:hover": {
-                  background: "linear-gradient(135deg, #d97706 0%, #b45309 100%)",
+                  background:
+                    "linear-gradient(135deg, #d97706 0%, #b45309 100%)",
                   boxShadow: "0 15px 35px rgba(217,119,6,0.45)",
                   transform: "translateY(-1px)",
                   "&::before": {
@@ -540,7 +589,8 @@ const Registrate = () => {
                   transform: "translateY(0)",
                 },
                 "&:disabled": {
-                  background: "linear-gradient(135deg, #d1d5db 0%, #9ca3af 100%)",
+                  background:
+                    "linear-gradient(135deg, #d1d5db 0%, #9ca3af 100%)",
                   boxShadow: "none",
                 },
                 transition: "all 0.3s ease",
@@ -560,7 +610,10 @@ const Registrate = () => {
                 gap: 1,
               }}
             >
-              <Typography variant="body2" sx={{ color: "text.secondary", fontSize: 14 }}>
+              <Typography
+                variant="body2"
+                sx={{ color: "text.secondary", fontSize: 14 }}
+              >
                 ¿Ya tienes cuenta?
               </Typography>
 
@@ -587,6 +640,23 @@ const Registrate = () => {
           </Stack>
         </form>
       </Paper>
+
+      {/* Aviso de éxito + redirección */}
+      <Snackbar
+        open={successOpen}
+        autoHideDuration={3000}
+        onClose={() => setSuccessOpen(false)}
+        anchorOrigin={{ vertical: "top", horizontal: "center" }}
+      >
+        <Alert
+          onClose={() => setSuccessOpen(false)}
+          severity="success"
+          variant="filled"
+          sx={{ borderRadius: 3, fontWeight: 700 }}
+        >
+          Cuenta creada. Entrando a la tienda...
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };
