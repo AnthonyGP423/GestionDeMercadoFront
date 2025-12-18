@@ -52,7 +52,17 @@ const Login = () => {
         rol: data.rol,
       });
 
-      navigate("/dashboard/principal");
+      // normalize role and redirect accordingly
+      const rol = String(data.rol ?? "").toUpperCase();
+
+      if (rol === "SOCIO") {
+        navigate("/socio/principal", { replace: true });
+      } else if (rol === "ADMIN" || rol === "SUPERVISOR") {
+        navigate("/dashboard/principal", { replace: true });
+      } else {
+        // default to tienda for other user types
+        navigate("/tienda", { replace: true });
+      }
     } catch (error: any) {
       console.error(error);
       const mensajeBackend =
@@ -78,7 +88,38 @@ const Login = () => {
         justifyContent: "center",
         alignItems: "center",
         px: 2,
-        background: "linear-gradient(to bottom right, #f5f5f5, #e5e7eb)", // mismo tono claro, más moderno
+        background:
+          "linear-gradient(135deg, #ecfdf5 0%, #d1fae5 50%, #a7f3d0 100%)",
+        position: "relative",
+        overflow: "hidden",
+        "&::before": {
+          content: '""',
+          position: "absolute",
+          top: "-50%",
+          right: "-10%",
+          width: "600px",
+          height: "600px",
+          borderRadius: "50%",
+          background:
+            "radial-gradient(circle, rgba(34,197,94,0.08) 0%, transparent 70%)",
+          animation: "float 20s ease-in-out infinite",
+        },
+        "&::after": {
+          content: '""',
+          position: "absolute",
+          bottom: "-30%",
+          left: "-5%",
+          width: "500px",
+          height: "500px",
+          borderRadius: "50%",
+          background:
+            "radial-gradient(circle, rgba(16,185,129,0.06) 0%, transparent 70%)",
+          animation: "float 15s ease-in-out infinite reverse",
+        },
+        "@keyframes float": {
+          "0%, 100%": { transform: "translate(0, 0) scale(1)" },
+          "50%": { transform: "translate(30px, -30px) scale(1.05)" },
+        },
       }}
     >
       <Paper
@@ -163,7 +204,14 @@ const Login = () => {
             sx={{
               mb: 1.5,
               fontWeight: 800,
-              fontFamily: `"Poppins","Inter",system-ui,-apple-system,BlinkMacSystemFont`,
+              fontSize: { xs: "1.75rem", sm: "2rem" },
+              background: "linear-gradient(135deg, #065f46 0%, #047857 100%)",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+              backgroundClip: "text",
+              fontFamily:
+                '"Poppins","Inter",system-ui,-apple-system,BlinkMacSystemFont',
+              lineHeight: 1.2,
             }}
           >
             Mercado Mayorista
