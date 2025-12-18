@@ -17,12 +17,18 @@ import Visibility from "@mui/icons-material/Visibility";
 import VisibilityOff from "@mui/icons-material/VisibilityOff";
 import StorefrontIcon from "@mui/icons-material/Storefront";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
+import PhoneIphoneOutlinedIcon from "@mui/icons-material/PhoneIphoneOutlined";
+
+// ✅ Importar la API real
+import { clientePublicApi } from "../../api/public/clientePublicApi";
 
 const Registrate = () => {
   const navigate = useNavigate();
 
-  const [name, setName] = useState<string>("");
-  const [user, setUser] = useState<string>("");
+  const [nombres, setNombres] = useState<string>("");
+  const [apellidos, setApellidos] = useState<string>("");
+  const [telefono, setTelefono] = useState<string>("");
+  const [email, setEmail] = useState<string>("");
   const [pass, setPass] = useState<string>("");
   const [confirmPass, setConfirmPass] = useState<string>("");
 
@@ -35,8 +41,9 @@ const Registrate = () => {
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    if (!name.trim() || !user.trim() || !pass.trim() || !confirmPass.trim()) {
-      setErrorMsg("Por favor completa todos los campos.");
+    // ✅ Validación con los campos correctos
+    if (!nombres.trim() || !apellidos.trim() || !email.trim() || !pass.trim() || !confirmPass.trim()) {
+      setErrorMsg("Por favor completa todos los campos obligatorios.");
       return;
     }
 
@@ -49,14 +56,19 @@ const Registrate = () => {
     setLoading(true);
 
     try {
-      // ✅ Aquí iría tu llamada real al backend (authApi.register, etc.)
-      // await authApi.register({ nombre: name, email: user, password: pass });
+      // ✅ Llamada REAL al API de registro de clientes
+      await clientePublicApi.registrar({
+        email: email.trim(),
+        password: pass,
+        nombres: nombres.trim(),
+        apellidos: apellidos.trim(),
+        telefono: telefono.trim() || undefined,
+      });
 
-      // Simulado:
-      await new Promise((r) => setTimeout(r, 600));
-
-      navigate("/login");
+      // ✅ Redirigir al LOGIN DE CLIENTE después de registrar exitosamente
+      navigate("/cliente/login", { replace: true });
     } catch (error: any) {
+      console.error("Error al registrar cliente:", error);
       const mensajeBackend =
         error?.response?.data?.mensaje ||
         error?.response?.data?.error ||
@@ -67,7 +79,8 @@ const Registrate = () => {
     }
   };
 
-  const handleGoLogin = () => navigate("/login");
+  // ✅ Navegar al LOGIN DE CLIENTE, no al admin
+  const handleGoLogin = () => navigate("/cliente/login");
 
   return (
     <Box
@@ -77,7 +90,7 @@ const Registrate = () => {
         justifyContent: "center",
         alignItems: "center",
         px: 2,
-        background: "linear-gradient(135deg, #ecfdf5 0%, #d1fae5 50%, #a7f3d0 100%)",
+        background: "linear-gradient(135deg, #fffbeb 0%, #fef3c7 50%, #fde68a 100%)",
         position: "relative",
         overflow: "hidden",
         "&::before": {
@@ -88,7 +101,7 @@ const Registrate = () => {
           width: "600px",
           height: "600px",
           borderRadius: "50%",
-          background: "radial-gradient(circle, rgba(34,197,94,0.08) 0%, transparent 70%)",
+          background: "radial-gradient(circle, rgba(245,158,11,0.08) 0%, transparent 70%)",
           animation: "float 20s ease-in-out infinite",
         },
         "&::after": {
@@ -99,7 +112,7 @@ const Registrate = () => {
           width: "500px",
           height: "500px",
           borderRadius: "50%",
-          background: "radial-gradient(circle, rgba(16,185,129,0.06) 0%, transparent 70%)",
+          background: "radial-gradient(circle, rgba(217,119,6,0.06) 0%, transparent 70%)",
           animation: "float 15s ease-in-out infinite reverse",
         },
         "@keyframes float": {
@@ -113,17 +126,17 @@ const Registrate = () => {
         sx={{
           padding: { xs: 3, sm: 5 },
           width: "100%",
-          maxWidth: 480,
+          maxWidth: 500,
           borderRadius: 5,
           bgcolor: "#ffffff",
           boxShadow: "0 25px 50px -12px rgba(0,0,0,0.08), 0 0 0 1px rgba(0,0,0,0.02)",
-          border: "1px solid rgba(34,197,94,0.08)",
+          border: "1px solid rgba(245,158,11,0.08)",
           position: "relative",
           zIndex: 1,
           backdropFilter: "blur(20px)",
           transition: "all 0.3s ease",
           "&:hover": {
-            boxShadow: "0 30px 60px -15px rgba(0,0,0,0.12), 0 0 0 1px rgba(34,197,94,0.15)",
+            boxShadow: "0 30px 60px -15px rgba(0,0,0,0.12), 0 0 0 1px rgba(245,158,11,0.15)",
             transform: "translateY(-2px)",
           },
         }}
@@ -141,11 +154,11 @@ const Registrate = () => {
               width: 72,
               height: 72,
               borderRadius: "20px",
-              background: "linear-gradient(135deg, #22c55e 0%, #16a34a 100%)",
+              background: "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              boxShadow: "0 10px 25px rgba(34,197,94,0.3)",
+              boxShadow: "0 10px 25px rgba(245,158,11,0.3)",
               position: "relative",
               "&::before": {
                 content: '""',
@@ -153,7 +166,7 @@ const Registrate = () => {
                 inset: -2,
                 borderRadius: "22px",
                 padding: "2px",
-                background: "linear-gradient(135deg, rgba(34,197,94,0.4), rgba(22,163,74,0.2))",
+                background: "linear-gradient(135deg, rgba(245,158,11,0.4), rgba(217,119,6,0.2))",
                 WebkitMask: "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
                 WebkitMaskComposite: "xor",
                 maskComposite: "exclude",
@@ -172,13 +185,13 @@ const Registrate = () => {
               letterSpacing: "0.2em",
               fontSize: 10.5,
               fontWeight: 700,
-              color: "#22c55e",
+              color: "#f59e0b",
               textTransform: "uppercase",
               display: "block",
               mb: 1.5,
             }}
           >
-            Registro de Usuario
+            Registro de Cliente
           </Typography>
 
           <Typography
@@ -187,7 +200,7 @@ const Registrate = () => {
               mb: 1.5,
               fontWeight: 800,
               fontSize: { xs: "1.75rem", sm: "2rem" },
-              background: "linear-gradient(135deg, #065f46 0%, #047857 100%)",
+              background: "linear-gradient(135deg, #78350f 0%, #b45309 100%)",
               WebkitBackgroundClip: "text",
               WebkitTextFillColor: "transparent",
               backgroundClip: "text",
@@ -204,11 +217,11 @@ const Registrate = () => {
               color: "text.secondary",
               fontSize: 14,
               lineHeight: 1.6,
-              maxWidth: 380,
+              maxWidth: 400,
               mx: "auto",
             }}
           >
-            Regístrate para acceder al sistema de gestión del mercado mayorista
+            Regístrate para acceder a favoritos, calificaciones y funciones de la tienda
           </Typography>
         </Box>
 
@@ -216,28 +229,28 @@ const Registrate = () => {
         <form onSubmit={handleSubmit}>
           <Stack spacing={2.5}>
             <TextField
-              label="Nombre completo"
+              label="Nombres"
               variant="outlined"
               fullWidth
-              value={name}
-              onChange={(e) => setName(e.target.value)}
+              value={nombres}
+              onChange={(e) => setNombres(e.target.value)}
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
-                    <PersonOutlineIcon sx={{ color: "#22c55e", fontSize: 20 }} />
+                    <PersonOutlineIcon sx={{ color: "#f59e0b", fontSize: 20 }} />
                   </InputAdornment>
                 ),
                 sx: {
                   borderRadius: 3,
-                  bgcolor: "#f9fafb",
+                  bgcolor: "#fffbeb",
                   "& fieldset": {
-                    borderColor: "rgba(34,197,94,0.15)",
+                    borderColor: "rgba(245,158,11,0.15)",
                   },
                   "&:hover fieldset": {
-                    borderColor: "rgba(34,197,94,0.3) !important",
+                    borderColor: "rgba(245,158,11,0.3) !important",
                   },
                   "&.Mui-focused fieldset": {
-                    borderColor: "#22c55e !important",
+                    borderColor: "#f59e0b !important",
                     borderWidth: "2px !important",
                   },
                 },
@@ -245,7 +258,79 @@ const Registrate = () => {
               InputLabelProps={{
                 sx: {
                   "&.Mui-focused": {
-                    color: "#22c55e",
+                    color: "#f59e0b",
+                  },
+                },
+              }}
+            />
+
+            <TextField
+              label="Apellidos"
+              variant="outlined"
+              fullWidth
+              value={apellidos}
+              onChange={(e) => setApellidos(e.target.value)}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <PersonOutlineIcon sx={{ color: "#f59e0b", fontSize: 20 }} />
+                  </InputAdornment>
+                ),
+                sx: {
+                  borderRadius: 3,
+                  bgcolor: "#fffbeb",
+                  "& fieldset": {
+                    borderColor: "rgba(245,158,11,0.15)",
+                  },
+                  "&:hover fieldset": {
+                    borderColor: "rgba(245,158,11,0.3) !important",
+                  },
+                  "&.Mui-focused fieldset": {
+                    borderColor: "#f59e0b !important",
+                    borderWidth: "2px !important",
+                  },
+                },
+              }}
+              InputLabelProps={{
+                sx: {
+                  "&.Mui-focused": {
+                    color: "#f59e0b",
+                  },
+                },
+              }}
+            />
+
+            <TextField
+              label="Teléfono (opcional)"
+              variant="outlined"
+              fullWidth
+              value={telefono}
+              onChange={(e) => setTelefono(e.target.value)}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <PhoneIphoneOutlinedIcon sx={{ color: "#f59e0b", fontSize: 20 }} />
+                  </InputAdornment>
+                ),
+                sx: {
+                  borderRadius: 3,
+                  bgcolor: "#fffbeb",
+                  "& fieldset": {
+                    borderColor: "rgba(245,158,11,0.15)",
+                  },
+                  "&:hover fieldset": {
+                    borderColor: "rgba(245,158,11,0.3) !important",
+                  },
+                  "&.Mui-focused fieldset": {
+                    borderColor: "#f59e0b !important",
+                    borderWidth: "2px !important",
+                  },
+                },
+              }}
+              InputLabelProps={{
+                sx: {
+                  "&.Mui-focused": {
+                    color: "#f59e0b",
                   },
                 },
               }}
@@ -255,25 +340,26 @@ const Registrate = () => {
               label="Correo electrónico"
               variant="outlined"
               fullWidth
-              value={user}
-              onChange={(e) => setUser(e.target.value)}
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
-                    <EmailOutlinedIcon sx={{ color: "#22c55e", fontSize: 20 }} />
+                    <EmailOutlinedIcon sx={{ color: "#f59e0b", fontSize: 20 }} />
                   </InputAdornment>
                 ),
                 sx: {
                   borderRadius: 3,
-                  bgcolor: "#f9fafb",
+                  bgcolor: "#fffbeb",
                   "& fieldset": {
-                    borderColor: "rgba(34,197,94,0.15)",
+                    borderColor: "rgba(245,158,11,0.15)",
                   },
                   "&:hover fieldset": {
-                    borderColor: "rgba(34,197,94,0.3) !important",
+                    borderColor: "rgba(245,158,11,0.3) !important",
                   },
                   "&.Mui-focused fieldset": {
-                    borderColor: "#22c55e !important",
+                    borderColor: "#f59e0b !important",
                     borderWidth: "2px !important",
                   },
                 },
@@ -281,7 +367,7 @@ const Registrate = () => {
               InputLabelProps={{
                 sx: {
                   "&.Mui-focused": {
-                    color: "#22c55e",
+                    color: "#f59e0b",
                   },
                 },
               }}
@@ -297,7 +383,7 @@ const Registrate = () => {
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
-                    <LockOutlinedIcon sx={{ color: "#22c55e", fontSize: 20 }} />
+                    <LockOutlinedIcon sx={{ color: "#f59e0b", fontSize: 20 }} />
                   </InputAdornment>
                 ),
                 endAdornment: (
@@ -314,15 +400,15 @@ const Registrate = () => {
                 ),
                 sx: {
                   borderRadius: 3,
-                  bgcolor: "#f9fafb",
+                  bgcolor: "#fffbeb",
                   "& fieldset": {
-                    borderColor: "rgba(34,197,94,0.15)",
+                    borderColor: "rgba(245,158,11,0.15)",
                   },
                   "&:hover fieldset": {
-                    borderColor: "rgba(34,197,94,0.3) !important",
+                    borderColor: "rgba(245,158,11,0.3) !important",
                   },
                   "&.Mui-focused fieldset": {
-                    borderColor: "#22c55e !important",
+                    borderColor: "#f59e0b !important",
                     borderWidth: "2px !important",
                   },
                 },
@@ -330,7 +416,7 @@ const Registrate = () => {
               InputLabelProps={{
                 sx: {
                   "&.Mui-focused": {
-                    color: "#22c55e",
+                    color: "#f59e0b",
                   },
                 },
               }}
@@ -346,7 +432,7 @@ const Registrate = () => {
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
-                    <CheckCircleOutlineIcon sx={{ color: "#22c55e", fontSize: 20 }} />
+                    <CheckCircleOutlineIcon sx={{ color: "#f59e0b", fontSize: 20 }} />
                   </InputAdornment>
                 ),
                 endAdornment: (
@@ -363,15 +449,15 @@ const Registrate = () => {
                 ),
                 sx: {
                   borderRadius: 3,
-                  bgcolor: "#f9fafb",
+                  bgcolor: "#fffbeb",
                   "& fieldset": {
-                    borderColor: "rgba(34,197,94,0.15)",
+                    borderColor: "rgba(245,158,11,0.15)",
                   },
                   "&:hover fieldset": {
-                    borderColor: "rgba(34,197,94,0.3) !important",
+                    borderColor: "rgba(245,158,11,0.3) !important",
                   },
                   "&.Mui-focused fieldset": {
-                    borderColor: "#22c55e !important",
+                    borderColor: "#f59e0b !important",
                     borderWidth: "2px !important",
                   },
                 },
@@ -379,7 +465,7 @@ const Registrate = () => {
               InputLabelProps={{
                 sx: {
                   "&.Mui-focused": {
-                    color: "#22c55e",
+                    color: "#f59e0b",
                   },
                 },
               }}
@@ -430,8 +516,8 @@ const Registrate = () => {
                 textTransform: "none",
                 fontWeight: 700,
                 fontSize: 15,
-                boxShadow: "0 10px 25px rgba(34,197,94,0.35)",
-                background: "linear-gradient(135deg, #22c55e 0%, #16a34a 100%)",
+                boxShadow: "0 10px 25px rgba(245,158,11,0.35)",
+                background: "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)",
                 position: "relative",
                 overflow: "hidden",
                 "&::before": {
@@ -443,8 +529,8 @@ const Registrate = () => {
                   transition: "opacity 0.3s",
                 },
                 "&:hover": {
-                  background: "linear-gradient(135deg, #16a34a 0%, #15803d 100%)",
-                  boxShadow: "0 15px 35px rgba(22,163,74,0.45)",
+                  background: "linear-gradient(135deg, #d97706 0%, #b45309 100%)",
+                  boxShadow: "0 15px 35px rgba(217,119,6,0.45)",
                   transform: "translateY(-1px)",
                   "&::before": {
                     opacity: 1,
@@ -467,7 +553,7 @@ const Registrate = () => {
               sx={{
                 mt: 2,
                 pt: 2.5,
-                borderTop: "1px solid #f3f4f6",
+                borderTop: "1px solid #fef3c7",
                 display: "flex",
                 justifyContent: "center",
                 alignItems: "center",
@@ -486,12 +572,12 @@ const Registrate = () => {
                   textTransform: "none",
                   fontWeight: 700,
                   fontSize: 14,
-                  color: "#22c55e",
+                  color: "#f59e0b",
                   borderRadius: 2,
                   px: 2,
                   "&:hover": {
-                    bgcolor: "rgba(34,197,94,0.08)",
-                    color: "#16a34a",
+                    bgcolor: "rgba(245,158,11,0.08)",
+                    color: "#d97706",
                   },
                 }}
               >

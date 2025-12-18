@@ -49,11 +49,11 @@ export default function TiendaHome() {
   };
 
   const irLoginCliente = () => {
-    navigate("/login");
+    navigate("/cliente/login");
   };
 
   const irRegistroCliente = () => {
-    navigate("/registrate");
+    navigate("/cliente/registro");
   };
 
   // === DATOS ===

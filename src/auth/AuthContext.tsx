@@ -1,5 +1,5 @@
 // src/auth/AuthContext.tsx
-import { createContext, useContext, useState, ReactNode } from "react";
+import { createContext, useContext, useMemo, useState, ReactNode } from "react";
 
 type User = {
   email?: string;
@@ -17,88 +17,105 @@ type AuthContextType = {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const TOKEN_KEY = "token";
-const USER_KEY = "user";
+// ✅ Separamos llaves por tipo de sesión
+const TOKEN_INTRANET_KEY = "token_intranet";
+const USER_INTRANET_KEY = "user_intranet";
+
+const TOKEN_CLIENTE_KEY = "token_cliente";
+const USER_CLIENTE_KEY = "user_cliente";
+
+function normalizeRole(rol?: string) {
+  return String(rol ?? "").toUpperCase();
+}
+
+function isClienteRole(rol?: string) {
+  const r = normalizeRole(rol);
+  return r === "CLIENTE" || r === "ROLE_CLIENTE";
+}
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  // 👇 leemos localStorage, pero si el rol es CLIENTE, lo ignoramos
+  // ✅ Al iniciar: si hay sesión de cliente, úsala; sino intranet.
   const [user, setUser] = useState<User | null>(() => {
-    const storedUser = localStorage.getItem(USER_KEY);
-    if (!storedUser) return null;
+    const storedCliente = localStorage.getItem(USER_CLIENTE_KEY);
+    const storedIntranet = localStorage.getItem(USER_INTRANET_KEY);
+
+    const pick = storedCliente ?? storedIntranet;
+    if (!pick) return null;
 
     try {
-      const parsed: User = JSON.parse(storedUser);
-      const rol = parsed.rol?.toUpperCase();
-
-      // ❌ si era cliente, arrancamos como NO logueado
-      if (rol === "CLIENTE" || rol === "ROLE_CLIENTE") {
-        localStorage.removeItem(USER_KEY);
-        localStorage.removeItem(TOKEN_KEY);
-        return null;
-      }
-
-      return parsed;
+      return JSON.parse(pick) as User;
     } catch {
-      localStorage.removeItem(USER_KEY);
-      localStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem(USER_CLIENTE_KEY);
+      localStorage.removeItem(TOKEN_CLIENTE_KEY);
+      localStorage.removeItem(USER_INTRANET_KEY);
+      localStorage.removeItem(TOKEN_INTRANET_KEY);
       return null;
     }
   });
 
   const [token, setToken] = useState<string | null>(() => {
-    const storedUser = localStorage.getItem(USER_KEY);
-    if (!storedUser) return null;
+    // Si hay user cliente, tomamos token cliente; sino intranet.
+    const storedCliente = localStorage.getItem(USER_CLIENTE_KEY);
+    if (storedCliente) return localStorage.getItem(TOKEN_CLIENTE_KEY);
 
-    try {
-      const parsed: User = JSON.parse(storedUser);
-      const rol = parsed.rol?.toUpperCase();
+    const storedIntranet = localStorage.getItem(USER_INTRANET_KEY);
+    if (storedIntranet) return localStorage.getItem(TOKEN_INTRANET_KEY);
 
-      if (rol === "CLIENTE" || rol === "ROLE_CLIENTE") {
-        // igual que arriba: no persistimos cliente
-        localStorage.removeItem(USER_KEY);
-        localStorage.removeItem(TOKEN_KEY);
-        return null;
-      }
-
-      return localStorage.getItem(TOKEN_KEY);
-    } catch {
-      localStorage.removeItem(USER_KEY);
-      localStorage.removeItem(TOKEN_KEY);
-      return null;
-    }
+    return null;
   });
 
   const login = (newToken: string, userData?: User) => {
-    setToken(newToken);
-    if (userData) setUser(userData);
+  setToken(newToken);
+  if (userData) setUser(userData);
 
-    const rol = userData?.rol?.toUpperCase();
+  // ✅ Si todavía no llegó userData (muchos logins primero guardan token),
+  // persistimos al menos el token como INTRANET para que el dashboard no muera.
+  if (!userData) {
+    localStorage.setItem(TOKEN_INTRANET_KEY, newToken);
 
-    // 👉 Solo persistimos si NO es cliente
-    const shouldPersist =
-      rol !== "CLIENTE" && rol !== "ROLE_CLIENTE" && !!userData;
+    // evitamos mezclas con cliente
+    localStorage.removeItem(TOKEN_CLIENTE_KEY);
+    localStorage.removeItem(USER_CLIENTE_KEY);
+    return;
+  }
 
-    if (shouldPersist && userData) {
-      localStorage.setItem(TOKEN_KEY, newToken);
-      localStorage.setItem(USER_KEY, JSON.stringify(userData));
-    } else {
-      // si es cliente, nos aseguramos de no dejar nada guardado
-      localStorage.removeItem(TOKEN_KEY);
-      localStorage.removeItem(USER_KEY);
-    }
-  };
+  const rol = userData.rol;
+
+  // ✅ Si es cliente -> guardamos en keys de cliente
+  if (isClienteRole(rol)) {
+    localStorage.setItem(TOKEN_CLIENTE_KEY, newToken);
+    localStorage.setItem(USER_CLIENTE_KEY, JSON.stringify(userData));
+
+    // opcional: limpiamos intranet para evitar mezclas
+    localStorage.removeItem(TOKEN_INTRANET_KEY);
+    localStorage.removeItem(USER_INTRANET_KEY);
+    return;
+  }
+
+  // ✅ Si es intranet (ADMIN/SUPERVISOR/SOCIO) -> guardamos en intranet
+  localStorage.setItem(TOKEN_INTRANET_KEY, newToken);
+  localStorage.setItem(USER_INTRANET_KEY, JSON.stringify(userData));
+
+  // opcional: limpiamos cliente para evitar mezclas
+  localStorage.removeItem(TOKEN_CLIENTE_KEY);
+  localStorage.removeItem(USER_CLIENTE_KEY);
+};
 
   const logout = () => {
     setToken(null);
     setUser(null);
-    localStorage.removeItem(TOKEN_KEY);
-    localStorage.removeItem(USER_KEY);
+    localStorage.removeItem(TOKEN_CLIENTE_KEY);
+    localStorage.removeItem(USER_CLIENTE_KEY);
+    localStorage.removeItem(TOKEN_INTRANET_KEY);
+    localStorage.removeItem(USER_INTRANET_KEY);
   };
+
+  const isAuthenticated = useMemo(() => !!token && !!user, [token, user]);
 
   const value: AuthContextType = {
     user,
     token,
-    isAuthenticated: !!token && !!user,
+    isAuthenticated,
     login,
     logout,
   };
@@ -108,8 +125,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
 export const useAuthContext = () => {
   const ctx = useContext(AuthContext);
-  if (!ctx) {
-    throw new Error("useAuthContext debe usarse dentro de AuthProvider");
-  }
+  if (!ctx) throw new Error("useAuthContext debe usarse dentro de AuthProvider");
   return ctx;
 };

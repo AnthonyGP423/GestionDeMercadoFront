@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useState, FormEvent } from "react";
 import {
   Box,
@@ -10,20 +10,28 @@ import {
   InputAdornment,
   IconButton,
 } from "@mui/material";
-import { authApi } from "../../api/auth/authApi";
-import { useAuth } from "../../auth/useAuth";
 import EmailOutlinedIcon from "@mui/icons-material/EmailOutlined";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import Visibility from "@mui/icons-material/Visibility";
 import VisibilityOff from "@mui/icons-material/VisibilityOff";
-import StorefrontIcon from "@mui/icons-material/Storefront";
+import ShoppingBagOutlinedIcon from "@mui/icons-material/ShoppingBagOutlined";
 
-const Login = () => {
+import { authApi } from "../../api/auth/authApi";
+import { useAuth } from "../../auth/useAuth";
+
+const amber = "#f59e0b";
+const amberDark = "#b45309";
+
+export default function ClienteLogin() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { login } = useAuth();
 
-  const [user, setUser] = useState<string>("");
-  const [pass, setPass] = useState<string>("");
+  // ✅ si vienes desde PerfilStand, PerfilUsuario, etc.
+  const from = (location.state as any)?.from || "/tienda";
+
+  const [user, setUser] = useState("");
+  const [pass, setPass] = useState("");
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -31,7 +39,7 @@ const Login = () => {
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    if (user.trim() === "" || pass.trim() === "") {
+    if (!user.trim() || !pass.trim()) {
       setErrorMsg("Por favor completa todos los campos.");
       return;
     }
@@ -40,50 +48,34 @@ const Login = () => {
     setLoading(true);
 
     try {
-      const response = await authApi.login({
-        email: user,
-        password: pass,
-      });
-
+      const response = await authApi.login({ email: user, password: pass });
       const data = response.data;
+
       const rol = String(data.rol ?? "").toUpperCase();
 
-      // Intranet: solo ADMIN / SUPERVISOR / SOCIO
-      const allowAdmin = rol === "ADMIN" || rol === "SUPERVISOR";
-      const allowSocio = rol === "SOCIO";
-
-      if (!allowAdmin && !allowSocio) {
-        // No guardamos token si no corresponde al panel
-        if (rol === "CLIENTE") {
-          setErrorMsg(
-            "Este acceso es solo para Administración y Socios. Ingresa desde el Login de Cliente."
-          );
-        } else {
-          setErrorMsg("Rol no permitido para este panel.");
-        }
+      // ✅ Login Cliente: SOLO CLIENTE
+      if (rol !== "CLIENTE" && rol !== "ROLE_CLIENTE") {
+        setErrorMsg(
+          rol === "ADMIN" || rol === "SUPERVISOR"
+            ? "Este acceso es para clientes. Usa el Login Administrativo."
+            : rol === "SOCIO"
+            ? "Este acceso es para clientes. Usa el Login de Socio."
+            : "Rol no permitido para el Login de Cliente."
+        );
         return;
       }
 
-      // Guardar sesión
-      login(data.token, {
-        email: data.email,
-        rol: data.rol,
-      });
+      // ✅ guarda token + user (mejor: rol normalizado)
+      login(data.token, { email: data.email, rol: "CLIENTE" });
 
-      // Redirect según rol permitido
-      if (allowSocio) {
-        navigate("/socio/principal", { replace: true });
-      } else {
-        // ADMIN / SUPERVISOR
-        navigate("/dashboard/principal", { replace: true });
-      }
+      // ✅ vuelve a donde estaba (stand, perfil, etc.)
+      navigate(from, { replace: true });
     } catch (error: any) {
       console.error(error);
       const mensajeBackend =
         error?.response?.data?.mensaje ||
         error?.response?.data?.error ||
         "Credenciales inválidas. Verifica tu correo y contraseña.";
-
       setErrorMsg(mensajeBackend);
     } finally {
       setLoading(false);
@@ -99,73 +91,73 @@ const Login = () => {
         alignItems: "center",
         px: 2,
         background:
-          "linear-gradient(135deg, #ecfdf5 0%, #d1fae5 50%, #a7f3d0 100%)",
+          "linear-gradient(135deg, #fffbeb 0%, #fef3c7 50%, #fde68a 100%)",
         position: "relative",
         overflow: "hidden",
         "&::before": {
           content: '""',
           position: "absolute",
-          top: "-50%",
+          top: "-45%",
           right: "-10%",
-          width: "600px",
-          height: "600px",
+          width: "620px",
+          height: "620px",
           borderRadius: "50%",
           background:
-            "radial-gradient(circle, rgba(34,197,94,0.08) 0%, transparent 70%)",
+            "radial-gradient(circle, rgba(245,158,11,0.10) 0%, transparent 70%)",
           animation: "float 20s ease-in-out infinite",
         },
         "&::after": {
           content: '""',
           position: "absolute",
-          bottom: "-30%",
-          left: "-5%",
-          width: "500px",
-          height: "500px",
+          bottom: "-35%",
+          left: "-10%",
+          width: "520px",
+          height: "520px",
           borderRadius: "50%",
           background:
-            "radial-gradient(circle, rgba(16,185,129,0.06) 0%, transparent 70%)",
-          animation: "float 15s ease-in-out infinite reverse",
+            "radial-gradient(circle, rgba(180,83,9,0.08) 0%, transparent 70%)",
+          animation: "float 16s ease-in-out infinite reverse",
         },
         "@keyframes float": {
           "0%, 100%": { transform: "translate(0, 0) scale(1)" },
-          "50%": { transform: "translate(30px, -30px) scale(1.05)" },
+          "50%": { transform: "translate(28px, -28px) scale(1.05)" },
         },
       }}
     >
       <Paper
         elevation={0}
         sx={{
-          padding: { xs: 3, sm: 5 },
+          p: { xs: 3, sm: 5 },
           width: "100%",
           maxWidth: 440,
           borderRadius: 5,
           bgcolor: "#ffffff",
           boxShadow:
-            "0 25px 50px -12px rgba(0,0,0,0.08), 0 0 0 1px rgba(0,0,0,0.02)",
-          border: "1px solid rgba(34,197,94,0.08)",
+            "0 25px 50px -12px rgba(0,0,0,0.10), 0 0 0 1px rgba(0,0,0,0.03)",
+          border: "1px solid rgba(245,158,11,0.15)",
           position: "relative",
           zIndex: 1,
-          backdropFilter: "blur(20px)",
+          backdropFilter: "blur(18px)",
           transition: "all 0.3s ease",
           "&:hover": {
             boxShadow:
-              "0 30px 60px -15px rgba(0,0,0,0.12), 0 0 0 1px rgba(34,197,94,0.15)",
+              "0 30px 60px -15px rgba(0,0,0,0.14), 0 0 0 1px rgba(245,158,11,0.25)",
             transform: "translateY(-2px)",
           },
         }}
       >
-        {/* Icono decorativo */}
+        {/* Icono */}
         <Box sx={{ display: "flex", justifyContent: "center", mb: 3 }}>
           <Box
             sx={{
               width: 72,
               height: 72,
               borderRadius: "20px",
-              background: "linear-gradient(135deg, #22c55e 0%, #16a34a 100%)",
+              background: `linear-gradient(135deg, ${amber} 0%, ${amberDark} 100%)`,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              boxShadow: "0 10px 25px rgba(34,197,94,0.3)",
+              boxShadow: "0 10px 25px rgba(245,158,11,0.35)",
               position: "relative",
               "&::before": {
                 content: '""',
@@ -174,7 +166,7 @@ const Login = () => {
                 borderRadius: "22px",
                 padding: "2px",
                 background:
-                  "linear-gradient(135deg, rgba(34,197,94,0.4), rgba(22,163,74,0.2))",
+                  "linear-gradient(135deg, rgba(245,158,11,0.45), rgba(180,83,9,0.20))",
                 WebkitMask:
                   "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
                 WebkitMaskComposite: "xor",
@@ -182,11 +174,11 @@ const Login = () => {
               },
             }}
           >
-            <StorefrontIcon sx={{ fontSize: 38, color: "white" }} />
+            <ShoppingBagOutlinedIcon sx={{ fontSize: 38, color: "white" }} />
           </Box>
         </Box>
 
-        {/* Cabecera */}
+        {/* Header */}
         <Box sx={{ mb: 4, textAlign: "center" }}>
           <Typography
             variant="overline"
@@ -194,13 +186,13 @@ const Login = () => {
               letterSpacing: "0.2em",
               fontSize: 10.5,
               fontWeight: 700,
-              color: "#22c55e",
+              color: amber,
               textTransform: "uppercase",
               display: "block",
               mb: 1.5,
             }}
           >
-            Panel Administrativo
+            Acceso de Cliente
           </Typography>
 
           <Typography
@@ -209,7 +201,7 @@ const Login = () => {
               mb: 1.5,
               fontWeight: 800,
               fontSize: { xs: "1.75rem", sm: "2rem" },
-              background: "linear-gradient(135deg, #065f46 0%, #047857 100%)",
+              background: `linear-gradient(135deg, ${amberDark} 0%, ${amber} 100%)`,
               WebkitBackgroundClip: "text",
               WebkitTextFillColor: "transparent",
               backgroundClip: "text",
@@ -231,54 +223,52 @@ const Login = () => {
               mx: "auto",
             }}
           >
-            Gestión integral de stands, socios y supervisión del mercado
+            Inicia sesión para guardar favoritos, calificar stands y ver tu
+            experiencia personalizada.
           </Typography>
         </Box>
 
-        {/* Formulario */}
         <form onSubmit={handleSubmit}>
           <Stack spacing={2.5}>
             <TextField
               label="Correo electrónico"
-              variant="outlined"
               fullWidth
               value={user}
               onChange={(e) => setUser(e.target.value)}
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
-                    <EmailOutlinedIcon sx={{ color: "#22c55e", fontSize: 20 }} />
+                    <EmailOutlinedIcon sx={{ color: amber, fontSize: 20 }} />
                   </InputAdornment>
                 ),
                 sx: {
                   borderRadius: 3,
-                  bgcolor: "#f9fafb",
-                  "& fieldset": { borderColor: "rgba(34,197,94,0.15)" },
+                  bgcolor: "#fffbeb",
+                  "& fieldset": { borderColor: "rgba(245,158,11,0.20)" },
                   "&:hover fieldset": {
-                    borderColor: "rgba(34,197,94,0.3) !important",
+                    borderColor: "rgba(245,158,11,0.35) !important",
                   },
                   "&.Mui-focused fieldset": {
-                    borderColor: "#22c55e !important",
+                    borderColor: `${amber} !important`,
                     borderWidth: "2px !important",
                   },
                 },
               }}
               InputLabelProps={{
-                sx: { "&.Mui-focused": { color: "#22c55e" } },
+                sx: { "&.Mui-focused": { color: amber } },
               }}
             />
 
             <TextField
               label="Contraseña"
               type={showPassword ? "text" : "password"}
-              variant="outlined"
               fullWidth
               value={pass}
               onChange={(e) => setPass(e.target.value)}
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
-                    <LockOutlinedIcon sx={{ color: "#22c55e", fontSize: 20 }} />
+                    <LockOutlinedIcon sx={{ color: amber, fontSize: 20 }} />
                   </InputAdornment>
                 ),
                 endAdornment: (
@@ -299,19 +289,19 @@ const Login = () => {
                 ),
                 sx: {
                   borderRadius: 3,
-                  bgcolor: "#f9fafb",
-                  "& fieldset": { borderColor: "rgba(34,197,94,0.15)" },
+                  bgcolor: "#fffbeb",
+                  "& fieldset": { borderColor: "rgba(245,158,11,0.20)" },
                   "&:hover fieldset": {
-                    borderColor: "rgba(34,197,94,0.3) !important",
+                    borderColor: "rgba(245,158,11,0.35) !important",
                   },
                   "&.Mui-focused fieldset": {
-                    borderColor: "#22c55e !important",
+                    borderColor: `${amber} !important`,
                     borderWidth: "2px !important",
                   },
                 },
               }}
               InputLabelProps={{
-                sx: { "&.Mui-focused": { color: "#22c55e" } },
+                sx: { "&.Mui-focused": { color: amber } },
               }}
             />
 
@@ -321,25 +311,16 @@ const Login = () => {
                   px: 2,
                   py: 1.5,
                   borderRadius: 2.5,
-                  bgcolor: "#fef2f2",
-                  border: "1px solid #fecaca",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 1,
-                  animation: "shake 0.4s",
-                  "@keyframes shake": {
-                    "0%, 100%": { transform: "translateX(0)" },
-                    "25%": { transform: "translateX(-8px)" },
-                    "75%": { transform: "translateX(8px)" },
-                  },
+                  bgcolor: "#fff1f2",
+                  border: "1px solid #fecdd3",
                 }}
               >
                 <Typography
                   variant="body2"
                   sx={{
                     fontSize: 13,
-                    color: "#dc2626",
-                    fontWeight: 500,
+                    color: "#be123c",
+                    fontWeight: 600,
                     lineHeight: 1.5,
                   }}
                 >
@@ -358,32 +339,17 @@ const Login = () => {
                 borderRadius: "999px",
                 py: 1.5,
                 textTransform: "none",
-                fontWeight: 700,
+                fontWeight: 800,
                 fontSize: 15,
-                boxShadow: "0 10px 25px rgba(34,197,94,0.35)",
-                background: "linear-gradient(135deg, #22c55e 0%, #16a34a 100%)",
-                position: "relative",
-                overflow: "hidden",
-                "&::before": {
-                  content: '""',
-                  position: "absolute",
-                  inset: 0,
-                  background:
-                    "linear-gradient(135deg, rgba(255,255,255,0.2), transparent)",
-                  opacity: 0,
-                  transition: "opacity 0.3s",
-                },
+                boxShadow: "0 10px 25px rgba(245,158,11,0.35)",
+                background: `linear-gradient(135deg, ${amber} 0%, ${amberDark} 100%)`,
                 "&:hover": {
-                  background:
-                    "linear-gradient(135deg, #16a34a 0%, #15803d 100%)",
-                  boxShadow: "0 15px 35px rgba(22,163,74,0.45)",
+                  background: `linear-gradient(135deg, ${amberDark} 0%, #92400e 100%)`,
+                  boxShadow: "0 15px 35px rgba(180,83,9,0.45)",
                   transform: "translateY(-1px)",
-                  "&::before": { opacity: 1 },
                 },
-                "&:active": { transform: "translateY(0)" },
                 "&:disabled": {
-                  background:
-                    "linear-gradient(135deg, #d1d5db 0%, #9ca3af 100%)",
+                  background: "linear-gradient(135deg, #d1d5db 0%, #9ca3af 100%)",
                   boxShadow: "none",
                 },
                 transition: "all 0.3s ease",
@@ -392,25 +358,43 @@ const Login = () => {
               {loading ? "Ingresando..." : "Iniciar Sesión"}
             </Button>
 
-            {/* ✅ Sin registro en intranet */}
             <Box
               sx={{
-                mt: 1,
-                pt: 2,
+                mt: 2,
+                pt: 2.5,
                 borderTop: "1px solid #f3f4f6",
-                textAlign: "center",
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center",
+                gap: 1,
               }}
             >
-              <Typography variant="caption" sx={{ color: "text.secondary" }}>
-                Acceso exclusivo para <strong>Administración</strong> y{" "}
-                <strong>Socios</strong>.
+              <Typography
+                variant="body2"
+                sx={{ color: "text.secondary", fontSize: 14 }}
+              >
+                ¿No tienes cuenta?
               </Typography>
+              <Button
+                size="small"
+                variant="text"
+                onClick={() => navigate("/cliente/registro")}
+                sx={{
+                  textTransform: "none",
+                  fontWeight: 800,
+                  fontSize: 14,
+                  color: amberDark,
+                  borderRadius: 2,
+                  px: 2,
+                  "&:hover": { bgcolor: "rgba(245,158,11,0.10)" },
+                }}
+              >
+                Regístrate
+              </Button>
             </Box>
           </Stack>
         </form>
       </Paper>
     </Box>
   );
-};
-
-export default Login;
+}

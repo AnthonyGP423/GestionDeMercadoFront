@@ -1,6 +1,10 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import Login from "../../features/auth/Login";
 import Registrate from "../../features/auth/Register";
+
+import ClienteLogin from "../../features/auth/ClienteLogin";
+import ClienteRegistro from "../../features/auth/ClienteRegistro";
+
 import User from "../../features/admin/pages/User";
 import PanelDeControl from "../../layouts/dashboard/PanelDeControl";
 import Rol from "../../features/admin/pages/Rol";
@@ -33,15 +37,21 @@ import ProductosSocio from "../../features/socio/pages/ProductosSocio";
 import IncidenciasSocio from "../../features/socio/pages/IncidenciasSocio";
 import CredencialQrSocio from "../../features/socio/pages/CredencialQrSocio";
 
+import ClienteRoute from "../../app/guards/ClienteRoute";
+
 const AppRoutes = () => {
   return (
     <Routes>
       {/* Redirige raíz a /tienda */}
       <Route path="/" element={<Navigate to="/tienda" />} />
 
-      {/* Auth */}
+      {/* Auth (Intranet / Admin-Socio-Supervisor) */}
       <Route path="/login" element={<Login />} />
       <Route path="/registrate" element={<Registrate />} />
+
+      {/* ✅ Auth Cliente */}
+      <Route path="/cliente/login" element={<ClienteLogin />} />
+      <Route path="/cliente/registro" element={<ClienteRegistro />} />
 
       {/* Dashboard protegido */}
       <Route
@@ -88,10 +98,15 @@ const AppRoutes = () => {
       <Route path="/tienda" element={<TiendaHome />} />
       <Route path="/tienda/precios-productos" element={<PreciosProductos />} />
       <Route path="/tienda/contacto" element={<Contacto />} />
-
       <Route path="/tienda/producto/:id" element={<VistaProducto />} />
-
-      <Route path="/tienda/perfil-usuario" element={<PerfilUsuario />} />
+      <Route
+        path="/tienda/perfil-usuario"
+        element={
+          <ClienteRoute>
+            <PerfilUsuario />
+          </ClienteRoute>
+        }
+      />
       <Route path="/tienda/stand/:id" element={<PerfilStand />} />
       <Route path="/tienda/mapa-stand" element={<MapaStand />} />
 

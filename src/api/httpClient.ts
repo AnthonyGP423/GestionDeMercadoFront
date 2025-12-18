@@ -11,12 +11,16 @@ const http = axios.create({
 // Interceptor que mete el Authorization en TODAS las peticiones
 http.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem("token");
+    // 🔐 buscamos token de cliente o intranet
+    const token =
+      localStorage.getItem("token_cliente") ||
+      localStorage.getItem("token_intranet") ||
+      localStorage.getItem("token");
 
     if (token) {
-      // Aseguramos que headers existe y luego seteamos Authorization
+      // Aseguramos que headers existe
       if (!config.headers) {
-        config.headers = {} as any; // forzamos el tipo a any solo aquí
+        config.headers = {} as any;
       }
 
       (config.headers as any).Authorization = `Bearer ${token}`;

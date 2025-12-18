@@ -1,667 +1,647 @@
 // src/pages/store/PerfilUsuario.tsx
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Box,
   Container,
   Avatar,
   Typography,
   Stack,
-  List,
-  ListItem,
-  ListItemText,
   Button,
-  Rating,
   Divider,
   CircularProgress,
   Alert,
+  Paper,
   Chip,
+  List,
+  ListItem,
+  ListItemText,
+  Rating,
+  Tooltip,
+  IconButton,
 } from "@mui/material";
 import { useNavigate } from "react-router-dom";
+
+import RefreshIcon from "@mui/icons-material/Refresh";
+import FavoriteIcon from "@mui/icons-material/Favorite";
+import LogoutIcon from "@mui/icons-material/Logout";
+import StorefrontIcon from "@mui/icons-material/Storefront";
+import PhoneOutlinedIcon from "@mui/icons-material/PhoneOutlined";
+import EmailOutlinedIcon from "@mui/icons-material/EmailOutlined";
+import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 
 import PublicHeader from "../../../layouts/store/HeaderTienda";
 import PublicFooter from "../../../layouts/store/FooterTienda";
 import { AppTabs, TabPanel } from "../../../components/shared/AppTabs";
 import { useAuth } from "../../../auth/useAuth";
-import http from "../../../api/httpClient";
 
-type TabKey = "perfil" | "favoritos" | "comentarios" | "configuracion";
+import { clienteApi, ClienteMeResponseDto } from "../../../api/cliente/clienteApi";
+import { favoritosApi, FavoritoResponseDto } from "../../../api/cliente/favoritosApi";
+import {
+  calificacionesClienteApi,
+  CalificacionResponseDto,
+} from "../../../api/cliente/calificacionesClienteApi";
+
+type TabKey = "perfil" | "favoritos" | "comentarios";
 
 const PERFIL_TABS = [
   { value: "perfil", label: "Perfil" },
   { value: "favoritos", label: "Stands favoritos" },
   { value: "comentarios", label: "Mis comentarios" },
-  { value: "configuracion", label: "Configuración" },
 ];
 
-// ==== TIPOS ====
+// helpers UX
+function safeInitial(name?: string) {
+  const s = String(name ?? "").trim();
+  return (s ? s[0] : "C").toUpperCase();
+}
 
-type UsuarioPerfil = {
-  id: number;
-  nombreCompleto: string;
-  email: string;
-  telefono?: string | null;
-  fechaRegistro?: string | null;
-};
-
-type StandFavorito = {
-  idStand: number;
-  nombreStand: string;
-  bloque: string;
-  numeroStand: string;
-  categoriaStand?: string | null;
-};
-
-type ComentarioStand = {
-  id: number;
-  standNombre: string;
-  standId?: number;
-  fecha: string;
-  comentario: string;
-  rating: number;
-};
+function formatFecha(fechaIso?: string | null) {
+  if (!fechaIso) return "";
+  const d = new Date(fechaIso);
+  if (Number.isNaN(d.getTime())) return String(fechaIso);
+  return d.toLocaleString("es-PE", {
+    year: "numeric",
+    month: "short",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
 
 export default function PerfilUsuario() {
-  const [tab, setTab] = useState<TabKey>("perfil");
   const navigate = useNavigate();
-  const { user, token, logout } = useAuth();
+  const { isAuthenticated, user, logout } = useAuth() as any;
 
-  // ===== PERFIL DE USUARIO =====
-  const [perfil, setPerfil] = useState<UsuarioPerfil | null>(null);
-  const [loadingPerfil, setLoadingPerfil] = useState(true);
-  const [errorPerfil, setErrorPerfil] = useState<string | null>(null);
+  const rol = String(user?.rol ?? "").toUpperCase();
+  const isCliente = Boolean(isAuthenticated && rol === "CLIENTE");
 
-  // ===== FAVORITOS =====
-  const [favoritos, setFavoritos] = useState<StandFavorito[]>([]);
-  const [loadingFavoritos, setLoadingFavoritos] = useState(false);
-  const [errorFavoritos, setErrorFavoritos] = useState<string | null>(null);
+  const [tab, setTab] = useState<TabKey>("perfil");
 
-  // ===== COMENTARIOS =====
-  const [comentarios, setComentarios] = useState<ComentarioStand[]>([]);
-  const [loadingComentarios, setLoadingComentarios] = useState(false);
-  const [errorComentarios, setErrorComentarios] = useState<string | null>(null);
-  const [totalComentarios, setTotalComentarios] = useState<number>(0);
+  // ===== Perfil real: /api/v1/cliente/me =====
+  const [me, setMe] = useState<ClienteMeResponseDto | null>(null);
+  const [loadingMe, setLoadingMe] = useState(false);
+  const [errorMe, setErrorMe] = useState<string | null>(null);
 
-  // ==== 1) PERFIL DEL USUARIO LOGUEADO ====
+  // ===== Favoritos real: /api/v1/cliente/favoritos =====
+  const [favoritos, setFavoritos] = useState<FavoritoResponseDto[]>([]);
+  const [loadingFav, setLoadingFav] = useState(false);
+  const [errorFav, setErrorFav] = useState<string | null>(null);
+
+  // ===== Comentarios real: /api/v1/cliente/calificaciones =====
+  const [misCal, setMisCal] = useState<CalificacionResponseDto[]>([]);
+  const [loadingCal, setLoadingCal] = useState(false);
+  const [errorCal, setErrorCal] = useState<string | null>(null);
+  const [pageCal] = useState(0);
+  const [sizeCal] = useState(10);
+
+  // ✅ proteger ruta
   useEffect(() => {
-    const fetchPerfil = async () => {
-      try {
-        setLoadingPerfil(true);
-        setErrorPerfil(null);
+    if (!isCliente) {
+      navigate("/cliente/login", { replace: true, state: { from: "/tienda/perfil-usuario" } });
+    }
+  }, [isCliente, navigate]);
 
-        // Si no hay token, solo mostramos datos mínimos del contexto
-        if (!token) {
-          setPerfil({
-            id: 0,
-            nombreCompleto: user?.nombreCompleto || user?.email || "Usuario",
-            email: user?.email || "sin-correo@ejemplo.com",
-            telefono: null,
-            fechaRegistro: null,
-          });
-          setLoadingPerfil(false);
-          return;
-        }
+  const nombreCompleto = useMemo(() => {
+    if (me) return `${me.nombres ?? ""} ${me.apellidos ?? ""}`.trim() || me.email;
+    const correo = user?.email ?? "";
+    return user?.nombreCompleto ?? (correo ? correo.split("@")[0] : "Cliente");
+  }, [me, user]);
 
-        const resp = await http.get("/api/public/usuarios/me");
-        const u = resp.data;
+  const correo = useMemo(() => me?.email ?? user?.email ?? "", [me, user]);
 
-        const mapped: UsuarioPerfil = {
-          id: u.id,
-          nombreCompleto:
-            u.nombreCompleto ||
-            `${u.nombres ?? ""} ${u.apellidos ?? ""}`.trim() ||
-            user?.nombreCompleto ||
-            user?.email ||
-            "Usuario",
-          email: u.email || user?.email || "sin-correo@ejemplo.com",
-          telefono: u.telefono ?? null,
-          fechaRegistro: u.fechaRegistro ?? null,
-        };
+  const stats = useMemo(() => {
+    const totalFav = favoritos.length;
+    const totalRes = misCal.length;
+    const promedio =
+      totalRes > 0
+        ? misCal.reduce((acc, x) => acc + Number(x.puntuacion ?? 0), 0) / totalRes
+        : 0;
+    return { totalFav, totalRes, promedio };
+  }, [favoritos, misCal]);
 
-        setPerfil(mapped);
-      } catch (e: any) {
-        console.error(e);
-        if (e?.response?.status === 401) {
-          setErrorPerfil("Tu sesión ha expirado. Inicia sesión nuevamente.");
-          // Si quieres que lo saque directo al login:
-          // logout();
-          // navigate("/login");
-        } else {
-          setErrorPerfil("No se pudo cargar la información de tu perfil.");
-        }
-
-        if (!perfil) {
-          setPerfil({
-            id: 0,
-            nombreCompleto: user?.nombreCompleto || user?.email || "Usuario",
-            email: user?.email || "sin-correo@ejemplo.com",
-            telefono: null,
-            fechaRegistro: null,
-          });
-        }
-      } finally {
-        setLoadingPerfil(false);
-      }
-    };
-
-    fetchPerfil();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token]);
-
-  // ==== 2) FAVORITOS DEL USUARIO ====
-  useEffect(() => {
-    if (!token) return;
-
-    const fetchFavoritos = async () => {
-      try {
-        setLoadingFavoritos(true);
-        setErrorFavoritos(null);
-
-        const resp = await http.get("/api/public/usuarios/mis-favoritos");
-        const data: any[] = resp.data ?? [];
-
-        const mapped: StandFavorito[] = data.map((s) => ({
-          idStand: s.idStand ?? s.id,
-          nombreStand: s.nombreStand ?? s.nombreComercial ?? "Stand sin nombre",
-          bloque: s.bloque ?? "-",
-          numeroStand: s.numeroStand ?? "-",
-          categoriaStand: s.categoriaStand ?? s.nombreCategoriaStand ?? null,
-        }));
-
-        setFavoritos(mapped);
-      } catch (e: any) {
-        console.error(e);
-        if (e?.response?.status === 401) {
-          setErrorFavoritos("Tu sesión ha expirado. Inicia sesión nuevamente.");
-        } else {
-          setErrorFavoritos("No se pudieron cargar tus stands favoritos.");
-        }
-      } finally {
-        setLoadingFavoritos(false);
-      }
-    };
-
-    fetchFavoritos();
-  }, [token]);
-
-  // ==== 3) COMENTARIOS DEL USUARIO ====
-  useEffect(() => {
-    if (!token) return;
-
-    const fetchComentarios = async () => {
-      try {
-        setLoadingComentarios(true);
-        setErrorComentarios(null);
-
-        const resp = await http.get(
-          "/api/public/calificaciones/mis-comentarios",
-          {
-            params: {
-              page: 0,
-              size: 10,
-            },
-          }
-        );
-
-        const page = resp.data;
-        const content: any[] = page?.content ?? [];
-
-        const mapped: ComentarioStand[] = content.map((c) => ({
-          id: c.idCalificacion ?? c.id,
-          standNombre: c.nombreStand ?? c.stand?.nombreComercial ?? "Stand",
-          standId: c.idStand ?? c.stand?.id,
-          fecha: c.fechaRegistro ?? c.fecha ?? "",
-          comentario: c.comentario ?? "",
-          rating: c.puntuacion ?? c.valor ?? 0,
-        }));
-
-        setComentarios(mapped);
-        setTotalComentarios(page?.totalElements ?? mapped.length);
-      } catch (e: any) {
-        console.error(e);
-        if (e?.response?.status === 401) {
-          setErrorComentarios(
-            "Tu sesión ha expirado. Inicia sesión nuevamente."
-          );
-        } else {
-          setErrorComentarios("No se pudieron cargar tus comentarios.");
-        }
-      } finally {
-        setLoadingComentarios(false);
-      }
-    };
-
-    fetchComentarios();
-  }, [token]);
-
-  const handleVerStand = (idStand?: number) => {
-    if (!idStand) return;
-    navigate(`/tienda/stand/${idStand}`);
+  const fetchMe = async () => {
+    try {
+      setLoadingMe(true);
+      setErrorMe(null);
+      const resp = await clienteApi.me();
+      setMe(resp.data);
+    } catch (e: any) {
+      console.error(e);
+      setErrorMe(
+        e?.response?.data?.mensaje ||
+          e?.response?.data?.error ||
+          "No se pudo cargar tu perfil."
+      );
+    } finally {
+      setLoadingMe(false);
+    }
   };
 
-  const displayNombre =
-    perfil?.nombreCompleto ||
-    user?.nombreCompleto ||
-    user?.email ||
-    "Mi perfil";
+  const fetchFavoritos = async () => {
+    try {
+      setLoadingFav(true);
+      setErrorFav(null);
+      const resp = await favoritosApi.listar();
+      setFavoritos(resp.data ?? []);
+    } catch (e: any) {
+      console.error(e);
+      setErrorFav(
+        e?.response?.data?.mensaje ||
+          e?.response?.data?.error ||
+          "No se pudieron cargar tus favoritos."
+      );
+    } finally {
+      setLoadingFav(false);
+    }
+  };
 
-  const displayEmail = perfil?.email || user?.email;
+  const fetchCalificaciones = async () => {
+    try {
+      setLoadingCal(true);
+      setErrorCal(null);
+      const resp = await calificacionesClienteApi.listar(pageCal, sizeCal);
+      const content = resp.data?.content ?? [];
+      setMisCal(content);
+    } catch (e: any) {
+      console.error(e);
+      setErrorCal(
+        e?.response?.data?.mensaje ||
+          e?.response?.data?.error ||
+          "No se pudieron cargar tus comentarios."
+      );
+    } finally {
+      setLoadingCal(false);
+    }
+  };
+
+  const refreshAll = async () => {
+    await Promise.all([fetchMe(), fetchFavoritos(), fetchCalificaciones()]);
+  };
+
+  useEffect(() => {
+    if (!isCliente) return;
+    refreshAll();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isCliente]);
+
+  const goStand = (idStand: number) => navigate(`/tienda/stand/${idStand}`);
+
+  const quitarFavorito = async (idStand: number) => {
+    try {
+      await favoritosApi.quitar(idStand);
+      setFavoritos((prev) => prev.filter((x) => x.idStand !== idStand));
+    } catch (e) {
+      console.error(e);
+      fetchFavoritos();
+    }
+  };
+
+  const doLogout = () => {
+    logout?.();
+    navigate("/tienda", { replace: true });
+  };
+
+  if (!isCliente) return null;
 
   return (
     <Box
       sx={{
         minHeight: "100vh",
-        bgcolor: "#f8fafc",
         display: "flex",
         flexDirection: "column",
+        bgcolor: "linear-gradient(180deg, #ecfdf3 0%, #f8fafc 45%, #ffffff 100%)",
       }}
     >
       <PublicHeader />
 
-      <Container maxWidth="md" sx={{ py: 4, flex: 1 }}>
-        {/* CABECERA DEL PERFIL */}
-        {loadingPerfil ? (
-          <Box sx={{ textAlign: "center", py: 6 }}>
-            <CircularProgress />
-            <Typography sx={{ mt: 2 }} color="text.secondary">
-              Cargando tu perfil...
-            </Typography>
-          </Box>
-        ) : (
-          <>
-            {errorPerfil && (
-              <Alert severity="warning" sx={{ mb: 2 }}>
-                {errorPerfil}
-              </Alert>
-            )}
+      {/* Hero */}
+      <Box
+        sx={{
+          pt: 4,
+          pb: 3,
+          background:
+            "radial-gradient(circle at top left, rgba(34,197,94,0.18), transparent 55%), radial-gradient(circle at top right, rgba(59,130,246,0.12), transparent 55%)",
+        }}
+      >
+        <Container maxWidth="md">
+          <Paper
+            elevation={0}
+            sx={{
+              borderRadius: 4,
+              border: "1px solid #d1fae5",
+              background:
+                "linear-gradient(135deg, #ecfdf3 0%, #ffffff 45%, #eff6ff 100%)",
+              boxShadow:
+                "0 18px 45px rgba(15,23,42,0.16), 0 0 0 1px rgba(148,163,184,0.10)",
+              p: { xs: 2.5, sm: 3 },
+            }}
+          >
+            <Stack
+              direction={{ xs: "column", sm: "row" }}
+              spacing={2.5}
+              alignItems={{ xs: "flex-start", sm: "center" }}
+              justifyContent="space-between"
+            >
+              <Stack direction="row" spacing={2} alignItems="center">
+                <Avatar
+                  sx={{
+                    width: 64,
+                    height: 64,
+                    bgcolor: "#16a34a",
+                    fontWeight: 900,
+                    boxShadow: "0 12px 25px rgba(22,163,74,0.25)",
+                  }}
+                >
+                  {safeInitial(nombreCompleto)}
+                </Avatar>
 
-            <Stack direction="row" spacing={2} alignItems="center" mb={3}>
-              <Avatar
-                sx={{
-                  width: 64,
-                  height: 64,
-                  bgcolor: "#16a34a",
-                  fontWeight: 700,
-                  fontSize: 28,
-                }}
-              >
-                {displayNombre.charAt(0).toUpperCase()}
-              </Avatar>
-              <Box>
-                <Typography variant="h5" fontWeight={800}>
-                  Mi perfil
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {displayEmail}
-                </Typography>
+                <Box>
+                  <Typography variant="overline" sx={{ letterSpacing: 2, color: "#16a34a", fontWeight: 800 }}>
+                    Cliente
+                  </Typography>
 
-                <Stack direction="row" spacing={1} mt={1} alignItems="center">
-                  {user?.rol && (
+                  <Typography variant="h5" fontWeight={900} sx={{ letterSpacing: "-0.03em" }}>
+                    {nombreCompleto}
+                  </Typography>
+
+                  <Stack direction="row" spacing={1} flexWrap="wrap" alignItems="center" sx={{ mt: 0.5 }}>
                     <Chip
-                      label={
-                        user.rol.toUpperCase().startsWith("CLIENTE")
-                          ? "Cliente"
-                          : user.rol
-                      }
                       size="small"
-                      sx={{
-                        bgcolor: "#ecfdf3",
-                        color: "#166534",
-                        fontWeight: 600,
-                        height: 22,
-                      }}
+                      icon={<EmailOutlinedIcon />}
+                      label={correo || "—"}
+                      sx={{ borderRadius: 999, bgcolor: "#ffffff", border: "1px solid #e5e7eb" }}
                     />
-                  )}
-                  {perfil?.fechaRegistro && (
-                    <Typography
-                      variant="caption"
-                      color="text.secondary"
-                      sx={{ ml: 0.5 }}
+                    <Chip
+                      size="small"
+                      icon={<PhoneOutlinedIcon />}
+                      label={me?.telefono ? me.telefono : "Teléfono no registrado"}
+                      sx={{ borderRadius: 999, bgcolor: "#ffffff", border: "1px solid #e5e7eb" }}
+                    />
+                  </Stack>
+                </Box>
+              </Stack>
+
+              <Stack direction="row" spacing={1} alignItems="center">
+                <Tooltip title="Actualizar datos">
+                  <span>
+                    <IconButton
+                      onClick={refreshAll}
+                      disabled={loadingMe || loadingFav || loadingCal}
+                      sx={{ borderRadius: 999, border: "1px solid #e5e7eb", bgcolor: "#ffffff" }}
                     >
-                      Miembro desde: {perfil.fechaRegistro}
-                    </Typography>
-                  )}
-                </Stack>
-              </Box>
+                      <RefreshIcon />
+                    </IconButton>
+                  </span>
+                </Tooltip>
+
+                <Button
+                  onClick={doLogout}
+                  variant="contained"
+                  startIcon={<LogoutIcon />}
+                  sx={{
+                    borderRadius: 999,
+                    textTransform: "none",
+                    fontWeight: 800,
+                    bgcolor: "#0f172a",
+                    "&:hover": { bgcolor: "#020617" },
+                  }}
+                >
+                  Salir
+                </Button>
+              </Stack>
             </Stack>
 
-            {/* TABS */}
+            <Divider sx={{ my: 2.5 }} />
+
+            {/* KPIs */}
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
+              <Paper elevation={0} sx={{ flex: 1, p: 2, borderRadius: 3, border: "1px solid #e2e8f0", bgcolor: "#ffffff" }}>
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <FavoriteIcon sx={{ color: "#16a34a" }} />
+                  <Box>
+                    <Typography variant="caption" color="text.secondary">
+                      Favoritos
+                    </Typography>
+                    <Typography fontWeight={900} fontSize={18}>
+                      {stats.totalFav}
+                    </Typography>
+                  </Box>
+                </Stack>
+              </Paper>
+
+              <Paper elevation={0} sx={{ flex: 1, p: 2, borderRadius: 3, border: "1px solid #e2e8f0", bgcolor: "#ffffff" }}>
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <StorefrontIcon sx={{ color: "#2563eb" }} />
+                  <Box>
+                    <Typography variant="caption" color="text.secondary">
+                      Comentarios
+                    </Typography>
+                    <Typography fontWeight={900} fontSize={18}>
+                      {stats.totalRes}
+                    </Typography>
+                  </Box>
+                </Stack>
+              </Paper>
+
+              <Paper elevation={0} sx={{ flex: 1, p: 2, borderRadius: 3, border: "1px solid #e2e8f0", bgcolor: "#ffffff" }}>
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <Rating value={stats.promedio} precision={0.5} readOnly size="small" />
+                  <Box>
+                    <Typography variant="caption" color="text.secondary">
+                      Promedio
+                    </Typography>
+                    <Typography fontWeight={900} fontSize={18}>
+                      {stats.totalRes ? stats.promedio.toFixed(1) : "—"}
+                    </Typography>
+                  </Box>
+                </Stack>
+              </Paper>
+            </Stack>
+          </Paper>
+        </Container>
+      </Box>
+
+      {/* Contenido */}
+      <Container maxWidth="md" sx={{ pb: 5, flex: 1 }}>
+        {(errorMe || errorFav || errorCal) && (
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            {errorMe || errorFav || errorCal}
+          </Alert>
+        )}
+
+        {(loadingMe || loadingFav || loadingCal) && !me && (
+          <Box sx={{ textAlign: "center", py: 4 }}>
+            <CircularProgress />
+            <Typography sx={{ mt: 1 }} color="text.secondary">
+              Preparando tu perfil...
+            </Typography>
+          </Box>
+        )}
+
+        <Paper
+          elevation={0}
+          sx={{
+            borderRadius: 4,
+            border: "1px solid #e2e8f0",
+            bgcolor: "#ffffff",
+            boxShadow: "0 12px 30px rgba(15,23,42,0.08)",
+            overflow: "hidden",
+          }}
+        >
+          <Box sx={{ px: 3, pt: 2 }}>
             <AppTabs
               value={tab}
               onChange={(v) => setTab(v as TabKey)}
               items={PERFIL_TABS}
               aria-label="secciones del perfil de usuario"
             />
+          </Box>
+          <Divider />
 
-            {/* ====== TAB PERFIL ====== */}
+          <Box sx={{ p: 3 }}>
+            {/* PERFIL */}
             <TabPanel current={tab} value="perfil">
-              <Box mt={2}>
-                <Typography variant="subtitle1" fontWeight={700}>
-                  Información básica
-                </Typography>
-                <Divider sx={{ my: 2 }} />
-                <Stack spacing={1.8}>
+              <Typography variant="subtitle1" fontWeight={900}>
+                Información básica
+              </Typography>
+              <Divider sx={{ my: 2 }} />
+
+              {loadingMe ? (
+                <Box sx={{ textAlign: "center", py: 3 }}>
+                  <CircularProgress size={24} />
+                </Box>
+              ) : me ? (
+                <Stack spacing={1.5}>
                   <Box>
                     <Typography variant="caption" color="text.secondary">
                       Nombre completo
                     </Typography>
-                    <Typography variant="body1">
-                      {perfil?.nombreCompleto}
+                    <Typography fontWeight={700}>
+                      {`${me.nombres ?? ""} ${me.apellidos ?? ""}`.trim() || "—"}
                     </Typography>
                   </Box>
 
                   <Box>
                     <Typography variant="caption" color="text.secondary">
-                      Correo electrónico
+                      Email
                     </Typography>
-                    <Typography variant="body1">
-                      {perfil?.email || "No registrado"}
-                    </Typography>
+                    <Typography fontWeight={700}>{me.email ?? "—"}</Typography>
                   </Box>
 
                   <Box>
                     <Typography variant="caption" color="text.secondary">
                       Teléfono
                     </Typography>
-                    <Typography variant="body1">
-                      {perfil?.telefono || "No registrado"}
+                    <Typography fontWeight={700}>{me.telefono ?? "—"}</Typography>
+                  </Box>
+
+                  <Box>
+                    <Typography variant="caption" color="text.secondary">
+                      Rol
                     </Typography>
+                    <Typography fontWeight={700}>{me.rol ?? "CLIENTE"}</Typography>
                   </Box>
                 </Stack>
-              </Box>
+              ) : (
+                <Typography color="text.secondary">No se pudo cargar tu información.</Typography>
+              )}
             </TabPanel>
 
-            {/* ====== TAB STANDS FAVORITOS ====== */}
+            {/* FAVORITOS */}
             <TabPanel current={tab} value="favoritos">
-              <Box mt={2}>
-                <Typography variant="subtitle1" fontWeight={700} mb={1}>
-                  Stands que te gustan
+              <Stack direction="row" alignItems="center" justifyContent="space-between" mb={1}>
+                <Typography variant="subtitle1" fontWeight={900}>
+                  Stands favoritos
                 </Typography>
-                <Divider sx={{ mb: 2 }} />
+                <Button
+                  size="small"
+                  variant="outlined"
+                  onClick={fetchFavoritos}
+                  disabled={loadingFav}
+                  startIcon={<RefreshIcon />}
+                  sx={{ borderRadius: 999, textTransform: "none", fontWeight: 800 }}
+                >
+                  Actualizar
+                </Button>
+              </Stack>
+              <Divider sx={{ mb: 2 }} />
 
-                {loadingFavoritos ? (
-                  <Box sx={{ textAlign: "center", py: 4 }}>
-                    <CircularProgress size={24} />
-                    <Typography sx={{ mt: 1 }} color="text.secondary">
-                      Cargando tus stands favoritos...
-                    </Typography>
-                  </Box>
-                ) : errorFavoritos ? (
-                  <Alert severity="error">{errorFavoritos}</Alert>
-                ) : favoritos.length === 0 ? (
-                  <Typography color="text.secondary">
-                    Aún no tienes stands favoritos. Guarda tus puestos
-                    preferidos para encontrarlos más rápido.
+              {loadingFav ? (
+                <Box sx={{ textAlign: "center", py: 3 }}>
+                  <CircularProgress size={24} />
+                  <Typography sx={{ mt: 1 }} color="text.secondary">
+                    Cargando favoritos...
                   </Typography>
-                ) : (
-                  <List>
-                    {favoritos.map((s) => (
-                      <Box key={s.idStand}>
-                        <ListItem
-                          secondaryAction={
+                </Box>
+              ) : favoritos.length === 0 ? (
+                <Paper
+                  elevation={0}
+                  sx={{ p: 3, borderRadius: 3, border: "1px dashed #cbd5e1", bgcolor: "#f8fafc" }}
+                >
+                  <Typography fontWeight={800}>Aún no tienes favoritos</Typography>
+                  <Typography color="text.secondary" sx={{ mt: 0.5 }}>
+                    Ve a un stand y presiona “Guardar en favoritos ❤️”.
+                  </Typography>
+                  <Button
+                    onClick={() => navigate("/tienda/mapa-stand")}
+                    variant="contained"
+                    sx={{
+                      mt: 2,
+                      borderRadius: 999,
+                      textTransform: "none",
+                      fontWeight: 800,
+                      bgcolor: "#16a34a",
+                      "&:hover": { bgcolor: "#15803d" },
+                    }}
+                  >
+                    Explorar stands
+                  </Button>
+                </Paper>
+              ) : (
+                <List sx={{ p: 0 }}>
+                  {favoritos.map((f) => (
+                    <Paper
+                      key={f.idFavorito}
+                      elevation={0}
+                      sx={{
+                        mb: 1.5,
+                        p: 2,
+                        borderRadius: 3,
+                        border: "1px solid #e2e8f0",
+                        bgcolor: "#ffffff",
+                        transition: "all 0.2s ease",
+                        "&:hover": { boxShadow: "0 10px 25px rgba(15,23,42,0.08)" },
+                      }}
+                    >
+                      <ListItem
+                        disableGutters
+                        secondaryAction={
+                          <Stack direction="row" spacing={1}>
                             <Button
                               size="small"
                               variant="outlined"
-                              onClick={() => handleVerStand(s.idStand)}
-                              sx={{ textTransform: "none", borderRadius: 999 }}
+                              onClick={() => goStand(f.idStand)}
+                              sx={{ borderRadius: 999, textTransform: "none", fontWeight: 800 }}
                             >
                               Ver stand
                             </Button>
-                          }
-                        >
-                          <ListItemText
-                            primary={
-                              <Typography fontWeight={600}>
-                                {s.nombreStand}
-                              </Typography>
-                            }
-                            secondary={
-                              <>
-                                <Typography
-                                  variant="body2"
-                                  color="text.secondary"
-                                >
-                                  Bloque {s.bloque} · Puesto {s.numeroStand}
-                                </Typography>
-                                <Typography
-                                  variant="body2"
-                                  color="text.secondary"
-                                >
-                                  {s.categoriaStand || "Sin categoría"}
-                                </Typography>
-                              </>
-                            }
-                          />
-                        </ListItem>
-                        <Divider />
-                      </Box>
-                    ))}
-                  </List>
-                )}
-              </Box>
-            </TabPanel>
 
-            {/* ====== TAB COMENTARIOS ====== */}
-            <TabPanel current={tab} value="comentarios">
-              <Box mt={2}>
-                <Stack
-                  direction="row"
-                  justifyContent="space-between"
-                  alignItems="center"
-                  mb={1}
-                >
-                  <Typography variant="subtitle1" fontWeight={700}>
-                    Comentarios que has dejado
-                  </Typography>
-                  {totalComentarios > 0 && (
-                    <Chip
-                      size="small"
-                      label={`${totalComentarios} en total`}
-                      sx={{
-                        bgcolor: "#eff6ff",
-                        color: "#1d4ed8",
-                        fontWeight: 600,
-                        height: 22,
-                      }}
-                    />
-                  )}
-                </Stack>
-
-                <Divider sx={{ mb: 2 }} />
-
-                {loadingComentarios ? (
-                  <Box sx={{ textAlign: "center", py: 4 }}>
-                    <CircularProgress size={24} />
-                    <Typography sx={{ mt: 1 }} color="text.secondary">
-                      Cargando tus comentarios...
-                    </Typography>
-                  </Box>
-                ) : errorComentarios ? (
-                  <Alert severity="error">{errorComentarios}</Alert>
-                ) : comentarios.length === 0 ? (
-                  <Typography color="text.secondary">
-                    Aún no has comentado en ningún stand. Después de comprar,
-                    comparte tu experiencia para ayudar a otros clientes.
-                  </Typography>
-                ) : (
-                  <List>
-                    {comentarios.map((c) => (
-                      <Box key={c.id}>
-                        <ListItem alignItems="flex-start">
-                          <ListItemText
-                            primary={
-                              <Stack
-                                direction="row"
-                                justifyContent="space-between"
+                            <Tooltip title="Quitar de favoritos">
+                              <IconButton
+                                onClick={() => quitarFavorito(f.idStand)}
+                                sx={{ border: "1px solid #e5e7eb", borderRadius: 999 }}
                               >
-                                <Typography fontWeight={600}>
-                                  {c.standNombre}
-                                </Typography>
-                                <Typography
-                                  variant="caption"
-                                  color="text.secondary"
-                                >
-                                  {c.fecha}
-                                </Typography>
-                              </Stack>
-                            }
-                            secondary={
-                              <Box mt={0.5}>
-                                <Stack
-                                  direction="row"
-                                  spacing={1}
-                                  alignItems="center"
-                                  mb={0.5}
-                                >
-                                  <Rating
-                                    value={c.rating}
-                                    size="small"
-                                    readOnly
-                                  />
-                                  {c.standId && (
-                                    <Button
-                                      size="small"
-                                      variant="text"
-                                      onClick={() => handleVerStand(c.standId)}
-                                      sx={{
-                                        textTransform: "none",
-                                        fontSize: 12,
-                                      }}
-                                    >
-                                      Ver stand
-                                    </Button>
-                                  )}
-                                </Stack>
-                                <Typography
-                                  variant="body2"
-                                  color="text.primary"
-                                  sx={{ whiteSpace: "pre-wrap" }}
-                                >
-                                  {c.comentario}
-                                </Typography>
-                              </Box>
-                            }
-                          />
-                        </ListItem>
-                        <Divider />
-                      </Box>
-                    ))}
-                  </List>
-                )}
-              </Box>
+                                <DeleteOutlineIcon />
+                              </IconButton>
+                            </Tooltip>
+                          </Stack>
+                        }
+                      >
+                        <ListItemText
+                          primary={
+                            <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+                              <Typography fontWeight={900}>{f.nombreStand ?? "Stand"}</Typography>
+                              <Chip
+                                size="small"
+                                label={f.categoriaStand ?? "Sin categoría"}
+                                sx={{ borderRadius: 999, bgcolor: "#dcfce7", color: "#166534", fontWeight: 700 }}
+                              />
+                            </Stack>
+                          }
+                          secondary={
+                            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                              📍 Bloque {f.bloque ?? "-"} · Puesto {f.numeroStand ?? "-"}
+                            </Typography>
+                          }
+                        />
+                      </ListItem>
+                    </Paper>
+                  ))}
+                </List>
+              )}
             </TabPanel>
 
-            {/* ====== TAB CONFIGURACIÓN ====== */}
-            <TabPanel current={tab} value="configuracion">
-              <Box mt={2}>
-                <Typography variant="subtitle1" fontWeight={700}>
-                  Configuración de tu cuenta
+            {/* COMENTARIOS */}
+            <TabPanel current={tab} value="comentarios">
+              <Stack direction="row" alignItems="center" justifyContent="space-between" mb={1}>
+                <Typography variant="subtitle1" fontWeight={900}>
+                  Mis comentarios a stands
                 </Typography>
-                <Divider sx={{ my: 2 }} />
+                <Button
+                  size="small"
+                  variant="outlined"
+                  onClick={fetchCalificaciones}
+                  disabled={loadingCal}
+                  startIcon={<RefreshIcon />}
+                  sx={{ borderRadius: 999, textTransform: "none", fontWeight: 800 }}
+                >
+                  Actualizar
+                </Button>
+              </Stack>
+              <Divider sx={{ mb: 2 }} />
 
-                <Stack spacing={2}>
-                  <Box>
-                    <Typography variant="body2" fontWeight={600}>
-                      Seguridad
-                    </Typography>
-                    <Stack direction="row" spacing={1.5} mt={1}>
-                      <Button
-                        variant="outlined"
-                        size="small"
-                        sx={{ textTransform: "none", borderRadius: 999 }}
-                        onClick={() =>
-                          console.log("Ir a pantalla: cambiar contraseña")
-                        }
-                      >
-                        Cambiar contraseña
-                      </Button>
-                    </Stack>
-                  </Box>
-
-                  <Box>
-                    <Typography variant="body2" fontWeight={600}>
-                      Datos personales
-                    </Typography>
-                    <Stack direction="row" spacing={1.5} mt={1}>
-                      <Button
-                        variant="outlined"
-                        size="small"
-                        sx={{ textTransform: "none", borderRadius: 999 }}
-                        onClick={() =>
-                          console.log("Ir a pantalla: editar datos personales")
-                        }
-                      >
-                        Editar datos personales
-                      </Button>
-                    </Stack>
-                  </Box>
-
-                  <Box>
-                    <Typography variant="body2" fontWeight={600}>
-                      Preferencias
-                    </Typography>
-                    <Stack direction="row" spacing={1.5} mt={1}>
-                      <Button
-                        variant="outlined"
-                        size="small"
-                        sx={{ textTransform: "none", borderRadius: 999 }}
-                        onClick={() =>
-                          console.log(
-                            "Ir a pantalla: configurar notificaciones"
-                          )
-                        }
-                      >
-                        Notificaciones
-                      </Button>
-                      <Button
-                        variant="outlined"
-                        size="small"
-                        sx={{ textTransform: "none", borderRadius: 999 }}
-                        onClick={() =>
-                          console.log("Ir a pantalla: preferencias de idioma")
-                        }
-                      >
-                        Idioma
-                      </Button>
-                    </Stack>
-                  </Box>
-
-                  <Divider />
-
-                  <Box>
-                    <Typography variant="body2" fontWeight={600} color="error">
-                      Zona peligrosa
-                    </Typography>
-                    <Typography
-                      variant="caption"
-                      color="text.secondary"
-                      display="block"
-                      mt={0.5}
+              {loadingCal ? (
+                <Box sx={{ textAlign: "center", py: 3 }}>
+                  <CircularProgress size={24} />
+                  <Typography sx={{ mt: 1 }} color="text.secondary">
+                    Cargando comentarios...
+                  </Typography>
+                </Box>
+              ) : misCal.length === 0 ? (
+                <Typography color="text.secondary">
+                  Aún no has dejado comentarios. Ve a un stand y agrega tu reseña.
+                </Typography>
+              ) : (
+                <List sx={{ p: 0 }}>
+                  {misCal.map((c) => (
+                    <Paper
+                      key={c.idCalificacion}
+                      elevation={0}
+                      sx={{ mb: 1.5, p: 2, borderRadius: 3, border: "1px solid #e2e8f0", bgcolor: "#ffffff" }}
                     >
-                      Si eliminas tu cuenta, se perderán tus reseñas y
-                      favoritos. Esta acción no se puede deshacer.
-                    </Typography>
-                    <Button
-                      variant="outlined"
-                      color="error"
-                      size="small"
-                      sx={{
-                        mt: 1,
-                        textTransform: "none",
-                        borderRadius: 999,
-                        borderWidth: 1.5,
-                      }}
-                      onClick={() =>
-                        console.log("Abrir modal para eliminar cuenta")
-                      }
-                    >
-                      Eliminar mi cuenta
-                    </Button>
-                  </Box>
-                </Stack>
-              </Box>
+                      <ListItem
+                        disableGutters
+                        secondaryAction={
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            onClick={() => goStand(c.idStand)}
+                            sx={{ borderRadius: 999, textTransform: "none", fontWeight: 800 }}
+                          >
+                            Ver stand
+                          </Button>
+                        }
+                      >
+                        <ListItemText
+                          primary={
+                            <Stack direction="row" justifyContent="space-between" alignItems="center">
+                              <Typography fontWeight={900}>
+                                {c.nombreStand ?? `Stand #${c.idStand}`}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                {formatFecha(c.fecha)}
+                              </Typography>
+                            </Stack>
+                          }
+                          secondary={
+                            <Box sx={{ mt: 0.75 }}>
+                              <Rating value={Number(c.puntuacion ?? 0)} readOnly size="small" />
+                              <Typography variant="body2" sx={{ mt: 0.75, whiteSpace: "pre-wrap" }}>
+                                {c.comentario?.trim()
+                                  ? c.comentario
+                                  : "Sin comentario (solo puntuación)."}
+                              </Typography>
+                            </Box>
+                          }
+                        />
+                      </ListItem>
+                    </Paper>
+                  ))}
+                </List>
+              )}
             </TabPanel>
-          </>
-        )}
+          </Box>
+        </Paper>
       </Container>
 
       <PublicFooter />

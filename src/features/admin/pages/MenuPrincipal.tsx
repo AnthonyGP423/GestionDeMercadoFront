@@ -157,7 +157,7 @@ export default function Principal() {
       setLoading(true);
       setError(null);
 
-      const token = localStorage.getItem("token");
+      const token = localStorage.getItem("token_intranet");
       if (!token) {
         setError("No se encontró token de sesión. Inicia sesión nuevamente.");
         setLoading(false);

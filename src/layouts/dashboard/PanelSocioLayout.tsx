@@ -4,8 +4,6 @@ import { Outlet } from "react-router-dom";
 import HeaderBar from "./HeaderBar";
 import SidebarSocio from "../dashboard/SiderbarSocio";
 
-const drawerWidth = 260;
-
 export default function PanelSocio() {
   return (
     <Box sx={{ display: "flex", minHeight: "100vh", bgcolor: "#f8fafc" }}>
@@ -24,7 +22,7 @@ export default function PanelSocio() {
             px: { xs: 2, md: 3 },
             pt: 1.25,
             pb: 3,
-            ml: 0,            // ✅ CLAVE: no empujar otra vez
+            ml: 0,  
             minWidth: 0,
           }}
         >

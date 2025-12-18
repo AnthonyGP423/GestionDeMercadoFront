@@ -240,7 +240,7 @@ export default function Reportes() {
   useEffect(() => {
     const cargarCategorias = async () => {
       try {
-        const token = localStorage.getItem("token");
+        const token = localStorage.getItem("token_intranet");
         if (!token) return;
 
         const headers = { Authorization: `Bearer ${token}` };
@@ -325,7 +325,7 @@ export default function Reportes() {
       setLoadingMorosidad(true);
       setError(null);
 
-      const token = localStorage.getItem("token");
+      const token = localStorage.getItem("token_intranet");
       if (!token) {
         setError("No se encontró token de sesión. Inicia sesión nuevamente.");
         setLoadingMorosidad(false);
@@ -385,7 +385,7 @@ export default function Reportes() {
       setLoadingIncidencias(true);
       setError(null);
 
-      const token = localStorage.getItem("token");
+      const token = localStorage.getItem("token_intranet");
       if (!token) {
         setError("No se encontró token de sesión. Inicia sesión nuevamente.");
         return;
@@ -480,7 +480,7 @@ export default function Reportes() {
       setLoadingOcupacion(true);
       setError(null);
 
-      const token = localStorage.getItem("token");
+      const token = localStorage.getItem("token_intranet");
       if (!token) {
         setError("No se encontró token de sesión. Inicia sesión nuevamente.");
         setLoadingOcupacion(false);
@@ -687,7 +687,7 @@ export default function Reportes() {
       setLoadingProductos(true);
       setError(null);
 
-      const token = localStorage.getItem("token");
+      const token = localStorage.getItem("token_intranet");
       if (!token) {
         setError("No se encontró token de sesión. Inicia sesión nuevamente.");
         setLoadingProductos(false);
