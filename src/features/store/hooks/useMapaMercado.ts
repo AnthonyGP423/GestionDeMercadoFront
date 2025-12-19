@@ -9,47 +9,51 @@ import {
   StandMapaApi,
 } from "../../../api/public/standsPublicApi";
 
-import {
-  Bloque,
-  BloqueResumen,
-  StandBase,
-  StandEstado,
-  StandMapa,
-} from "../types/mapa.types";
+import { Bloque, BloqueResumen, StandBase, StandEstado, StandMapa } from "../types/mapa.types";
 
 function normalizeBloque(value: any): Bloque {
   return String(value ?? "").toUpperCase();
 }
 
+function normalizeHex(value: any): string | null {
+  const s = String(value ?? "").trim();
+  if (!s) return null;
+  // asegura formato "#RRGGBB"
+  if (/^#[0-9A-Fa-f]{6}$/.test(s)) return s;
+  return null;
+}
+
 function mapBloques(api: BloqueResumenApi[]): BloqueResumen[] {
   return (api ?? []).map((b) => ({
     bloque: normalizeBloque(b.bloque),
-    totalStands:
-      typeof b.totalStands === "number" ? b.totalStands : undefined,
+    totalStands: typeof b.totalStands === "number" ? b.totalStands : undefined,
   }));
 }
 
 function mapStands(api: StandMapaApi[]): StandBase[] {
-  return (api ?? []).map((dto) => {
+  return (api ?? []).map((dto: any) => {
     const estadoRaw: string = dto.estado ?? "DISPONIBLE";
     const estadoUpper = estadoRaw.toUpperCase() as StandEstado;
 
     return {
-      id: dto.id,
+      id: Number(dto.id),
       bloque: normalizeBloque(dto.bloque),
-      numeroStand: dto.numeroStand,
-      nombreComercial: dto.nombreComercial,
-      rubro: dto.rubro ?? dto.nombreCategoriaStand ?? "---",
+      numeroStand: String(dto.numeroStand ?? ""),
+      nombreComercial: String(dto.nombreComercial ?? ""),
+      rubro: String(dto.rubro ?? dto.nombreCategoriaStand ?? "---"),
       estado: estadoUpper,
+
+      // ✅ nuevos campos (opcionales)
+      idCategoriaStand: dto.idCategoriaStand ?? dto.categoriaStandId ?? null,
+      nombreCategoriaStand: dto.nombreCategoriaStand ?? null,
+      categoriaColorHex: normalizeHex(
+        dto.colorHexCategoriaStand ?? dto.categoriaColorHex ?? dto.colorHex ?? null
+      ),
     };
   });
 }
 
-type LocationState = {
-  state?: {
-    initialBlock?: string;
-  };
-};
+type LocationState = { state?: { initialBlock?: string } };
 
 export function useMapaMercado() {
   const location = useLocation() as LocationState;
@@ -58,18 +62,10 @@ export function useMapaMercado() {
     ? normalizeBloque(location.state.initialBlock)
     : undefined;
 
-  const [bloqueActual, setBloqueActual] = useState<Bloque | "">(
-    initialBlockFromState ?? ""
-  );
-
-  const [bloquesDisponibles, setBloquesDisponibles] = useState<BloqueResumen[]>(
-    []
-  );
-
+  const [bloqueActual, setBloqueActual] = useState<Bloque | "">(initialBlockFromState ?? "");
+  const [bloquesDisponibles, setBloquesDisponibles] = useState<BloqueResumen[]>([]);
   const [standsBloque, setStandsBloque] = useState<StandBase[]>([]);
-  const [standSeleccionado, setStandSeleccionado] = useState<StandMapa | null>(
-    null
-  );
+  const [standSeleccionado, setStandSeleccionado] = useState<StandMapa | null>(null);
 
   const [loadingBloques, setLoadingBloques] = useState(false);
   const [errorBloques, setErrorBloques] = useState<string | null>(null);
@@ -77,7 +73,6 @@ export function useMapaMercado() {
   const [loadingStands, setLoadingStands] = useState(false);
   const [errorStands, setErrorStands] = useState<string | null>(null);
 
-  // ==== CARGA BLOQUES ====
   useEffect(() => {
     const run = async () => {
       try {
@@ -94,11 +89,8 @@ export function useMapaMercado() {
             initialBlockFromState &&
             mapped.some((x) => normalizeBloque(x.bloque) === initialBlockFromState);
 
-          if (existeInitial) {
-            setBloqueActual(initialBlockFromState);
-          } else if (!bloqueActual) {
-            setBloqueActual(mapped[0].bloque);
-          }
+          if (existeInitial) setBloqueActual(initialBlockFromState);
+          else if (!bloqueActual) setBloqueActual(mapped[0].bloque);
         }
       } catch (e) {
         console.error(e);
@@ -112,7 +104,6 @@ export function useMapaMercado() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ==== CARGA STANDS POR BLOQUE ====
   useEffect(() => {
     if (!bloqueActual) return;
 
@@ -138,8 +129,7 @@ export function useMapaMercado() {
   }, [bloqueActual]);
 
   const seleccionarBloque = (b: Bloque) => {
-    const normalized = normalizeBloque(b);
-    setBloqueActual(normalized);
+    setBloqueActual(normalizeBloque(b));
     setStandSeleccionado(null);
   };
 
@@ -154,26 +144,21 @@ export function useMapaMercado() {
   };
 
   const standsOrdenados = useMemo(() => {
-    return standsBloque
-      .slice()
-      .sort((a, b) => a.numeroStand.localeCompare(b.numeroStand));
+    return standsBloque.slice().sort((a, b) => a.numeroStand.localeCompare(b.numeroStand));
   }, [standsBloque]);
 
   return {
-    // state
     bloqueActual,
     bloquesDisponibles,
     standsBloque,
     standsOrdenados,
     standSeleccionado,
 
-    // flags
     loadingBloques,
     errorBloques,
     loadingStands,
     errorStands,
 
-    // actions
     setBloqueActual: seleccionarBloque,
     setStandSeleccionado,
     seleccionarStandBase,

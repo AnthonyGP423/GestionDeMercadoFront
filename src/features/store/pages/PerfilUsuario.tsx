@@ -18,16 +18,21 @@ import {
   Rating,
   Tooltip,
   IconButton,
+  Fade,
+  Grow,
 } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 
 import RefreshIcon from "@mui/icons-material/Refresh";
 import FavoriteIcon from "@mui/icons-material/Favorite";
 import LogoutIcon from "@mui/icons-material/Logout";
-import StorefrontIcon from "@mui/icons-material/Storefront";
 import PhoneOutlinedIcon from "@mui/icons-material/PhoneOutlined";
 import EmailOutlinedIcon from "@mui/icons-material/EmailOutlined";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
+import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
+import BadgeOutlinedIcon from "@mui/icons-material/BadgeOutlined";
+import StarRoundedIcon from "@mui/icons-material/StarRounded";
+import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
 
 import PublicHeader from "../../../layouts/store/HeaderTienda";
 import PublicFooter from "../../../layouts/store/FooterTienda";
@@ -44,9 +49,9 @@ import {
 type TabKey = "perfil" | "favoritos" | "comentarios";
 
 const PERFIL_TABS = [
-  { value: "perfil", label: "Perfil" },
-  { value: "favoritos", label: "Stands favoritos" },
-  { value: "comentarios", label: "Mis comentarios" },
+  { value: "perfil", label: "Mi Perfil" },
+  { value: "favoritos", label: "Favoritos" },
+  { value: "comentarios", label: "Comentarios" },
 ];
 
 // helpers UX
@@ -91,20 +96,27 @@ export default function PerfilUsuario() {
   const [misCal, setMisCal] = useState<CalificacionResponseDto[]>([]);
   const [loadingCal, setLoadingCal] = useState(false);
   const [errorCal, setErrorCal] = useState<string | null>(null);
+
   const [pageCal] = useState(0);
   const [sizeCal] = useState(10);
 
   // ✅ proteger ruta
   useEffect(() => {
     if (!isCliente) {
-      navigate("/cliente/login", { replace: true, state: { from: "/tienda/perfil-usuario" } });
+      navigate("/cliente/login", {
+        replace: true,
+        state: { from: "/tienda/perfil-usuario" },
+      });
     }
   }, [isCliente, navigate]);
 
   const nombreCompleto = useMemo(() => {
-    if (me) return `${me.nombres ?? ""} ${me.apellidos ?? ""}`.trim() || me.email;
-    const correo = user?.email ?? "";
-    return user?.nombreCompleto ?? (correo ? correo.split("@")[0] : "Cliente");
+    if (me) {
+      const full = `${me.nombres ?? ""} ${me.apellidos ?? ""}`.trim();
+      return full || me.email;
+    }
+    const correoLocal = user?.email ?? "";
+    return user?.nombreCompleto ?? (correoLocal ? correoLocal.split("@")[0] : "Cliente");
   }, [me, user]);
 
   const correo = useMemo(() => me?.email ?? user?.email ?? "", [me, user]);
@@ -189,7 +201,7 @@ export default function PerfilUsuario() {
   const quitarFavorito = async (idStand: number) => {
     try {
       await favoritosApi.quitar(idStand);
-      setFavoritos((prev) => prev.filter((x) => x.idStand !== idStand));
+      setFavoritos((prev) => prev.filter((x: any) => Number(x.idStand) !== Number(idStand)));
     } catch (e) {
       console.error(e);
       fetchFavoritos();
@@ -203,192 +215,361 @@ export default function PerfilUsuario() {
 
   if (!isCliente) return null;
 
+  // ====== UI helpers (Box “Gridless”) ======
+  const kpiItems = [
+    {
+      key: "fav",
+      label: "Favoritos",
+      value: stats.totalFav,
+      icon: <FavoriteIcon />,
+      accent: { bg: "linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%)", fg: "#16a34a" },
+      hoverBorder: "#dcfce7",
+      hoverShadow: "0 4px 12px rgba(34,197,94,0.08)",
+    },
+    {
+      key: "com",
+      label: "Comentarios",
+      value: stats.totalRes,
+      icon: <ChatBubbleOutlineIcon />,
+      accent: { bg: "linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%)", fg: "#2563eb" },
+      hoverBorder: "#dbeafe",
+      hoverShadow: "0 4px 12px rgba(37,99,235,0.08)",
+    },
+    {
+      key: "pro",
+      label: "Promedio",
+      value: stats.totalRes ? stats.promedio.toFixed(1) : "—",
+      icon: <StarRoundedIcon />,
+      accent: { bg: "linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)", fg: "#f59e0b" },
+      hoverBorder: "#fef3c7",
+      hoverShadow: "0 4px 12px rgba(245,158,11,0.08)",
+    },
+  ];
+
+  const infoCards = [
+    {
+      key: "nombre",
+      label: "Nombre completo",
+      value: me ? `${me.nombres ?? ""} ${me.apellidos ?? ""}`.trim() || "—" : "—",
+      icon: <PersonOutlineIcon />,
+      iconBg: "#dcfce7",
+      iconFg: "#16a34a",
+    },
+    {
+      key: "email",
+      label: "Email",
+      value: me?.email ?? "—",
+      icon: <EmailOutlinedIcon />,
+      iconBg: "#dbeafe",
+      iconFg: "#2563eb",
+    },
+    {
+      key: "tel",
+      label: "Teléfono",
+      value: me?.telefono ?? "No registrado",
+      icon: <PhoneOutlinedIcon />,
+      iconBg: "#fef3c7",
+      iconFg: "#f59e0b",
+    },
+    {
+      key: "rol",
+      label: "Rol",
+      value: me?.rol ?? "CLIENTE",
+      icon: <BadgeOutlinedIcon />,
+      iconBg: "#f3e8ff",
+      iconFg: "#9333ea",
+    },
+  ];
+
   return (
     <Box
       sx={{
         minHeight: "100vh",
         display: "flex",
         flexDirection: "column",
-        bgcolor: "linear-gradient(180deg, #ecfdf3 0%, #f8fafc 45%, #ffffff 100%)",
+        background:
+          "linear-gradient(180deg, #ecfdf5 0%, #f8fafc 50%, #ffffff 100%)",
       }}
     >
       <PublicHeader />
 
-      {/* Hero */}
+      {/* Hero Mejorado (VISUAL) */}
       <Box
         sx={{
-          pt: 4,
-          pb: 3,
+          pt: 5,
+          pb: 4,
           background:
-            "radial-gradient(circle at top left, rgba(34,197,94,0.18), transparent 55%), radial-gradient(circle at top right, rgba(59,130,246,0.12), transparent 55%)",
+            "radial-gradient(circle at 20% 20%, rgba(34,197,94,0.08) 0%, transparent 50%), radial-gradient(circle at 80% 80%, rgba(16,185,129,0.06) 0%, transparent 50%)",
         }}
       >
-        <Container maxWidth="md">
-          <Paper
-            elevation={0}
-            sx={{
-              borderRadius: 4,
-              border: "1px solid #d1fae5",
-              background:
-                "linear-gradient(135deg, #ecfdf3 0%, #ffffff 45%, #eff6ff 100%)",
-              boxShadow:
-                "0 18px 45px rgba(15,23,42,0.16), 0 0 0 1px rgba(148,163,184,0.10)",
-              p: { xs: 2.5, sm: 3 },
-            }}
-          >
-            <Stack
-              direction={{ xs: "column", sm: "row" }}
-              spacing={2.5}
-              alignItems={{ xs: "flex-start", sm: "center" }}
-              justifyContent="space-between"
+        <Container maxWidth="lg">
+          <Grow in timeout={500}>
+            <Paper
+              elevation={0}
+              sx={{
+                borderRadius: 5,
+                border: "1px solid rgba(34,197,94,0.15)",
+                background:
+                  "linear-gradient(135deg, rgba(236,253,245,0.8) 0%, rgba(255,255,255,0.9) 100%)",
+                boxShadow:
+                  "0 20px 50px rgba(34,197,94,0.12), 0 0 0 1px rgba(34,197,94,0.05)",
+                backdropFilter: "blur(10px)",
+                p: 4,
+                transition: "all 0.3s ease",
+                "&:hover": {
+                  boxShadow: "0 25px 60px rgba(34,197,94,0.18)",
+                  transform: "translateY(-2px)",
+                },
+              }}
             >
-              <Stack direction="row" spacing={2} alignItems="center">
-                <Avatar
-                  sx={{
-                    width: 64,
-                    height: 64,
-                    bgcolor: "#16a34a",
-                    fontWeight: 900,
-                    boxShadow: "0 12px 25px rgba(22,163,74,0.25)",
-                  }}
-                >
-                  {safeInitial(nombreCompleto)}
-                </Avatar>
-
-                <Box>
-                  <Typography variant="overline" sx={{ letterSpacing: 2, color: "#16a34a", fontWeight: 800 }}>
-                    Cliente
-                  </Typography>
-
-                  <Typography variant="h5" fontWeight={900} sx={{ letterSpacing: "-0.03em" }}>
-                    {nombreCompleto}
-                  </Typography>
-
-                  <Stack direction="row" spacing={1} flexWrap="wrap" alignItems="center" sx={{ mt: 0.5 }}>
-                    <Chip
-                      size="small"
-                      icon={<EmailOutlinedIcon />}
-                      label={correo || "—"}
-                      sx={{ borderRadius: 999, bgcolor: "#ffffff", border: "1px solid #e5e7eb" }}
-                    />
-                    <Chip
-                      size="small"
-                      icon={<PhoneOutlinedIcon />}
-                      label={me?.telefono ? me.telefono : "Teléfono no registrado"}
-                      sx={{ borderRadius: 999, bgcolor: "#ffffff", border: "1px solid #e5e7eb" }}
-                    />
-                  </Stack>
-                </Box>
-              </Stack>
-
-              <Stack direction="row" spacing={1} alignItems="center">
-                <Tooltip title="Actualizar datos">
-                  <span>
-                    <IconButton
-                      onClick={refreshAll}
-                      disabled={loadingMe || loadingFav || loadingCal}
-                      sx={{ borderRadius: 999, border: "1px solid #e5e7eb", bgcolor: "#ffffff" }}
+              <Stack
+                direction={{ xs: "column", md: "row" }}
+                spacing={3}
+                alignItems={{ xs: "flex-start", md: "center" }}
+                justifyContent="space-between"
+              >
+                <Stack direction="row" spacing={3} alignItems="center" flex={1}>
+                  <Box sx={{ position: "relative" }}>
+                    <Avatar
+                      sx={{
+                        width: 80,
+                        height: 80,
+                        background:
+                          "linear-gradient(135deg, #22c55e 0%, #16a34a 100%)",
+                        fontWeight: 900,
+                        fontSize: 32,
+                        boxShadow: "0 8px 20px rgba(34,197,94,0.3)",
+                      }}
                     >
-                      <RefreshIcon />
-                    </IconButton>
-                  </span>
-                </Tooltip>
+                      {safeInitial(nombreCompleto)}
+                    </Avatar>
+                    <Box
+                      sx={{
+                        position: "absolute",
+                        bottom: -4,
+                        right: -4,
+                        width: 24,
+                        height: 24,
+                        borderRadius: "50%",
+                        bgcolor: "#22c55e",
+                        border: "3px solid white",
+                        boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+                      }}
+                    />
+                  </Box>
 
-                <Button
-                  onClick={doLogout}
-                  variant="contained"
-                  startIcon={<LogoutIcon />}
-                  sx={{
-                    borderRadius: 999,
-                    textTransform: "none",
-                    fontWeight: 800,
-                    bgcolor: "#0f172a",
-                    "&:hover": { bgcolor: "#020617" },
-                  }}
-                >
-                  Salir
-                </Button>
+                  <Box flex={1}>
+                    <Typography
+                      variant="overline"
+                      sx={{
+                        letterSpacing: "0.15em",
+                        color: "#16a34a",
+                        fontWeight: 800,
+                        fontSize: 11,
+                        display: "block",
+                        mb: 0.5,
+                      }}
+                    >
+                      Cliente
+                    </Typography>
+
+                    <Typography
+                      variant="h4"
+                      sx={{
+                        fontWeight: 900,
+                        letterSpacing: "-0.02em",
+                        mb: 1.5,
+                        fontSize: { xs: "1.5rem", sm: "2rem" },
+                      }}
+                    >
+                      {nombreCompleto}
+                    </Typography>
+
+                    <Stack direction="row" spacing={1.5} flexWrap="wrap" alignItems="center">
+                      <Chip
+                        size="small"
+                        icon={<EmailOutlinedIcon sx={{ fontSize: 16 }} />}
+                        label={correo || "—"}
+                        sx={{
+                          borderRadius: "8px",
+                          bgcolor: "#ffffff",
+                          border: "1px solid #e5e7eb",
+                          fontWeight: 700,
+                          fontSize: 12,
+                        }}
+                      />
+                      <Chip
+                        size="small"
+                        icon={<PhoneOutlinedIcon sx={{ fontSize: 16 }} />}
+                        label={me?.telefono || "Sin teléfono"}
+                        sx={{
+                          borderRadius: "8px",
+                          bgcolor: "#ffffff",
+                          border: "1px solid #e5e7eb",
+                          fontWeight: 700,
+                          fontSize: 12,
+                        }}
+                      />
+                    </Stack>
+                  </Box>
+                </Stack>
+
+                <Stack direction="row" spacing={1.5} alignItems="center">
+                  <Tooltip title="Actualizar datos" arrow>
+                    <span>
+                      <IconButton
+                        onClick={refreshAll}
+                        disabled={loadingMe || loadingFav || loadingCal}
+                        sx={{
+                          borderRadius: "12px",
+                          bgcolor: "#fff",
+                          border: "1px solid #e5e7eb",
+                          boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
+                          "&:hover": {
+                            bgcolor: "#f9fafb",
+                            borderColor: "#22c55e",
+                            transform: "rotate(180deg)",
+                          },
+                          transition: "all 0.3s ease",
+                        }}
+                      >
+                        <RefreshIcon />
+                      </IconButton>
+                    </span>
+                  </Tooltip>
+
+                  <Button
+                    onClick={doLogout}
+                    variant="contained"
+                    startIcon={<LogoutIcon />}
+                    sx={{
+                      borderRadius: "12px",
+                      textTransform: "none",
+                      fontWeight: 800,
+                      px: 3,
+                      background: "linear-gradient(135deg, #0f172a 0%, #1e293b 100%)",
+                      boxShadow: "0 4px 12px rgba(15,23,42,0.3)",
+                      "&:hover": {
+                        background: "linear-gradient(135deg, #020617 0%, #0f172a 100%)",
+                        boxShadow: "0 6px 16px rgba(15,23,42,0.4)",
+                        transform: "translateY(-2px)",
+                      },
+                      transition: "all 0.3s ease",
+                    }}
+                  >
+                    Salir
+                  </Button>
+                </Stack>
               </Stack>
-            </Stack>
 
-            <Divider sx={{ my: 2.5 }} />
+              <Divider sx={{ my: 3, borderColor: "#f3f4f6" }} />
 
-            {/* KPIs */}
-            <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
-              <Paper elevation={0} sx={{ flex: 1, p: 2, borderRadius: 3, border: "1px solid #e2e8f0", bgcolor: "#ffffff" }}>
-                <Stack direction="row" spacing={1} alignItems="center">
-                  <FavoriteIcon sx={{ color: "#16a34a" }} />
-                  <Box>
-                    <Typography variant="caption" color="text.secondary">
-                      Favoritos
-                    </Typography>
-                    <Typography fontWeight={900} fontSize={18}>
-                      {stats.totalFav}
-                    </Typography>
+              {/* KPIs Mejorados (sin Grid) */}
+              <Box
+                sx={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: 2,
+                }}
+              >
+                {kpiItems.map((kpi) => (
+                  <Box
+                    key={kpi.key}
+                    sx={{
+                      width: { xs: "100%", sm: "calc(33.333% - 16px)" },
+                      minWidth: { sm: 220 },
+                      flexGrow: 1,
+                    }}
+                  >
+                    <Paper
+                      elevation={0}
+                      sx={{
+                        p: 2.5,
+                        borderRadius: 3,
+                        border: "1px solid #f3f4f6",
+                        bgcolor: "#ffffff",
+                        transition: "all 0.2s ease",
+                        "&:hover": {
+                          borderColor: kpi.hoverBorder,
+                          boxShadow: kpi.hoverShadow,
+                        },
+                      }}
+                    >
+                      <Stack direction="row" spacing={2} alignItems="center">
+                        <Box
+                          sx={{
+                            width: 48,
+                            height: 48,
+                            borderRadius: 3,
+                            background: kpi.accent.bg,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            color: kpi.accent.fg,
+                          }}
+                        >
+                          {kpi.icon}
+                        </Box>
+
+                        <Box>
+                          <Typography
+                            variant="caption"
+                            sx={{
+                              color: "#64748b",
+                              fontWeight: 700,
+                              textTransform: "uppercase",
+                              fontSize: 11,
+                              letterSpacing: "0.1em",
+                            }}
+                          >
+                            {kpi.label}
+                          </Typography>
+                          <Typography fontWeight={900} fontSize={24}>
+                            {kpi.value as any}
+                          </Typography>
+                        </Box>
+                      </Stack>
+                    </Paper>
                   </Box>
-                </Stack>
-              </Paper>
-
-              <Paper elevation={0} sx={{ flex: 1, p: 2, borderRadius: 3, border: "1px solid #e2e8f0", bgcolor: "#ffffff" }}>
-                <Stack direction="row" spacing={1} alignItems="center">
-                  <StorefrontIcon sx={{ color: "#2563eb" }} />
-                  <Box>
-                    <Typography variant="caption" color="text.secondary">
-                      Comentarios
-                    </Typography>
-                    <Typography fontWeight={900} fontSize={18}>
-                      {stats.totalRes}
-                    </Typography>
-                  </Box>
-                </Stack>
-              </Paper>
-
-              <Paper elevation={0} sx={{ flex: 1, p: 2, borderRadius: 3, border: "1px solid #e2e8f0", bgcolor: "#ffffff" }}>
-                <Stack direction="row" spacing={1} alignItems="center">
-                  <Rating value={stats.promedio} precision={0.5} readOnly size="small" />
-                  <Box>
-                    <Typography variant="caption" color="text.secondary">
-                      Promedio
-                    </Typography>
-                    <Typography fontWeight={900} fontSize={18}>
-                      {stats.totalRes ? stats.promedio.toFixed(1) : "—"}
-                    </Typography>
-                  </Box>
-                </Stack>
-              </Paper>
-            </Stack>
-          </Paper>
+                ))}
+              </Box>
+            </Paper>
+          </Grow>
         </Container>
       </Box>
 
       {/* Contenido */}
-      <Container maxWidth="md" sx={{ pb: 5, flex: 1 }}>
+      <Container maxWidth="lg" sx={{ pb: 6, flex: 1, mt: -2 }}>
         {(errorMe || errorFav || errorCal) && (
-          <Alert severity="warning" sx={{ mb: 2 }}>
-            {errorMe || errorFav || errorCal}
-          </Alert>
+          <Fade in>
+            <Alert severity="warning" sx={{ mb: 3, borderRadius: 3 }}>
+              {errorMe || errorFav || errorCal}
+            </Alert>
+          </Fade>
         )}
 
         {(loadingMe || loadingFav || loadingCal) && !me && (
-          <Box sx={{ textAlign: "center", py: 4 }}>
-            <CircularProgress />
-            <Typography sx={{ mt: 1 }} color="text.secondary">
-              Preparando tu perfil...
-            </Typography>
-          </Box>
+          <Fade in>
+            <Box sx={{ textAlign: "center", py: 6 }}>
+              <CircularProgress size={48} sx={{ color: "#22c55e" }} />
+              <Typography sx={{ mt: 2, fontWeight: 600 }} color="text.secondary">
+                Preparando tu perfil...
+              </Typography>
+            </Box>
+          </Fade>
         )}
 
         <Paper
           elevation={0}
           sx={{
-            borderRadius: 4,
-            border: "1px solid #e2e8f0",
+            borderRadius: 5,
+            border: "1px solid #e5e7eb",
             bgcolor: "#ffffff",
-            boxShadow: "0 12px 30px rgba(15,23,42,0.08)",
+            boxShadow: "0 10px 30px rgba(0,0,0,0.06)",
             overflow: "hidden",
           }}
         >
-          <Box sx={{ px: 3, pt: 2 }}>
+          <Box sx={{ px: 4, pt: 3 }}>
             <AppTabs
               value={tab}
               onChange={(v) => setTab(v as TabKey)}
@@ -396,102 +577,171 @@ export default function PerfilUsuario() {
               aria-label="secciones del perfil de usuario"
             />
           </Box>
-          <Divider />
 
-          <Box sx={{ p: 3 }}>
-            {/* PERFIL */}
+          <Divider sx={{ borderColor: "#f3f4f6" }} />
+
+          <Box sx={{ p: 4 }}>
+            {/* PERFIL TAB */}
             <TabPanel current={tab} value="perfil">
-              <Typography variant="subtitle1" fontWeight={900}>
+              <Typography variant="h6" fontWeight={900} mb={3}>
                 Información básica
               </Typography>
-              <Divider sx={{ my: 2 }} />
 
               {loadingMe ? (
-                <Box sx={{ textAlign: "center", py: 3 }}>
-                  <CircularProgress size={24} />
+                <Box sx={{ textAlign: "center", py: 4 }}>
+                  <CircularProgress size={32} sx={{ color: "#22c55e" }} />
                 </Box>
               ) : me ? (
-                <Stack spacing={1.5}>
-                  <Box>
-                    <Typography variant="caption" color="text.secondary">
-                      Nombre completo
-                    </Typography>
-                    <Typography fontWeight={700}>
-                      {`${me.nombres ?? ""} ${me.apellidos ?? ""}`.trim() || "—"}
-                    </Typography>
-                  </Box>
+                <Box sx={{ display: "flex", flexWrap: "wrap", gap: 3 }}>
+                  {infoCards.map((card) => (
+                    <Box
+                      key={card.key}
+                      sx={{
+                        width: { xs: "100%", md: "calc(50% - 12px)" },
+                        minWidth: { md: 320 },
+                        flexGrow: 1,
+                      }}
+                    >
+                      <Paper
+                        elevation={0}
+                        sx={{
+                          p: 2.5,
+                          borderRadius: 3,
+                          border: "1px solid #f3f4f6",
+                          bgcolor: "#fafafa",
+                          transition: "all 0.2s ease",
+                          "&:hover": { borderColor: "#e5e7eb", bgcolor: "#ffffff" },
+                        }}
+                      >
+                        <Stack direction="row" spacing={2} alignItems="flex-start">
+                          <Box
+                            sx={{
+                              width: 40,
+                              height: 40,
+                              borderRadius: 2,
+                              bgcolor: card.iconBg,
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              color: card.iconFg,
+                            }}
+                          >
+                            {card.icon}
+                          </Box>
 
-                  <Box>
-                    <Typography variant="caption" color="text.secondary">
-                      Email
-                    </Typography>
-                    <Typography fontWeight={700}>{me.email ?? "—"}</Typography>
-                  </Box>
-
-                  <Box>
-                    <Typography variant="caption" color="text.secondary">
-                      Teléfono
-                    </Typography>
-                    <Typography fontWeight={700}>{me.telefono ?? "—"}</Typography>
-                  </Box>
-
-                  <Box>
-                    <Typography variant="caption" color="text.secondary">
-                      Rol
-                    </Typography>
-                    <Typography fontWeight={700}>{me.rol ?? "CLIENTE"}</Typography>
-                  </Box>
-                </Stack>
+                          <Box flex={1}>
+                            <Typography
+                              variant="caption"
+                              sx={{
+                                color: "#64748b",
+                                fontWeight: 700,
+                                textTransform: "uppercase",
+                                fontSize: 11,
+                                letterSpacing: "0.1em",
+                              }}
+                            >
+                              {card.label}
+                            </Typography>
+                            <Typography fontWeight={800} sx={{ mt: 0.5 }}>
+                              {card.value}
+                            </Typography>
+                          </Box>
+                        </Stack>
+                      </Paper>
+                    </Box>
+                  ))}
+                </Box>
               ) : (
-                <Typography color="text.secondary">No se pudo cargar tu información.</Typography>
+                <Paper
+                  elevation={0}
+                  sx={{
+                    p: 4,
+                    textAlign: "center",
+                    borderRadius: 3,
+                    border: "1px solid #f3f4f6",
+                    bgcolor: "#fafafa",
+                  }}
+                >
+                  <Typography fontWeight={700} color="text.secondary">
+                    No se pudo cargar tu información.
+                  </Typography>
+                </Paper>
               )}
             </TabPanel>
 
-            {/* FAVORITOS */}
+            {/* FAVORITOS TAB */}
             <TabPanel current={tab} value="favoritos">
-              <Stack direction="row" alignItems="center" justifyContent="space-between" mb={1}>
-                <Typography variant="subtitle1" fontWeight={900}>
+              <Stack
+                direction="row"
+                alignItems="center"
+                justifyContent="space-between"
+                mb={3}
+              >
+                <Typography variant="h6" fontWeight={900}>
                   Stands favoritos
                 </Typography>
+
                 <Button
                   size="small"
                   variant="outlined"
                   onClick={fetchFavoritos}
                   disabled={loadingFav}
                   startIcon={<RefreshIcon />}
-                  sx={{ borderRadius: 999, textTransform: "none", fontWeight: 800 }}
+                  sx={{
+                    borderRadius: "12px",
+                    textTransform: "none",
+                    fontWeight: 800,
+                    borderColor: "#e5e7eb",
+                    color: "#16a34a",
+                    "&:hover": { borderColor: "#22c55e", bgcolor: "#dcfce7" },
+                  }}
                 >
                   Actualizar
                 </Button>
               </Stack>
-              <Divider sx={{ mb: 2 }} />
 
               {loadingFav ? (
-                <Box sx={{ textAlign: "center", py: 3 }}>
-                  <CircularProgress size={24} />
-                  <Typography sx={{ mt: 1 }} color="text.secondary">
+                <Box sx={{ textAlign: "center", py: 6 }}>
+                  <CircularProgress size={32} sx={{ color: "#22c55e" }} />
+                  <Typography sx={{ mt: 2, fontWeight: 600 }} color="text.secondary">
                     Cargando favoritos...
                   </Typography>
                 </Box>
               ) : favoritos.length === 0 ? (
                 <Paper
                   elevation={0}
-                  sx={{ p: 3, borderRadius: 3, border: "1px dashed #cbd5e1", bgcolor: "#f8fafc" }}
+                  sx={{
+                    p: 6,
+                    textAlign: "center",
+                    borderRadius: 4,
+                    border: "2px dashed #cbd5e1",
+                    bgcolor: "#f8fafc",
+                  }}
                 >
-                  <Typography fontWeight={800}>Aún no tienes favoritos</Typography>
-                  <Typography color="text.secondary" sx={{ mt: 0.5 }}>
-                    Ve a un stand y presiona “Guardar en favoritos ❤️”.
+                  <FavoriteIcon sx={{ fontSize: 64, color: "#cbd5e1", mb: 2 }} />
+                  <Typography fontWeight={900} fontSize={20} mb={1}>
+                    Aún no tienes favoritos
+                  </Typography>
+                  <Typography color="text.secondary" mb={3}>
+                    Ve a un stand y presiona el corazón para guardarlo como favorito
                   </Typography>
                   <Button
                     onClick={() => navigate("/tienda/mapa-stand")}
                     variant="contained"
                     sx={{
-                      mt: 2,
                       borderRadius: 999,
                       textTransform: "none",
-                      fontWeight: 800,
+                      fontWeight: 900,
+                      px: 4,
+                      py: 1.2,
                       bgcolor: "#16a34a",
-                      "&:hover": { bgcolor: "#15803d" },
+                      boxShadow: "0 10px 24px rgba(22,163,74,0.25)",
+                      "&:hover": {
+                        bgcolor: "#15803d",
+                        transform: "translateY(-1px)",
+                        boxShadow: "0 14px 30px rgba(22,163,74,0.32)",
+                      },
+                      transition: "all 0.25s ease",
                     }}
                   >
                     Explorar stands
@@ -499,144 +749,260 @@ export default function PerfilUsuario() {
                 </Paper>
               ) : (
                 <List sx={{ p: 0 }}>
-                  {favoritos.map((f) => (
-                    <Paper
-                      key={f.idFavorito}
-                      elevation={0}
-                      sx={{
-                        mb: 1.5,
-                        p: 2,
-                        borderRadius: 3,
-                        border: "1px solid #e2e8f0",
-                        bgcolor: "#ffffff",
-                        transition: "all 0.2s ease",
-                        "&:hover": { boxShadow: "0 10px 25px rgba(15,23,42,0.08)" },
-                      }}
-                    >
-                      <ListItem
-                        disableGutters
-                        secondaryAction={
-                          <Stack direction="row" spacing={1}>
-                            <Button
-                              size="small"
-                              variant="outlined"
-                              onClick={() => goStand(f.idStand)}
-                              sx={{ borderRadius: 999, textTransform: "none", fontWeight: 800 }}
-                            >
-                              Ver stand
-                            </Button>
+                  {favoritos.map((f: any, idx) => {
+                    const idStand = Number(f.idStand ?? f.standId ?? 0);
+                    const nombreStand =
+                      f.nombreStand ?? f.standNombre ?? `Stand #${idStand}`;
+                    const categoria = f.categoriaStand ?? f.categoria ?? "Sin categoría";
+                    const bloque = f.bloque ?? f.bloqueStand ?? "-";
+                    const numero = f.numeroStand ?? f.numero ?? "-";
 
-                            <Tooltip title="Quitar de favoritos">
-                              <IconButton
-                                onClick={() => quitarFavorito(f.idStand)}
-                                sx={{ border: "1px solid #e5e7eb", borderRadius: 999 }}
-                              >
-                                <DeleteOutlineIcon />
-                              </IconButton>
-                            </Tooltip>
-                          </Stack>
-                        }
+                    return (
+                      <Paper
+                        key={f.idFavorito ?? `${idStand}-${idx}`}
+                        elevation={0}
+                        sx={{
+                          mb: 1.5,
+                          borderRadius: 3,
+                          border: "1px solid #e5e7eb",
+                          bgcolor: "#ffffff",
+                          overflow: "hidden",
+                          boxShadow: "0 6px 18px rgba(15,23,42,0.05)",
+                          transition: "all 0.25s ease",
+                          "&:hover": {
+                            boxShadow: "0 14px 30px rgba(15,23,42,0.09)",
+                            transform: "translateY(-2px)",
+                          },
+                        }}
                       >
-                        <ListItemText
-                          primary={
-                            <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
-                              <Typography fontWeight={900}>{f.nombreStand ?? "Stand"}</Typography>
-                              <Chip
+                        <ListItem
+                          sx={{ px: 2.5, py: 2 }}
+                          disableGutters
+                          secondaryAction={
+                            <Stack direction="row" spacing={1} alignItems="center">
+                              <Button
                                 size="small"
-                                label={f.categoriaStand ?? "Sin categoría"}
-                                sx={{ borderRadius: 999, bgcolor: "#dcfce7", color: "#166534", fontWeight: 700 }}
-                              />
+                                variant="outlined"
+                                onClick={() => goStand(idStand)}
+                                sx={{
+                                  borderRadius: 999,
+                                  textTransform: "none",
+                                  fontWeight: 900,
+                                  borderColor: "#e5e7eb",
+                                  "&:hover": {
+                                    borderColor: "#16a34a",
+                                    bgcolor: "#dcfce7",
+                                  },
+                                }}
+                              >
+                                Ver stand
+                              </Button>
+
+                              <Tooltip title="Quitar de favoritos" arrow>
+                                <IconButton
+                                  onClick={() => quitarFavorito(idStand)}
+                                  sx={{
+                                    borderRadius: 2,
+                                    border: "1px solid #e5e7eb",
+                                    bgcolor: "#ffffff",
+                                    "&:hover": {
+                                      bgcolor: "#fef2f2",
+                                      borderColor: "#fecaca",
+                                      color: "#dc2626",
+                                    },
+                                  }}
+                                >
+                                  <DeleteOutlineIcon />
+                                </IconButton>
+                              </Tooltip>
                             </Stack>
                           }
-                          secondary={
-                            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                              📍 Bloque {f.bloque ?? "-"} · Puesto {f.numeroStand ?? "-"}
-                            </Typography>
-                          }
-                        />
-                      </ListItem>
-                    </Paper>
-                  ))}
+                        >
+                          <ListItemText
+                            primary={
+                              <Stack
+                                direction="row"
+                                spacing={1}
+                                alignItems="center"
+                                flexWrap="wrap"
+                              >
+                                <Typography fontWeight={900}>{nombreStand}</Typography>
+                                <Chip
+                                  size="small"
+                                  label={categoria}
+                                  sx={{
+                                    borderRadius: 999,
+                                    bgcolor: "#dcfce7",
+                                    color: "#166534",
+                                    fontWeight: 800,
+                                    border: "1px solid #bbf7d0",
+                                  }}
+                                />
+                              </Stack>
+                            }
+                            secondary={
+                              <Typography
+                                variant="body2"
+                                sx={{ mt: 0.6, color: "#64748b", fontWeight: 600 }}
+                              >
+                                📍 Bloque {bloque} · Puesto {numero}
+                              </Typography>
+                            }
+                          />
+                        </ListItem>
+                      </Paper>
+                    );
+                  })}
                 </List>
               )}
             </TabPanel>
 
-            {/* COMENTARIOS */}
+            {/* COMENTARIOS TAB */}
             <TabPanel current={tab} value="comentarios">
-              <Stack direction="row" alignItems="center" justifyContent="space-between" mb={1}>
-                <Typography variant="subtitle1" fontWeight={900}>
-                  Mis comentarios a stands
+              <Stack
+                direction="row"
+                alignItems="center"
+                justifyContent="space-between"
+                mb={3}
+              >
+                <Typography variant="h6" fontWeight={900}>
+                  Mis comentarios
                 </Typography>
+
                 <Button
                   size="small"
                   variant="outlined"
                   onClick={fetchCalificaciones}
                   disabled={loadingCal}
                   startIcon={<RefreshIcon />}
-                  sx={{ borderRadius: 999, textTransform: "none", fontWeight: 800 }}
+                  sx={{
+                    borderRadius: "12px",
+                    textTransform: "none",
+                    fontWeight: 800,
+                    borderColor: "#e5e7eb",
+                    color: "#2563eb",
+                    "&:hover": { borderColor: "#2563eb", bgcolor: "#eff6ff" },
+                  }}
                 >
                   Actualizar
                 </Button>
               </Stack>
-              <Divider sx={{ mb: 2 }} />
 
               {loadingCal ? (
-                <Box sx={{ textAlign: "center", py: 3 }}>
-                  <CircularProgress size={24} />
-                  <Typography sx={{ mt: 1 }} color="text.secondary">
+                <Box sx={{ textAlign: "center", py: 6 }}>
+                  <CircularProgress size={32} sx={{ color: "#2563eb" }} />
+                  <Typography sx={{ mt: 2, fontWeight: 600 }} color="text.secondary">
                     Cargando comentarios...
                   </Typography>
                 </Box>
               ) : misCal.length === 0 ? (
-                <Typography color="text.secondary">
-                  Aún no has dejado comentarios. Ve a un stand y agrega tu reseña.
-                </Typography>
+                <Paper
+                  elevation={0}
+                  sx={{
+                    p: 5,
+                    borderRadius: 4,
+                    border: "2px dashed #cbd5e1",
+                    bgcolor: "#f8fafc",
+                    textAlign: "center",
+                  }}
+                >
+                  <ChatBubbleOutlineIcon sx={{ fontSize: 56, color: "#cbd5e1", mb: 1.5 }} />
+                  <Typography fontWeight={900} fontSize={18} mb={0.5}>
+                    Aún no tienes comentarios
+                  </Typography>
+                  <Typography color="text.secondary">
+                    Visita un stand y deja tu calificación para ayudar a otros clientes.
+                  </Typography>
+                </Paper>
               ) : (
                 <List sx={{ p: 0 }}>
-                  {misCal.map((c) => (
-                    <Paper
-                      key={c.idCalificacion}
-                      elevation={0}
-                      sx={{ mb: 1.5, p: 2, borderRadius: 3, border: "1px solid #e2e8f0", bgcolor: "#ffffff" }}
-                    >
-                      <ListItem
-                        disableGutters
-                        secondaryAction={
-                          <Button
-                            size="small"
-                            variant="outlined"
-                            onClick={() => goStand(c.idStand)}
-                            sx={{ borderRadius: 999, textTransform: "none", fontWeight: 800 }}
-                          >
-                            Ver stand
-                          </Button>
-                        }
+                  {misCal.map((c: any, idx) => {
+                    const idStand = Number(c.idStand ?? c.standId ?? 0);
+                    const nombreStand =
+                      c.nombreStand ?? c.standNombre ?? `Stand #${idStand}`;
+                    const puntuacion = Number(c.puntuacion ?? c.rating ?? 0);
+
+                    return (
+                      <Paper
+                        key={c.idCalificacion ?? `${idStand}-${idx}`}
+                        elevation={0}
+                        sx={{
+                          mb: 1.5,
+                          borderRadius: 3,
+                          border: "1px solid #e5e7eb",
+                          bgcolor: "#ffffff",
+                          boxShadow: "0 6px 18px rgba(15,23,42,0.05)",
+                          overflow: "hidden",
+                        }}
                       >
-                        <ListItemText
-                          primary={
-                            <Stack direction="row" justifyContent="space-between" alignItems="center">
-                              <Typography fontWeight={900}>
-                                {c.nombreStand ?? `Stand #${c.idStand}`}
-                              </Typography>
-                              <Typography variant="caption" color="text.secondary">
-                                {formatFecha(c.fecha)}
-                              </Typography>
-                            </Stack>
+                        <ListItem
+                          sx={{ px: 2.5, py: 2 }}
+                          disableGutters
+                          secondaryAction={
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              onClick={() => goStand(idStand)}
+                              sx={{
+                                borderRadius: 999,
+                                textTransform: "none",
+                                fontWeight: 900,
+                                borderColor: "#e5e7eb",
+                                "&:hover": {
+                                  borderColor: "#2563eb",
+                                  bgcolor: "#eff6ff",
+                                },
+                              }}
+                            >
+                              Ver stand
+                            </Button>
                           }
-                          secondary={
-                            <Box sx={{ mt: 0.75 }}>
-                              <Rating value={Number(c.puntuacion ?? 0)} readOnly size="small" />
-                              <Typography variant="body2" sx={{ mt: 0.75, whiteSpace: "pre-wrap" }}>
-                                {c.comentario?.trim()
-                                  ? c.comentario
-                                  : "Sin comentario (solo puntuación)."}
-                              </Typography>
-                            </Box>
-                          }
-                        />
-                      </ListItem>
-                    </Paper>
-                  ))}
+                        >
+                          <ListItemText
+                            primary={
+                              <Stack
+                                direction="row"
+                                justifyContent="space-between"
+                                alignItems="center"
+                                flexWrap="wrap"
+                                gap={1}
+                              >
+                                <Typography fontWeight={900}>{nombreStand}</Typography>
+                                <Chip
+                                  size="small"
+                                  label={formatFecha(c.fecha)}
+                                  sx={{
+                                    borderRadius: 999,
+                                    bgcolor: "#f8fafc",
+                                    border: "1px solid #e5e7eb",
+                                    fontWeight: 800,
+                                  }}
+                                />
+                              </Stack>
+                            }
+                            secondary={
+                              <Box sx={{ mt: 1 }}>
+                                <Rating value={puntuacion} readOnly precision={0.5} size="small" />
+                                <Typography
+                                  variant="body2"
+                                  sx={{
+                                    mt: 1,
+                                    color: "#334155",
+                                    fontWeight: 600,
+                                    whiteSpace: "pre-wrap",
+                                  }}
+                                >
+                                  {c.comentario?.trim()
+                                    ? c.comentario
+                                    : "Sin comentario (solo puntuación)."}
+                                </Typography>
+                              </Box>
+                            }
+                          />
+                        </ListItem>
+                      </Paper>
+                    );
+                  })}
                 </List>
               )}
             </TabPanel>

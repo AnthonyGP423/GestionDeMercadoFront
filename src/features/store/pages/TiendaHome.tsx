@@ -1,4 +1,5 @@
 // src/pages/Store/TiendaHome.tsx
+import { useEffect, useMemo, useState } from "react";
 import {
   Box,
   Container,
@@ -9,30 +10,114 @@ import {
   Stack,
   alpha,
   Fade,
+  Divider,
 } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 
 import PublicHeader from "../../../layouts/store/HeaderTienda";
 import PublicFooter from "../../../layouts/store/FooterTienda";
 
-// ICONOS MUI
+import { useAuthContext } from "../../../auth/AuthContext";
+
+import { clienteApi } from "../../../api/cliente/clienteApi";
+
+// ICONOS MUI (bloques)
 import LocalFloristIcon from "@mui/icons-material/LocalFlorist";
 import EcoIcon from "@mui/icons-material/EnergySavingsLeafOutlined";
 import KebabDiningIcon from "@mui/icons-material/KebabDining";
+import StorefrontIcon from "@mui/icons-material/Storefront";
+
+// ICONOS MUI (categorías)
 import EggAltIcon from "@mui/icons-material/EggAlt";
 import SetMealIcon from "@mui/icons-material/SetMeal";
-import BakeryDiningIcon from "@mui/icons-material/BakeryDining";
-import SportsEsportsIcon from "@mui/icons-material/SportsEsports";
 import LiquorIcon from "@mui/icons-material/Liquor";
-import Inventory2Icon from "@mui/icons-material/Inventory2";
 import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
+
+// ✅ Iconos más adecuados
+import ShoppingBasketIcon from "@mui/icons-material/ShoppingBasket"; // Abarrotes
+import LocalDrinkIcon from "@mui/icons-material/LocalDrink"; // Lácteos
+import AllInboxIcon from "@mui/icons-material/AllInbox"; // Empacados
+
+// HERO
 import ExploreIcon from "@mui/icons-material/Explore";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
-import StorefrontIcon from "@mui/icons-material/Storefront";
+
+// Acciones
+import AccountCircleIcon from "@mui/icons-material/AccountCircle";
+import LogoutIcon from "@mui/icons-material/Logout";
+import FavoriteBorderIcon from "@mui/icons-material/FavoriteBorder";
+
+function normalizeRole(rol?: string) {
+  return String(rol ?? "").toUpperCase();
+}
+function isClienteRole(rol?: string) {
+  const r = normalizeRole(rol);
+  return r === "CLIENTE" || r === "ROLE_CLIENTE";
+}
 
 export default function TiendaHome() {
   const navigate = useNavigate();
+  const { isAuthenticated, user, token, login, logout } = useAuthContext();
+
+  const clienteLogueado = isAuthenticated && isClienteRole(user?.rol);
+
+  // ✅ Traemos un "displayName" inteligente:
+  // - 1) nombreCompleto si existe
+  // - 2) nombres+apellidos si los tenemos (luego del /me)
+  // - 3) email como fallback
+  const displayName = useMemo(() => {
+    const nombreCompleto = user?.nombreCompleto?.trim();
+    if (nombreCompleto) return nombreCompleto;
+
+    // Si tu backend ya devuelve nombres/apellidos, los juntamos cuando los guardemos en nombreCompleto
+    // (Esto ya quedará resuelto después de la llamada /me).
+    const email = user?.email?.trim();
+    return email || "Cliente";
+  }, [user]);
+
+  // ✅ Si está logueado como cliente pero no tiene nombreCompleto,
+  // consultamos /api/v1/cliente/me y actualizamos AuthContext.
+  const [loadingMe, setLoadingMe] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const needsMe =
+      clienteLogueado &&
+      !!token &&
+      (!user?.nombreCompleto || user.nombreCompleto.trim().length < 2);
+
+    if (!needsMe || loadingMe) return;
+
+    (async () => {
+      try {
+        setLoadingMe(true);
+        const { data } = await clienteApi.me();
+
+        if (cancelled) return;
+
+        const nombreCompleto = `${data.nombres ?? ""} ${data.apellidos ?? ""}`.trim();
+
+        // ✅ Re-hidratamos el contexto con el mismo token (sin romper sesión)
+        login(token!, {
+          email: data.email,
+          nombreCompleto: nombreCompleto || data.email,
+          rol: data.rol ?? "CLIENTE",
+        });
+      } catch (e) {
+        // Si falla, no rompemos nada: seguirá mostrando email.
+        console.warn("No se pudo obtener /cliente/me:", e);
+      } finally {
+        if (!cancelled) setLoadingMe(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clienteLogueado, token, user?.nombreCompleto]);
 
   const irAProductos = (categoriaFiltro?: string) => {
     if (categoriaFiltro) {
@@ -44,19 +129,21 @@ export default function TiendaHome() {
     }
   };
 
-  const irAMapaStands = () => {
-    navigate("/tienda/mapa-stand");
+  const irAMapaStands = () => navigate("/tienda/mapa-stand");
+  const irLoginCliente = () => navigate("/cliente/login");
+  const irRegistroCliente = () => navigate("/cliente/registro");
+
+  // ✅ RUTA REAL que pediste
+  const irMiCuenta = () => navigate("/tienda/perfil-usuario");
+
+  // Si aún no existe favoritos, cámbialo por /tienda o elimínalo.
+  const irFavoritos = () => navigate("/tienda/favoritos");
+
+  const cerrarSesion = () => {
+    logout();
+    navigate("/tienda", { replace: true });
   };
 
-  const irLoginCliente = () => {
-    navigate("/cliente/login");
-  };
-
-  const irRegistroCliente = () => {
-    navigate("/cliente/registro");
-  };
-
-  // === DATOS ===
   const bloques = [
     {
       id: "A",
@@ -97,68 +184,16 @@ export default function TiendaHome() {
   ];
 
   const categorias = [
-    {
-      nombre: "Frutas",
-      tag: "Popular",
-      icon: <LocalFloristIcon />,
-      value: "frutas",
-      color: "#22c55e",
-    },
-    {
-      nombre: "Verduras",
-      tag: "Popular",
-      icon: <EcoIcon />,
-      value: "verduras",
-      color: "#10b981",
-    },
-    {
-      nombre: "Carnes",
-      icon: <KebabDiningIcon />,
-      value: "carnes",
-      color: "#ef4444",
-    },
-    {
-      nombre: "Aves",
-      icon: <EggAltIcon />,
-      value: "aves",
-      color: "#f59e0b",
-    },
-    {
-      nombre: "Pescados",
-      icon: <SetMealIcon />,
-      value: "pescados",
-      color: "#3b82f6",
-    },
-    {
-      nombre: "Abarrotes",
-      icon: <BakeryDiningIcon />,
-      value: "abarrotes",
-      color: "#8b5cf6",
-    },
-    {
-      nombre: "Lácteos",
-      icon: <SportsEsportsIcon />,
-      value: "lacteos",
-      color: "#06b6d4",
-    },
-    {
-      nombre: "Bebidas",
-      icon: <LiquorIcon />,
-      value: "bebidas",
-      color: "#6366f1",
-    },
-    {
-      nombre: "Empacados",
-      icon: <Inventory2Icon />,
-      value: "otros",
-      color: "#64748b",
-    },
-    {
-      nombre: "Otros",
-      icon: <MoreHorizIcon />,
-      value: "otros",
-      color: "#94a3b8",
-    },
+    { nombre: "Frutas", tag: "Popular", icon: <LocalFloristIcon />, value: "frutas", color: "#22c55e" },
+    { nombre: "Verduras", tag: "Popular", icon: <EcoIcon />, value: "verduras", color: "#10b981" },
+    { nombre: "Carnes", icon: <KebabDiningIcon />, value: "carnes", color: "#ef4444" },
+    { nombre: "Aves", icon: <EggAltIcon />, value: "aves", color: "#f59e0b" },
+    { nombre: "Pescados", icon: <SetMealIcon />, value: "pescados", color: "#3b82f6" },
+    { nombre: "Abarrotes", icon: <ShoppingBasketIcon />, value: "abarrotes", color: "#8b5cf6" },
+    { nombre: "Lácteos", icon: <LocalDrinkIcon />, value: "lacteos", color: "#06b6d4" },
+    { nombre: "Bebidas", icon: <LiquorIcon />, value: "bebidas", color: "#6366f1" },
+    { nombre: "Empacados", icon: <AllInboxIcon />, value: "empacados", color: "#64748b" },
+    { nombre: "Otros", icon: <MoreHorizIcon />, value: "otros", color: "#94a3b8" },
   ];
 
   return (
@@ -172,10 +207,9 @@ export default function TiendaHome() {
           "radial-gradient(circle at 15% 50%, rgba(22, 163, 74, 0.05) 0%, transparent 25%), radial-gradient(circle at 85% 30%, rgba(245, 158, 11, 0.05) 0%, transparent 25%)",
       }}
     >
-      {/* HEADER */}
       <PublicHeader />
 
-      {/* HERO SECTION */}
+      {/* HERO */}
       <Box
         sx={{
           position: "relative",
@@ -192,10 +226,7 @@ export default function TiendaHome() {
           "&::before": {
             content: '""',
             position: "absolute",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
+            inset: 0,
             background:
               "linear-gradient(135deg, transparent 30%, rgba(22, 163, 74, 0.1) 100%)",
             pointerEvents: "none",
@@ -237,8 +268,7 @@ export default function TiendaHome() {
                   mb: 3,
                   fontFamily: '"Inter", "Poppins", sans-serif',
                   fontSize: { xs: "2.75rem", md: "3.75rem" },
-                  background:
-                    "linear-gradient(135deg, #ffffff 0%, #e5e7eb 100%)",
+                  background: "linear-gradient(135deg, #ffffff 0%, #e5e7eb 100%)",
                   WebkitBackgroundClip: "text",
                   WebkitTextFillColor: "transparent",
                   textShadow: "0 2px 4px rgba(0,0,0,0.1)",
@@ -263,7 +293,7 @@ export default function TiendaHome() {
                 competitivos del mercado mayorista.
               </Typography>
 
-              {/* BOTONES HERO */}
+              {/* BOTONES */}
               <Stack
                 direction={{ xs: "column", sm: "row" }}
                 spacing={2}
@@ -282,13 +312,10 @@ export default function TiendaHome() {
                     fontWeight: 700,
                     fontSize: "1.05rem",
                     textTransform: "none",
-                    backgroundColor: "#16a34a",
-                    background:
-                      "linear-gradient(135deg, #16a34a 0%, #22c55e 100%)",
+                    background: "linear-gradient(135deg, #16a34a 0%, #22c55e 100%)",
                     boxShadow: "0 8px 32px rgba(22,163,74,0.4)",
                     "&:hover": {
-                      background:
-                        "linear-gradient(135deg, #15803d 0%, #16a34a 100%)",
+                      background: "linear-gradient(135deg, #15803d 0%, #16a34a 100%)",
                       boxShadow: "0 12px 40px rgba(22,163,74,0.6)",
                       transform: "translateY(-2px)",
                     },
@@ -310,13 +337,10 @@ export default function TiendaHome() {
                     fontWeight: 700,
                     fontSize: "1.05rem",
                     textTransform: "none",
-                    backgroundColor: "#f59e0b",
-                    background:
-                      "linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%)",
+                    background: "linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%)",
                     boxShadow: "0 8px 32px rgba(245,158,11,0.4)",
                     "&:hover": {
-                      background:
-                        "linear-gradient(135deg, #d97706 0%, #f59e0b 100%)",
+                      background: "linear-gradient(135deg, #d97706 0%, #f59e0b 100%)",
                       boxShadow: "0 12px 40px rgba(217,119,6,0.6)",
                       transform: "translateY(-2px)",
                     },
@@ -328,70 +352,168 @@ export default function TiendaHome() {
                 </Button>
               </Stack>
 
-              {/* ACCESO CLIENTES */}
-              <Box
-                sx={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 2,
-                  p: 2,
-                  borderRadius: 3,
-                  bgcolor: "rgba(255,255,255,0.08)",
-                  backdropFilter: "blur(10px)",
-                  border: "1px solid rgba(255,255,255,0.1)",
-                }}
-              >
-                <Typography
-                  variant="body2"
-                  sx={{ opacity: 0.9, fontWeight: 500 }}
+              {/* LOGIN / SALUDO */}
+              {!clienteLogueado ? (
+                <Box
+                  sx={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 2,
+                    p: 2,
+                    borderRadius: 3,
+                    bgcolor: "rgba(255,255,255,0.08)",
+                    backdropFilter: "blur(10px)",
+                    border: "1px solid rgba(255,255,255,0.1)",
+                  }}
                 >
-                  ¿Eres cliente registrado?
-                </Typography>
-                <Stack direction="row" spacing={1} alignItems="center">
-                  <Button
-                    variant="text"
-                    size="small"
-                    endIcon={<ArrowForwardIcon sx={{ fontSize: 16 }} />}
-                    sx={{
-                      textTransform: "none",
-                      color: "#e5e7eb",
-                      fontWeight: 600,
-                      px: 2,
-                      py: 0.5,
-                      borderRadius: 2,
-                      "&:hover": {
-                        bgcolor: "rgba(255,255,255,0.1)",
-                        color: "#ffffff",
-                      },
-                    }}
-                    onClick={irLoginCliente}
-                  >
-                    Iniciar Sesión
-                  </Button>
-                  <Box sx={{ color: "rgba(255,255,255,0.3)" }}>|</Box>
-                  <Button
-                    variant="outlined"
-                    size="small"
-                    sx={{
-                      textTransform: "none",
-                      color: "#facc15",
-                      borderColor: "rgba(250,204,21,0.3)",
-                      fontWeight: 700,
-                      px: 2,
-                      py: 0.5,
-                      borderRadius: 2,
-                      "&:hover": {
-                        borderColor: "#facc15",
-                        bgcolor: "rgba(250,204,21,0.1)",
-                        color: "#fef08a",
-                      },
-                    }}
-                    onClick={irRegistroCliente}
-                  >
-                    Registrarme
-                  </Button>
-                </Stack>
-              </Box>
+                  <Typography variant="body2" sx={{ opacity: 0.9, fontWeight: 500 }}>
+                    ¿Eres cliente registrado?
+                  </Typography>
+
+                  <Stack direction="row" spacing={1} alignItems="center">
+                    <Button
+                      variant="text"
+                      size="small"
+                      endIcon={<ArrowForwardIcon sx={{ fontSize: 16 }} />}
+                      sx={{
+                        textTransform: "none",
+                        color: "#e5e7eb",
+                        fontWeight: 600,
+                        px: 2,
+                        py: 0.5,
+                        borderRadius: 2,
+                        "&:hover": {
+                          bgcolor: "rgba(255,255,255,0.1)",
+                          color: "#ffffff",
+                        },
+                      }}
+                      onClick={irLoginCliente}
+                    >
+                      Iniciar Sesión
+                    </Button>
+
+                    <Box sx={{ color: "rgba(255,255,255,0.3)" }}>|</Box>
+
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      sx={{
+                        textTransform: "none",
+                        color: "#facc15",
+                        borderColor: "rgba(250,204,21,0.3)",
+                        fontWeight: 700,
+                        px: 2,
+                        py: 0.5,
+                        borderRadius: 2,
+                        "&:hover": {
+                          borderColor: "#facc15",
+                          bgcolor: "rgba(250,204,21,0.1)",
+                          color: "#fef08a",
+                        },
+                      }}
+                      onClick={irRegistroCliente}
+                    >
+                      Registrarme
+                    </Button>
+                  </Stack>
+                </Box>
+              ) : (
+                <Box
+                  sx={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 2,
+                    p: 2,
+                    borderRadius: 3,
+                    bgcolor: "rgba(255,255,255,0.08)",
+                    backdropFilter: "blur(10px)",
+                    border: "1px solid rgba(255,255,255,0.1)",
+                  }}
+                >
+                  <Box sx={{ textAlign: "left" }}>
+                    <Typography variant="body2" sx={{ opacity: 0.95, fontWeight: 800 }}>
+                      👋 Hola, {displayName}
+                      {loadingMe ? "…" : ""}
+                    </Typography>
+                    <Typography variant="caption" sx={{ opacity: 0.85, color: "#e2e8f0" }}>
+                      Bienvenido de vuelta. Accede rápido a tus opciones.
+                    </Typography>
+                  </Box>
+
+                  <Divider
+                    orientation="vertical"
+                    flexItem
+                    sx={{ borderColor: "rgba(255,255,255,0.15)" }}
+                  />
+
+                  <Stack direction="row" spacing={1} alignItems="center">
+                    <Button
+                      variant="text"
+                      size="small"
+                      startIcon={<AccountCircleIcon sx={{ fontSize: 18 }} />}
+                      sx={{
+                        textTransform: "none",
+                        color: "#e5e7eb",
+                        fontWeight: 700,
+                        px: 2,
+                        py: 0.5,
+                        borderRadius: 2,
+                        "&:hover": {
+                          bgcolor: "rgba(255,255,255,0.1)",
+                          color: "#ffffff",
+                        },
+                      }}
+                      onClick={irMiCuenta}
+                    >
+                      Mi cuenta
+                    </Button>
+
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      startIcon={<FavoriteBorderIcon sx={{ fontSize: 18 }} />}
+                      sx={{
+                        textTransform: "none",
+                        color: "#facc15",
+                        borderColor: "rgba(250,204,21,0.3)",
+                        fontWeight: 800,
+                        px: 2,
+                        py: 0.5,
+                        borderRadius: 2,
+                        "&:hover": {
+                          borderColor: "#facc15",
+                          bgcolor: "rgba(250,204,21,0.1)",
+                          color: "#fef08a",
+                        },
+                      }}
+                      onClick={irFavoritos}
+                    >
+                      Favoritos
+                    </Button>
+
+                    <Button
+                      variant="text"
+                      size="small"
+                      startIcon={<LogoutIcon sx={{ fontSize: 18 }} />}
+                      sx={{
+                        textTransform: "none",
+                        color: "rgba(255,255,255,0.85)",
+                        fontWeight: 700,
+                        px: 2,
+                        py: 0.5,
+                        borderRadius: 2,
+                        "&:hover": {
+                          bgcolor: "rgba(255,255,255,0.1)",
+                          color: "#ffffff",
+                        },
+                      }}
+                      onClick={cerrarSesion}
+                    >
+                      Salir
+                    </Button>
+                  </Stack>
+                </Box>
+              )}
             </Box>
           </Fade>
         </Container>
@@ -407,7 +529,7 @@ export default function TiendaHome() {
           px: { xs: 2, sm: 3 },
         }}
       >
-        {/* SECCIÓN: BLOQUES */}
+        {/* BLOQUES */}
         <Box sx={{ mb: 8 }}>
           <Box sx={{ textAlign: "center", mb: 6 }}>
             <Typography
@@ -448,7 +570,6 @@ export default function TiendaHome() {
             </Typography>
           </Box>
 
-          {/* REJILLA DE BLOQUES */}
           <Box
             sx={{
               display: "grid",
@@ -465,9 +586,7 @@ export default function TiendaHome() {
                 key={i}
                 elevation={0}
                 onClick={() =>
-                  navigate("/tienda/mapa-stand", {
-                    state: { initialBlock: b.id },
-                  })
+                  navigate("/tienda/mapa-stand", { state: { initialBlock: b.id } })
                 }
                 sx={{
                   borderRadius: 4,
@@ -493,10 +612,7 @@ export default function TiendaHome() {
                     "&::before": {
                       content: '""',
                       position: "absolute",
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      bottom: 0,
+                      inset: 0,
                       background: `linear-gradient(to bottom, transparent 0%, ${alpha(
                         b.color,
                         0.1
@@ -513,9 +629,7 @@ export default function TiendaHome() {
                       backgroundSize: "cover",
                       backgroundPosition: "center",
                       transition: "transform 0.5s ease",
-                      "&:hover": {
-                        transform: "scale(1.05)",
-                      },
+                      "&:hover": { transform: "scale(1.05)" },
                     }}
                   />
                   <Box
@@ -566,7 +680,7 @@ export default function TiendaHome() {
           </Box>
         </Box>
 
-        {/* SECCIÓN: CATEGORÍAS */}
+        {/* CATEGORÍAS */}
         <Box sx={{ mb: 4 }}>
           <Box sx={{ textAlign: "center", mb: 6 }}>
             <Typography
@@ -606,7 +720,6 @@ export default function TiendaHome() {
             </Typography>
           </Box>
 
-          {/* REJILLA DE CATEGORÍAS */}
           <Box
             sx={{
               display: "grid",
@@ -660,9 +773,7 @@ export default function TiendaHome() {
                       transform: "scale(1.1)",
                       bgcolor: alpha(cat.color, 0.15),
                     },
-                    "& svg": {
-                      fontSize: 32,
-                    },
+                    "& svg": { fontSize: 32 },
                   }}
                 >
                   {cat.icon}
@@ -702,7 +813,6 @@ export default function TiendaHome() {
         </Box>
       </Container>
 
-      {/* FOOTER */}
       <Box sx={{ mt: "auto" }}>
         <PublicFooter />
       </Box>

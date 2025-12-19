@@ -56,12 +56,12 @@ function daysFromToday(iso?: string) {
   return Math.round((a.getTime() - t.getTime()) / (1000 * 60 * 60 * 24));
 }
 
-type EstadoUI = "" | "PAGADA" | "PENDIENTE" | "VENCIDA";
+type EstadoUI = "" | "PAGADO" | "PENDIENTE" | "VENCIDA";
 type OrdenUI = "VENC_ASC" | "VENC_DESC" | "SALDO_DESC";
 
-function estadoDerivado(c: SocioCuotaDto): "PAGADA" | "PENDIENTE" | "VENCIDA" {
+function estadoDerivado(c: SocioCuotaDto): "PAGADO" | "PENDIENTE" | "VENCIDA" {
   const est = String(c.estado ?? "").toUpperCase().trim();
-  if (est === "PAGADA") return "PAGADA";
+  if (est === "PAGADO") return "PAGADO";
 
   const fv = parseDate(c.fechaVencimiento);
   const today = new Date(); today.setHours(0,0,0,0);
@@ -159,7 +159,7 @@ export default function MisCuotas() {
 
     for (const c of cuotas) {
       const ed = estadoDerivado(c);
-      if (ed === "PAGADA") pagadas++;
+      if (ed === "PAGADO") pagadas++;
       else if (ed === "VENCIDA") vencidas++;
       else pendientes++;
 
@@ -171,7 +171,7 @@ export default function MisCuotas() {
 
   const proxima = useMemo(() => {
     const noPagadas = cuotas
-      .filter((c) => estadoDerivado(c) !== "PAGADA")
+      .filter((c) => estadoDerivado(c) !== "PAGADO")
       .sort((a, b) => {
         const da = parseDate(a.fechaVencimiento)?.getTime() ?? Number.MAX_SAFE_INTEGER;
         const db = parseDate(b.fechaVencimiento)?.getTime() ?? Number.MAX_SAFE_INTEGER;
@@ -198,7 +198,7 @@ export default function MisCuotas() {
 
   const chipEstado = (c: SocioCuotaDto) => {
     const ed = estadoDerivado(c);
-    if (ed === "PAGADA") return { label: "PAGADA", bg: greenSoft, color: green };
+    if (ed === "PAGADO") return { label: "PAGADO", bg: greenSoft, color: green };
     if (ed === "VENCIDA") return { label: "VENCIDA", bg: redSoft, color: red };
     return { label: "PENDIENTE", bg: amberSoft, color: amber };
   };
@@ -325,7 +325,7 @@ export default function MisCuotas() {
           sx={{ width: 200 }}
         >
           <MenuItem value="">Todos</MenuItem>
-          <MenuItem value="PAGADA">Pagada</MenuItem>
+          <MenuItem value="PAGADO">Pagada</MenuItem>
           <MenuItem value="PENDIENTE">Pendiente</MenuItem>
           <MenuItem value="VENCIDA">Vencida</MenuItem>
         </TextField>
@@ -373,7 +373,7 @@ export default function MisCuotas() {
 
             // resumen stand
             const total = grupo.length;
-            const pagadas = grupo.filter((c) => estadoDerivado(c) === "PAGADA").length;
+            const pagadas = grupo.filter((c) => estadoDerivado(c) === "PAGADO").length;
             const saldo = grupo.reduce((acc, c) => acc + Number(c.saldoPendiente ?? 0), 0);
 
             // progreso (si hay montoCuota/montoPagado, si no, aproximamos por cuotas pagadas)

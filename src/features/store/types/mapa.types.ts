@@ -1,10 +1,8 @@
 // src/features/store/types/mapa.types.ts
 
-// Bloque dinámico
 export type Bloque = string;
 export type Pasillo = 1 | 2;
 
-// Estados alineados con backend / panel
 export type StandEstado = "ABIERTO" | "CERRADO" | "CLAUSURADO" | "DISPONIBLE";
 
 export type StandBase = {
@@ -14,16 +12,19 @@ export type StandBase = {
   nombreComercial: string;
   rubro: string;
   estado: StandEstado;
+
+  // ✅ NUEVO (opcional para no romper)
+  idCategoriaStand?: number | null;
+  nombreCategoriaStand?: string | null;
+  categoriaColorHex?: string | null;
 };
 
-// Tipo usado en el mapa
 export type StandMapa = StandBase & {
   pasillo?: Pasillo;
   orden?: number;
   numero: string;
 };
 
-// Resumen de bloques desde backend
 export interface BloqueResumen {
   bloque: Bloque;
   totalStands?: number;
