@@ -1,4 +1,4 @@
-import { useState, FormEvent } from "react";
+import { useState, FormEvent, ChangeEvent } from "react";
 import {
   Box,
   Button,
@@ -28,6 +28,15 @@ import { clientePublicApi } from "../../api/public/clientePublicApi";
 import { authApi } from "../../api//auth/authApi";
 import { useAuthContext } from "../../auth/AuthContext";
 
+type FieldErrors = {
+  nombres?: string;
+  apellidos?: string;
+  telefono?: string;
+  email?: string;
+  pass?: string;
+  confirmPass?: string;
+};
+
 const Registrate = () => {
   const navigate = useNavigate();
   const { login } = useAuthContext();
@@ -41,33 +50,108 @@ const Registrate = () => {
 
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
 
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const [successOpen, setSuccessOpen] = useState(false);
 
-  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+  const clearFieldError = (field: keyof FieldErrors) => {
+    if (!fieldErrors[field]) return;
+    setFieldErrors((prev) => {
+      const copy = { ...prev };
+      delete copy[field];
+      return copy;
+    });
+  };
 
-    // Validación con los campos correctos
-    if (
-      !nombres.trim() ||
-      !apellidos.trim() ||
-      !email.trim() ||
-      !pass.trim() ||
-      !confirmPass.trim()
-    ) {
-      setErrorMsg("Por favor completa todos los campos obligatorios.");
-      return;
+  const handleTelefonoChange = (e: ChangeEvent<HTMLInputElement>) => {
+    // Solo números
+    const soloNumeros = e.target.value.replace(/\D/g, "");
+    // Máx. 9 dígitos
+    if (soloNumeros.length <= 9) {
+      setTelefono(soloNumeros);
+      clearFieldError("telefono");
+    }
+  };
+
+  const validateForm = () => {
+    const errors: FieldErrors = {};
+    const trimmedNombres = nombres.trim();
+    const trimmedApellidos = apellidos.trim();
+    const trimmedEmail = email.trim();
+    const trimmedTelefono = telefono.trim();
+    const password = pass;
+    const passwordConfirm = confirmPass;
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const phoneRegex = /^[0-9]{9}$/;
+
+    // Nombres
+    if (!trimmedNombres) {
+      errors.nombres = "Ingresa tus nombres.";
+    } else if (trimmedNombres.length < 2) {
+      errors.nombres = "Los nombres deben tener al menos 2 caracteres.";
     }
 
-    if (pass !== confirmPass) {
-      setErrorMsg("Las contraseñas no coinciden.");
-      return;
+    // Apellidos
+    if (!trimmedApellidos) {
+      errors.apellidos = "Ingresa tus apellidos.";
+    } else if (trimmedApellidos.length < 2) {
+      errors.apellidos = "Los apellidos deben tener al menos 2 caracteres.";
+    }
+
+    // Teléfono (opcional)
+    if (trimmedTelefono) {
+      if (!phoneRegex.test(trimmedTelefono)) {
+        errors.telefono = "Ingresa un teléfono válido de 9 dígitos.";
+      }
+    }
+
+    // Email
+    if (!trimmedEmail) {
+      errors.email = "Ingresa tu correo electrónico.";
+    } else if (!emailRegex.test(trimmedEmail)) {
+      errors.email = "Ingresa un correo electrónico válido.";
+    }
+
+    // Contraseña
+    if (!password.trim()) {
+      errors.pass = "Ingresa una contraseña.";
+    } else if (password.length < 8) {
+      errors.pass = "La contraseña debe tener mínimo 8 caracteres.";
+    } else {
+      const hasLetter = /[A-Za-z]/.test(password);
+      const hasNumber = /[0-9]/.test(password);
+      if (!hasLetter || !hasNumber) {
+        errors.pass = "La contraseña debe tener letras y números.";
+      }
+    }
+
+    // Confirmar contraseña
+    if (!passwordConfirm.trim()) {
+      errors.confirmPass = "Confirma tu contraseña.";
+    } else if (passwordConfirm !== password) {
+      errors.confirmPass = "Las contraseñas no coinciden.";
+    }
+
+    setFieldErrors(errors);
+
+    if (Object.keys(errors).length > 0) {
+      setErrorMsg("Por favor corrige los campos marcados en rojo.");
+      return false;
     }
 
     setErrorMsg("");
+    return true;
+  };
+
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+
+    if (!validateForm()) return;
+
     setLoading(true);
 
     try {
@@ -83,7 +167,7 @@ const Registrate = () => {
       // 2) Auto-login REAL (obtener token)
       const resp = await authApi.login({ email: email.trim(), password: pass });
 
-      // 3) Guardar sesión en AuthContext (debe guardar como CLIENTE si rol es CLIENTE/ROLE_CLIENTE)
+      // 3) Guardar sesión en AuthContext
       login(resp.data.token, { email: resp.data.email, rol: resp.data.rol });
 
       // 4) Aviso + redirección a /tienda logueado
@@ -103,7 +187,6 @@ const Registrate = () => {
     }
   };
 
-  // Navegar al LOGIN DE CLIENTE, no al admin
   const handleGoLogin = () => navigate("/cliente/login");
 
   return (
@@ -253,8 +336,8 @@ const Registrate = () => {
               mx: "auto",
             }}
           >
-            Regístrate para acceder a favoritos, calificaciones y funciones de la
-            tienda
+            Regístrate para acceder a favoritos, calificaciones y funciones de
+            la tienda
           </Typography>
         </Box>
 
@@ -266,24 +349,37 @@ const Registrate = () => {
               variant="outlined"
               fullWidth
               value={nombres}
-              onChange={(e) => setNombres(e.target.value)}
+              onChange={(e) => {
+                setNombres(e.target.value);
+                clearFieldError("nombres");
+              }}
+              error={Boolean(fieldErrors.nombres)}
+              helperText={fieldErrors.nombres}
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
-                    <PersonOutlineIcon sx={{ color: "#f59e0b", fontSize: 20 }} />
+                    <PersonOutlineIcon
+                      sx={{ color: "#f59e0b", fontSize: 20 }}
+                    />
                   </InputAdornment>
                 ),
                 sx: {
                   borderRadius: 3,
                   bgcolor: "#fffbeb",
                   "& fieldset": {
-                    borderColor: "rgba(245,158,11,0.15)",
+                    borderColor: fieldErrors.nombres
+                      ? "#fca5a5"
+                      : "rgba(245,158,11,0.15)",
                   },
                   "&:hover fieldset": {
-                    borderColor: "rgba(245,158,11,0.3) !important",
+                    borderColor: fieldErrors.nombres
+                      ? "#f97373 !important"
+                      : "rgba(245,158,11,0.3) !important",
                   },
                   "&.Mui-focused fieldset": {
-                    borderColor: "#f59e0b !important",
+                    borderColor: fieldErrors.nombres
+                      ? "#ef4444 !important"
+                      : "#f59e0b !important",
                     borderWidth: "2px !important",
                   },
                 },
@@ -291,7 +387,7 @@ const Registrate = () => {
               InputLabelProps={{
                 sx: {
                   "&.Mui-focused": {
-                    color: "#f59e0b",
+                    color: fieldErrors.nombres ? "#ef4444" : "#f59e0b",
                   },
                 },
               }}
@@ -302,24 +398,37 @@ const Registrate = () => {
               variant="outlined"
               fullWidth
               value={apellidos}
-              onChange={(e) => setApellidos(e.target.value)}
+              onChange={(e) => {
+                setApellidos(e.target.value);
+                clearFieldError("apellidos");
+              }}
+              error={Boolean(fieldErrors.apellidos)}
+              helperText={fieldErrors.apellidos}
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
-                    <PersonOutlineIcon sx={{ color: "#f59e0b", fontSize: 20 }} />
+                    <PersonOutlineIcon
+                      sx={{ color: "#f59e0b", fontSize: 20 }}
+                    />
                   </InputAdornment>
                 ),
                 sx: {
                   borderRadius: 3,
                   bgcolor: "#fffbeb",
                   "& fieldset": {
-                    borderColor: "rgba(245,158,11,0.15)",
+                    borderColor: fieldErrors.apellidos
+                      ? "#fca5a5"
+                      : "rgba(245,158,11,0.15)",
                   },
                   "&:hover fieldset": {
-                    borderColor: "rgba(245,158,11,0.3) !important",
+                    borderColor: fieldErrors.apellidos
+                      ? "#f97373 !important"
+                      : "rgba(245,158,11,0.3) !important",
                   },
                   "&.Mui-focused fieldset": {
-                    borderColor: "#f59e0b !important",
+                    borderColor: fieldErrors.apellidos
+                      ? "#ef4444 !important"
+                      : "#f59e0b !important",
                     borderWidth: "2px !important",
                   },
                 },
@@ -327,7 +436,7 @@ const Registrate = () => {
               InputLabelProps={{
                 sx: {
                   "&.Mui-focused": {
-                    color: "#f59e0b",
+                    color: fieldErrors.apellidos ? "#ef4444" : "#f59e0b",
                   },
                 },
               }}
@@ -338,7 +447,14 @@ const Registrate = () => {
               variant="outlined"
               fullWidth
               value={telefono}
-              onChange={(e) => setTelefono(e.target.value)}
+              onChange={handleTelefonoChange}
+              error={Boolean(fieldErrors.telefono)}
+              helperText={fieldErrors.telefono}
+              inputProps={{
+                inputMode: "numeric",
+                pattern: "[0-9]*",
+                maxLength: 9,
+              }}
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
@@ -351,13 +467,19 @@ const Registrate = () => {
                   borderRadius: 3,
                   bgcolor: "#fffbeb",
                   "& fieldset": {
-                    borderColor: "rgba(245,158,11,0.15)",
+                    borderColor: fieldErrors.telefono
+                      ? "#fca5a5"
+                      : "rgba(245,158,11,0.15)",
                   },
                   "&:hover fieldset": {
-                    borderColor: "rgba(245,158,11,0.3) !important",
+                    borderColor: fieldErrors.telefono
+                      ? "#f97373 !important"
+                      : "rgba(245,158,11,0.3) !important",
                   },
                   "&.Mui-focused fieldset": {
-                    borderColor: "#f59e0b !important",
+                    borderColor: fieldErrors.telefono
+                      ? "#ef4444 !important"
+                      : "#f59e0b !important",
                     borderWidth: "2px !important",
                   },
                 },
@@ -365,7 +487,7 @@ const Registrate = () => {
               InputLabelProps={{
                 sx: {
                   "&.Mui-focused": {
-                    color: "#f59e0b",
+                    color: fieldErrors.telefono ? "#ef4444" : "#f59e0b",
                   },
                 },
               }}
@@ -377,24 +499,37 @@ const Registrate = () => {
               fullWidth
               type="email"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                clearFieldError("email");
+              }}
+              error={Boolean(fieldErrors.email)}
+              helperText={fieldErrors.email}
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
-                    <EmailOutlinedIcon sx={{ color: "#f59e0b", fontSize: 20 }} />
+                    <EmailOutlinedIcon
+                      sx={{ color: "#f59e0b", fontSize: 20 }}
+                    />
                   </InputAdornment>
                 ),
                 sx: {
                   borderRadius: 3,
                   bgcolor: "#fffbeb",
                   "& fieldset": {
-                    borderColor: "rgba(245,158,11,0.15)",
+                    borderColor: fieldErrors.email
+                      ? "#fca5a5"
+                      : "rgba(245,158,11,0.15)",
                   },
                   "&:hover fieldset": {
-                    borderColor: "rgba(245,158,11,0.3) !important",
+                    borderColor: fieldErrors.email
+                      ? "#f97373 !important"
+                      : "rgba(245,158,11,0.3) !important",
                   },
                   "&.Mui-focused fieldset": {
-                    borderColor: "#f59e0b !important",
+                    borderColor: fieldErrors.email
+                      ? "#ef4444 !important"
+                      : "#f59e0b !important",
                     borderWidth: "2px !important",
                   },
                 },
@@ -402,7 +537,7 @@ const Registrate = () => {
               InputLabelProps={{
                 sx: {
                   "&.Mui-focused": {
-                    color: "#f59e0b",
+                    color: fieldErrors.email ? "#ef4444" : "#f59e0b",
                   },
                 },
               }}
@@ -414,7 +549,12 @@ const Registrate = () => {
               variant="outlined"
               fullWidth
               value={pass}
-              onChange={(e) => setPass(e.target.value)}
+              onChange={(e) => {
+                setPass(e.target.value);
+                clearFieldError("pass");
+              }}
+              error={Boolean(fieldErrors.pass)}
+              helperText={fieldErrors.pass}
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
@@ -441,13 +581,19 @@ const Registrate = () => {
                   borderRadius: 3,
                   bgcolor: "#fffbeb",
                   "& fieldset": {
-                    borderColor: "rgba(245,158,11,0.15)",
+                    borderColor: fieldErrors.pass
+                      ? "#fca5a5"
+                      : "rgba(245,158,11,0.15)",
                   },
                   "&:hover fieldset": {
-                    borderColor: "rgba(245,158,11,0.3) !important",
+                    borderColor: fieldErrors.pass
+                      ? "#f97373 !important"
+                      : "rgba(245,158,11,0.3) !important",
                   },
                   "&.Mui-focused fieldset": {
-                    borderColor: "#f59e0b !important",
+                    borderColor: fieldErrors.pass
+                      ? "#ef4444 !important"
+                      : "#f59e0b !important",
                     borderWidth: "2px !important",
                   },
                 },
@@ -455,7 +601,7 @@ const Registrate = () => {
               InputLabelProps={{
                 sx: {
                   "&.Mui-focused": {
-                    color: "#f59e0b",
+                    color: fieldErrors.pass ? "#ef4444" : "#f59e0b",
                   },
                 },
               }}
@@ -467,7 +613,12 @@ const Registrate = () => {
               variant="outlined"
               fullWidth
               value={confirmPass}
-              onChange={(e) => setConfirmPass(e.target.value)}
+              onChange={(e) => {
+                setConfirmPass(e.target.value);
+                clearFieldError("confirmPass");
+              }}
+              error={Boolean(fieldErrors.confirmPass)}
+              helperText={fieldErrors.confirmPass}
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
@@ -498,13 +649,19 @@ const Registrate = () => {
                   borderRadius: 3,
                   bgcolor: "#fffbeb",
                   "& fieldset": {
-                    borderColor: "rgba(245,158,11,0.15)",
+                    borderColor: fieldErrors.confirmPass
+                      ? "#fca5a5"
+                      : "rgba(245,158,11,0.15)",
                   },
                   "&:hover fieldset": {
-                    borderColor: "rgba(245,158,11,0.3) !important",
+                    borderColor: fieldErrors.confirmPass
+                      ? "#f97373 !important"
+                      : "rgba(245,158,11,0.3) !important",
                   },
                   "&.Mui-focused fieldset": {
-                    borderColor: "#f59e0b !important",
+                    borderColor: fieldErrors.confirmPass
+                      ? "#ef4444 !important"
+                      : "#f59e0b !important",
                     borderWidth: "2px !important",
                   },
                 },
@@ -512,7 +669,7 @@ const Registrate = () => {
               InputLabelProps={{
                 sx: {
                   "&.Mui-focused": {
-                    color: "#f59e0b",
+                    color: fieldErrors.confirmPass ? "#ef4444" : "#f59e0b",
                   },
                 },
               }}

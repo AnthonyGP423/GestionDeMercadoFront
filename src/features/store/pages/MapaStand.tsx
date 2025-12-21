@@ -7,26 +7,32 @@ import {
   Stack,
   Paper,
   Button,
-  Tabs,
-  Tab,
   Chip,
+  Fade,
+  useTheme,
+  useMediaQuery,
+  Tooltip,
+  IconButton,
 } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 
 import MapIcon from "@mui/icons-material/Map";
 import GridViewIcon from "@mui/icons-material/GridView";
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
+import RefreshIcon from "@mui/icons-material/Refresh";
 
 import PublicHeader from "../../../layouts/store/HeaderTienda";
 import PublicFooter from "../../../layouts/store/FooterTienda";
 
 import StandDetailsPanel from "../../../features/store/mapa/StandDetailsPanel";
-import LegendMapa from "../../../features/store/mapa//LegendMapa";
-
+import LegendMapa from "../../../features/store/mapa/LegendMapa";
 import MapaGrid from "../components/mapa/MapaGrid";
 import { useMapaMercado } from "../hooks/useMapaMercado";
 
 export default function MapaMercado() {
   const navigate = useNavigate();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
 
   const {
     bloqueActual,
@@ -60,201 +66,308 @@ export default function MapaMercado() {
         bgcolor: "#f8fafc",
         display: "flex",
         flexDirection: "column",
+        background:
+          "linear-gradient(180deg, #ecfdf5 0%, #f8fafc 50%, #ffffff 100%)",
       }}
     >
       <PublicHeader />
 
-      <Container maxWidth="lg" sx={{ py: 5, flex: 1 }}>
-        <Box mb={5} textAlign={{ xs: "center", md: "left" }}>
-          <Typography
-            variant="h3"
-            sx={{
-              fontWeight: 800,
-              fontFamily:
-                '"Poppins","Inter",system-ui,-apple-system,BlinkMacSystemFont',
-              mb: 1,
-            }}
-          >
-            Mapa del Mercado Mayorista
-          </Typography>
-          <Typography
-            variant="body1"
-            color="text.secondary"
-            maxWidth={620}
-            sx={{ mx: { xs: "auto", md: 0 } }}
-          >
-            Explora el mapa interactivo para encontrar puestos por bloque,
-            pasillo y rubro. Haz clic sobre cualquier stand para ver sus
-            detalles.
-          </Typography>
-        </Box>
+      {/* HERO / TITULO */}
+      <Box
+        sx={{
+          pt: { xs: 4, md: 6 },
+          pb: { xs: 2, md: 4 },
+          background:
+            "radial-gradient(circle at 20% 20%, rgba(34,197,94,0.08) 0%, transparent 50%)",
+        }}
+      >
+        <Container maxWidth="xl">
+          <Box textAlign={{ xs: "center", md: "left" }} mb={2}>
+            <Chip
+              label="Navegación Interactiva"
+              color="success"
+              size="small"
+              sx={{
+                mb: 1.5,
+                fontWeight: 700,
+                bgcolor: "#dcfce7",
+                color: "#166534",
+              }}
+            />
+            <Typography
+              variant="h3"
+              sx={{
+                fontWeight: 900,
+                fontFamily: '"Inter", sans-serif',
+                color: "#0f172a",
+                mb: 1,
+                fontSize: { xs: "2rem", md: "3rem" },
+                letterSpacing: "-0.02em",
+              }}
+            >
+              Mapa del Mercado
+            </Typography>
+            <Typography
+              variant="body1"
+              color="text.secondary"
+              maxWidth={700}
+              sx={{ mx: { xs: "auto", md: 0 }, fontSize: "1.1rem" }}
+            >
+              Selecciona un bloque para ver la distribución de los puestos. Haz
+              clic en cualquier stand para ver información detallada y
+              productos.
+            </Typography>
+          </Box>
+        </Container>
+      </Box>
 
+      {/* CONTENIDO PRINCIPAL */}
+      <Container maxWidth="xl" sx={{ pb: 8, flex: 1 }}>
         <Stack
-          direction={{ xs: "column", md: "row" }}
-          spacing={4}
+          direction={{ xs: "column", lg: "row" }}
+          spacing={3}
           alignItems="flex-start"
         >
-          {/* IZQUIERDA */}
-          <Box sx={{ flex: 2 }}>
-            {/* Bloques dinámicos */}
+          {/* COLUMNA IZQUIERDA: CONTROLES + MAPA */}
+          <Box sx={{ flex: { lg: 3 }, width: "100%", minWidth: 0 }}>
+            {/* SELECTOR DE BLOQUES */}
             <Paper
+              elevation={0}
               sx={{
-                p: 3,
+                p: { xs: 2, md: 3 },
                 mb: 3,
-                borderRadius: 3,
+                borderRadius: 4,
                 border: "1px solid #e2e8f0",
-                background:
-                  "linear-gradient(135deg, #ecfdf3 0%, #f1f5f9 40%, #ffffff 100%)",
+                background: "#ffffff",
+                boxShadow: "0 4px 20px rgba(0,0,0,0.03)",
               }}
             >
               <Stack
-                direction="row"
-                alignItems="center"
+                direction={{ xs: "column", sm: "row" }}
+                alignItems={{ xs: "flex-start", sm: "center" }}
                 justifyContent="space-between"
                 mb={2}
-                gap={2}
+                gap={1}
               >
                 <Box>
                   <Typography
                     variant="overline"
-                    sx={{ letterSpacing: 1.2, color: "#16a34a" }}
+                    sx={{
+                      fontWeight: 800,
+                      color: "#16a34a",
+                      letterSpacing: "0.1em",
+                    }}
                   >
-                    SELECCIONA UN BLOQUE
+                    ZONAS DEL MERCADO
                   </Typography>
-                  <Typography
-                    variant="subtitle1"
-                    sx={{ fontWeight: 700, mt: 0.5 }}
-                  >
-                    Distribución de stands por zona
+                  <Typography variant="h6" fontWeight={800} lineHeight={1}>
+                    Selecciona un bloque
                   </Typography>
                 </Box>
 
-                <Chip
-                  icon={<MapIcon sx={{ fontSize: 18 }} />}
-                  label="Vista pública"
-                  size="small"
-                  sx={{
-                    bgcolor: "#dcfce7",
-                    color: "#166534",
-                    fontWeight: 600,
-                    borderRadius: 999,
-                  }}
-                />
+                <Tooltip title="Recargar bloques">
+                  <IconButton size="small" disabled={loadingBloques}>
+                    <RefreshIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
               </Stack>
 
               {loadingBloques ? (
-                <Typography variant="body2" color="text.secondary">
-                  Cargando bloques...
-                </Typography>
+                <Box py={2}>
+                  <Typography variant="body2" color="text.secondary">
+                    Cargando estructura del mercado...
+                  </Typography>
+                </Box>
               ) : errorBloques ? (
-                <Typography variant="body2" color="error">
+                <Typography variant="body2" color="error" py={2}>
                   {errorBloques}
                 </Typography>
               ) : bloquesDisponibles.length === 0 ? (
-                <Typography variant="body2" color="text.secondary">
-                  No hay bloques configurados por el momento.
+                <Typography variant="body2" color="text.secondary" py={2}>
+                  No hay bloques disponibles.
                 </Typography>
               ) : (
-                <Stack direction="row" spacing={1.5} flexWrap="wrap" mt={1}>
+                <Box
+                  sx={{
+                    display: "flex",
+                    gap: 1.5,
+                    overflowX: "auto",
+                    pb: 1,
+                    "&::-webkit-scrollbar": { height: 6 },
+                    "&::-webkit-scrollbar-thumb": {
+                      bgcolor: "#cbd5e1",
+                      borderRadius: 4,
+                    },
+                  }}
+                >
                   {bloquesDisponibles.map((b) => {
                     const activo = bloqueActual === b.bloque;
-
                     return (
                       <Button
                         key={b.bloque}
                         onClick={() => setBloqueActual(b.bloque)}
+                        variant="contained"
                         sx={{
-                          borderRadius: 999,
+                          borderRadius: 3,
                           px: 2.5,
-                          py: 0.9,
+                          py: 1,
+                          minWidth: "fit-content",
                           textTransform: "none",
-                          fontWeight: 700,
-                          fontSize: 14,
-                          borderWidth: 2,
-                          borderStyle: "solid",
-                          borderColor: activo ? "#16a34a" : "#cbd5e1",
-                          bgcolor: activo ? "#16a34a" : "#f8fafc",
-                          color: activo ? "#ffffff" : "#0f172a",
-                          boxShadow: activo
-                            ? "0 10px 24px rgba(22, 163, 74, 0.35)"
-                            : "none",
+                          boxShadow: "none",
+                          border: "2px solid",
+                          borderColor: activo ? "transparent" : "#e2e8f0",
+                          bgcolor: activo ? "#16a34a" : "#ffffff",
+                          color: activo ? "#ffffff" : "#64748b",
                           "&:hover": {
-                            bgcolor: activo ? "#15803d" : "#e2e8f0",
-                            borderColor: "#16a34a",
+                            bgcolor: activo ? "#15803d" : "#f8fafc",
+                            borderColor: activo ? "transparent" : "#cbd5e1",
+                            boxShadow: "none",
                           },
+                          transition: "all 0.2s ease",
                         }}
                       >
-                        <Stack direction="row" alignItems="center" gap={1}>
-                          <span>Bloque {b.bloque}</span>
+                        <Stack alignItems="start" spacing={0}>
+                          <Typography
+                            variant="body2"
+                            fontWeight={800}
+                            lineHeight={1.2}
+                          >
+                            Bloque {b.bloque}
+                          </Typography>
                           {typeof b.totalStands === "number" && (
-                            <Chip
-                              label={`${b.totalStands} puestos`}
-                              size="small"
+                            <Typography
+                              variant="caption"
                               sx={{
-                                bgcolor: activo ? "#bbf7d0" : "#e5e7eb",
-                                color: "#065f46",
+                                opacity: 0.9,
+                                fontSize: "0.7rem",
                                 fontWeight: 600,
-                                borderRadius: 999,
                               }}
-                            />
+                            >
+                              {b.totalStands} puestos
+                            </Typography>
                           )}
                         </Stack>
                       </Button>
                     );
                   })}
-                </Stack>
+                </Box>
               )}
             </Paper>
 
-            {/* Mapa */}
-            <Paper
-              sx={{
-                p: 3,
-                borderRadius: 4,
-                border: "1px solid #e2e8f0",
-                bgcolor: "#fff",
-              }}
-            >
-              <Stack
-                direction="row"
-                justifyContent="space-between"
-                alignItems="center"
-                mb={3}
-                flexWrap="wrap"
-                gap={2}
+            {/* VISOR DEL MAPA */}
+            <Fade in timeout={500}>
+              <Paper
+                elevation={0}
+                sx={{
+                  p: 0,
+                  borderRadius: 4,
+                  border: "1px solid #e2e8f0",
+                  bgcolor: "#ffffff",
+                  overflow: "hidden",
+                  boxShadow: "0 10px 30px rgba(0,0,0,0.05)",
+                }}
               >
-                <Typography
-                  variant="h6"
-                  fontWeight={800}
-                  sx={{ display: "flex", alignItems: "center", gap: 1 }}
+                {/* Header del Mapa */}
+                <Box
+                  sx={{
+                    px: 3,
+                    py: 2,
+                    borderBottom: "1px solid #f1f5f9",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    bgcolor: "#fff",
+                  }}
                 >
-                  <GridViewIcon color="action" /> Croquis bloque{" "}
-                  {bloqueActual || "-"}
-                </Typography>
+                  <Stack direction="row" alignItems="center" spacing={1}>
+                    <GridViewIcon color="primary" />
+                    <Typography variant="subtitle1" fontWeight={800}>
+                      Croquis: Bloque {bloqueActual || "?"}
+                    </Typography>
+                  </Stack>
 
-                <Tabs value={0} aria-label="vista fija">
-                  <Tab label="Vista general" />
-                </Tabs>
-              </Stack>
+                  <Tooltip title="Usa el mouse o toca para navegar">
+                    <InfoOutlinedIcon fontSize="small" color="disabled" />
+                  </Tooltip>
+                </Box>
 
-              <MapaGrid
-                stands={standsBloque}
-                standSeleccionado={standSeleccionado}
-                loading={loadingStands}
-                error={errorStands}
-                onSelectStand={seleccionarStandBase}
-              />
+                {/* LEYENDA ARRIBA */}
+                <Box
+                  sx={{
+                    px: 3,
+                    pt: 2,
+                    pb: 1,
+                    borderBottom: "1px solid #f1f5f9",
+                    bgcolor: "#ffffff",
+                  }}
+                >
+                  <LegendMapa />
+                </Box>
 
-              <LegendMapa />
-            </Paper>
+                {/* Grid del Mapa - MÁS BAJO */}
+                <Box
+                  sx={{
+                    p: { xs: 2, md: 3 },
+                    minHeight: { xs: 240, md: 300 }, // antes 400
+                    maxHeight: { xs: 320, md: 360 }, // límite para que no se alargue tanto
+                    bgcolor: "#f8fafc",
+                    overflow: "auto", // si el contenido es grande, que haga scroll interno
+                  }}
+                >
+                  <MapaGrid
+                    stands={standsBloque}
+                    standSeleccionado={standSeleccionado}
+                    loading={loadingStands}
+                    error={errorStands}
+                    onSelectStand={seleccionarStandBase}
+                  />
+                </Box>
+              </Paper>
+            </Fade>
           </Box>
 
-          {/* DERECHA */}
-          <Box sx={{ flex: 1, width: "100%" }}>
-            <StandDetailsPanel
-              stand={standSeleccionado}
-              onVerPerfil={handleVerPerfil}
-            />
+          {/* COLUMNA DERECHA: DETALLES */}
+          <Box
+            sx={{
+              flex: { lg: 1.2 },
+              width: "100%",
+              minWidth: { lg: 350 },
+            }}
+          >
+            <Box
+              sx={{
+                position: { lg: "sticky" },
+                top: { lg: 100 },
+                transition: "all 0.3s ease",
+              }}
+            >
+              <StandDetailsPanel
+                stand={standSeleccionado}
+                onVerPerfil={handleVerPerfil}
+              />
+
+              {!standSeleccionado && !isMobile && (
+                <Fade in>
+                  <Paper
+                    elevation={0}
+                    sx={{
+                      mt: 2,
+                      p: 3,
+                      textAlign: "center",
+                      bgcolor: "transparent",
+                      border: "2px dashed #e2e8f0",
+                      borderRadius: 4,
+                    }}
+                  >
+                    <MapIcon sx={{ fontSize: 40, color: "#cbd5e1", mb: 1 }} />
+                    <Typography variant="body2" color="text.secondary">
+                      Selecciona un cuadro en el mapa para ver los detalles
+                      aquí.
+                    </Typography>
+                  </Paper>
+                </Fade>
+              )}
+            </Box>
           </Box>
         </Stack>
       </Container>

@@ -1,4 +1,3 @@
-// src/pages/Store/Contacto.tsx
 import {
   Box,
   Container,
@@ -34,39 +33,38 @@ export default function Contacto() {
     >
       <PublicHeader />
 
-      <Box sx={{ flexGrow: 1, py: { xs: 5, md: 7 } }}>
+      <Box sx={{ flexGrow: 1, py: { xs: 4, md: 7 } }}>
         <Container maxWidth="lg" sx={{ px: { xs: 2, sm: 3 } }}>
-          {/* CABECERA DE LA PÁGINA */}
-          <Box sx={{ textAlign: "center", mb: 6 }}>
-            <Chip
-              label="Centro de ayuda"
-              size="small"
-              sx={{
-                mb: 2,
-                px: 2,
-                py: 0.5,
-                bgcolor: "rgba(22,163,74,0.08)",
-                color: "#166534",
-                fontWeight: 600,
-                borderRadius: 999,
-              }}
-            />
+          {/* CABECERA DE LA PÁGINA REESTRUCTURADA */}
+          <Box
+            sx={{
+              textAlign: "center",
+              mb: { xs: 5, md: 8 }, // Aumentamos margen para separar de los formularios
+              px: { xs: 1, sm: 0 },
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+            }}
+          >
+            {/* Título Principal */}
             <Typography
               variant="h4"
               sx={{
                 fontWeight: 800,
-                mb: 2,
+                mb: 2, // Espacio antes del Chip
                 fontFamily: '"Inter","Poppins",sans-serif',
                 color: "#1e293b",
                 position: "relative",
                 display: "inline-block",
+                fontSize: { xs: "2rem", sm: "2.5rem", md: "3rem" },
+                lineHeight: 1.2,
                 "&::after": {
                   content: '""',
                   position: "absolute",
-                  bottom: -8,
+                  bottom: -6,
                   left: "50%",
                   transform: "translateX(-50%)",
-                  width: 80,
+                  width: 50,
                   height: 4,
                   bgcolor: "#16a34a",
                   borderRadius: 2,
@@ -75,13 +73,35 @@ export default function Contacto() {
             >
               Contáctanos
             </Typography>
+
+            {/* Chip debajo de Contáctanos */}
+            <Chip
+              label="Centro de ayuda"
+              size="small"
+              sx={{
+                mb: 3, // Espacio antes del párrafo
+                mt: 1,
+                px: 1.5,
+                py: 0.5,
+                bgcolor: "rgba(22,163,74,0.08)",
+                color: "#166534",
+                fontWeight: 700,
+                borderRadius: 2, // Estilo más moderno
+                fontSize: { xs: 11, sm: 12 },
+                textTransform: "uppercase",
+                letterSpacing: "0.05em",
+              }}
+            />
+
+            {/* Descripción */}
             <Typography
               variant="body1"
               sx={{
                 color: "text.secondary",
-                maxWidth: 640,
+                maxWidth: 600,
                 mx: "auto",
-                fontSize: "1.05rem",
+                lineHeight: 1.7,
+                fontSize: { xs: "1rem", sm: "1.1rem" },
               }}
             >
               ¿Tienes dudas sobre los stands, productos o la plataforma?
@@ -94,156 +114,105 @@ export default function Contacto() {
           <Box
             sx={{
               display: "flex",
-              flexDirection: { xs: "column", md: "row" },
-              gap: 4,
-              alignItems: "stretch",
+              flexDirection: { xs: "column-reverse", md: "row" },
+              gap: { xs: 4, md: 5 },
+              alignItems: { xs: "stretch", md: "flex-start" },
             }}
           >
             {/* COLUMNA INFORMACIÓN */}
-            <Box sx={{ flex: { xs: 1, md: 5 }, width: "100%" }}>
+            <Box sx={{ flex: { xs: "none", md: 4.5 }, width: "100%" }}>
               <Paper
                 elevation={0}
                 sx={{
-                  p: 3,
-                  borderRadius: 3,
+                  p: { xs: 3, sm: 4 },
+                  borderRadius: 5,
                   bgcolor: "#ffffff",
-                  boxShadow: "0 8px 24px rgba(15,23,42,0.06)",
-                  border: "1px solid #e5e7eb",
+                  boxShadow: "0 10px 40px rgba(15,23,42,0.05)",
+                  border: "1px solid #e2e8f0",
                 }}
               >
                 <Typography
                   variant="h6"
-                  sx={{ fontWeight: 700, mb: 2, color: "#0f172a" }}
+                  sx={{
+                    fontWeight: 800,
+                    mb: 4,
+                    color: "#0f172a",
+                    fontSize: { xs: "1.2rem", sm: "1.3rem" },
+                  }}
                 >
-                  Información del Mercado
+                  Datos de contacto
                 </Typography>
 
-                <Stack spacing={2.5}>
-                  <Box sx={{ display: "flex", gap: 1.5 }}>
-                    <Box
-                      sx={{
-                        width: 36,
-                        height: 36,
-                        borderRadius: 2,
-                        bgcolor: "rgba(22,163,74,0.12)",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        color: "#16a34a",
-                      }}
-                    >
-                      <PlaceIcon fontSize="small" />
-                    </Box>
-                    <Box>
-                      <Typography
-                        variant="subtitle2"
-                        sx={{ fontWeight: 600, mb: 0.2 }}
+                <Stack spacing={4}>
+                  {[
+                    {
+                      icon: <PlaceIcon />,
+                      title: "Dirección",
+                      desc: "Av. Los Comerciantes 123, SJM, Lima",
+                    },
+                    {
+                      icon: <PhoneIcon />,
+                      title: "Teléfono",
+                      desc: "(+51) 987 654 321",
+                    },
+                    {
+                      icon: <EmailIcon />,
+                      title: "Correo",
+                      desc: "soporte@adminmarket.pe",
+                    },
+                    {
+                      icon: <AccessTimeIcon />,
+                      title: "Horario",
+                      desc: "Lun-Sáb: 5am - 6pm / Dom: 6am - 2pm",
+                    },
+                  ].map((item, index) => (
+                    <Box key={index} sx={{ display: "flex", gap: 2.5 }}>
+                      <Box
+                        sx={{
+                          width: 44,
+                          height: 44,
+                          borderRadius: 3,
+                          bgcolor: "rgba(22,163,74,0.1)",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          color: "#16a34a",
+                          flexShrink: 0,
+                        }}
                       >
-                        Dirección
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        Av. Los Comerciantes 123
-                        <br />
-                        San Juan de Miraflores, Lima – Perú
-                      </Typography>
+                        {item.icon}
+                      </Box>
+                      <Box>
+                        <Typography
+                          variant="subtitle2"
+                          sx={{
+                            fontWeight: 800,
+                            fontSize: 14,
+                            color: "#334155",
+                          }}
+                        >
+                          {item.title}
+                        </Typography>
+                        <Typography
+                          variant="body2"
+                          color="text.secondary"
+                          sx={{ fontSize: 14, mt: 0.5, lineHeight: 1.4 }}
+                        >
+                          {item.desc}
+                        </Typography>
+                      </Box>
                     </Box>
-                  </Box>
-
-                  <Box sx={{ display: "flex", gap: 1.5 }}>
-                    <Box
-                      sx={{
-                        width: 36,
-                        height: 36,
-                        borderRadius: 2,
-                        bgcolor: "rgba(22,163,74,0.12)",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        color: "#16a34a",
-                      }}
-                    >
-                      <PhoneIcon fontSize="small" />
-                    </Box>
-                    <Box>
-                      <Typography
-                        variant="subtitle2"
-                        sx={{ fontWeight: 600, mb: 0.2 }}
-                      >
-                        Teléfono
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        (+51) 987 654 321
-                      </Typography>
-                    </Box>
-                  </Box>
-
-                  <Box sx={{ display: "flex", gap: 1.5 }}>
-                    <Box
-                      sx={{
-                        width: 36,
-                        height: 36,
-                        borderRadius: 2,
-                        bgcolor: "rgba(22,163,74,0.12)",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        color: "#16a34a",
-                      }}
-                    >
-                      <EmailIcon fontSize="small" />
-                    </Box>
-                    <Box>
-                      <Typography
-                        variant="subtitle2"
-                        sx={{ fontWeight: 600, mb: 0.2 }}
-                      >
-                        Correo electrónico
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        soporte@adminmarket.pe
-                      </Typography>
-                    </Box>
-                  </Box>
-
-                  <Box sx={{ display: "flex", gap: 1.5 }}>
-                    <Box
-                      sx={{
-                        width: 36,
-                        height: 36,
-                        borderRadius: 2,
-                        bgcolor: "rgba(22,163,74,0.12)",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        color: "#16a34a",
-                      }}
-                    >
-                      <AccessTimeIcon fontSize="small" />
-                    </Box>
-                    <Box>
-                      <Typography
-                        variant="subtitle2"
-                        sx={{ fontWeight: 600, mb: 0.2 }}
-                      >
-                        Horario de atención
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        Lunes a Sábado: 5:00 a.m. – 6:00 p.m.
-                        <br />
-                        Domingo: 6:00 a.m. – 2:00 p.m.
-                      </Typography>
-                    </Box>
-                  </Box>
+                  ))}
 
                   <Divider />
 
-                  <Box sx={{ display: "flex", gap: 1.5 }}>
+                  <Box sx={{ display: "flex", gap: 2.5, alignItems: "center" }}>
                     <Box
                       sx={{
-                        width: 36,
-                        height: 36,
-                        borderRadius: 2,
-                        bgcolor: "rgba(22,163,74,0.12)",
+                        width: 44,
+                        height: 44,
+                        borderRadius: 3,
+                        bgcolor: "rgba(22,163,74,0.1)",
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
@@ -255,11 +224,15 @@ export default function Contacto() {
                     <Box>
                       <Typography
                         variant="subtitle2"
-                        sx={{ fontWeight: 600, mb: 0.2 }}
+                        sx={{ fontWeight: 800, fontSize: 14 }}
                       >
-                        Redes sociales
+                        Síguenos
                       </Typography>
-                      <Typography variant="body2" color="text.secondary">
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        sx={{ fontSize: 14 }}
+                      >
                         Facebook · Instagram · WhatsApp
                       </Typography>
                     </Box>
@@ -269,20 +242,25 @@ export default function Contacto() {
             </Box>
 
             {/* COLUMNA FORMULARIO */}
-            <Box sx={{ flex: { xs: 1, md: 7 }, width: "100%" }}>
+            <Box sx={{ flex: { xs: "none", md: 7.5 }, width: "100%" }}>
               <Paper
                 elevation={0}
                 sx={{
-                  p: 3,
-                  borderRadius: 3,
+                  p: { xs: 3, sm: 5 },
+                  borderRadius: 5,
                   bgcolor: "#ffffff",
-                  boxShadow: "0 8px 24px rgba(15,23,42,0.06)",
-                  border: "1px solid #e5e7eb",
+                  boxShadow: "0 10px 40px rgba(15,23,42,0.05)",
+                  border: "1px solid #e2e8f0",
                 }}
               >
                 <Typography
                   variant="h6"
-                  sx={{ fontWeight: 700, mb: 3, color: "#0f172a" }}
+                  sx={{
+                    fontWeight: 800,
+                    mb: 4,
+                    color: "#0f172a",
+                    fontSize: { xs: "1.2rem", sm: "1.3rem" },
+                  }}
                 >
                   Envíanos un mensaje
                 </Typography>
@@ -292,21 +270,31 @@ export default function Contacto() {
                     sx={{
                       display: "grid",
                       gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" },
-                      gap: 2,
+                      gap: 3,
                     }}
                   >
                     <TextField
                       fullWidth
                       label="Nombre completo"
                       variant="outlined"
-                      size="small"
+                      sx={{
+                        "& .MuiOutlinedInput-root": {
+                          borderRadius: 3,
+                          bgcolor: "#fcfcfc",
+                        },
+                      }}
                     />
                     <TextField
                       fullWidth
                       label="Correo electrónico"
                       type="email"
                       variant="outlined"
-                      size="small"
+                      sx={{
+                        "& .MuiOutlinedInput-root": {
+                          borderRadius: 3,
+                          bgcolor: "#fcfcfc",
+                        },
+                      }}
                     />
                   </Box>
 
@@ -314,7 +302,12 @@ export default function Contacto() {
                     fullWidth
                     label="Asunto"
                     variant="outlined"
-                    size="small"
+                    sx={{
+                      "& .MuiOutlinedInput-root": {
+                        borderRadius: 3,
+                        bgcolor: "#fcfcfc",
+                      },
+                    }}
                   />
 
                   <TextField
@@ -322,7 +315,13 @@ export default function Contacto() {
                     label="Mensaje"
                     variant="outlined"
                     multiline
-                    minRows={4}
+                    minRows={6}
+                    sx={{
+                      "& .MuiOutlinedInput-root": {
+                        borderRadius: 3,
+                        bgcolor: "#fcfcfc",
+                      },
+                    }}
                   />
 
                   <Button
@@ -330,11 +329,16 @@ export default function Contacto() {
                     color="success"
                     size="large"
                     sx={{
-                      borderRadius: 999,
-                      alignSelf: "flex-start",
-                      px: 4,
-                      fontWeight: 700,
+                      borderRadius: 3,
+                      py: 2,
+                      alignSelf: { xs: "stretch", sm: "flex-start" },
+                      px: { xs: 0, sm: 8 },
+                      fontWeight: 800,
                       textTransform: "none",
+                      fontSize: "1.05rem",
+                      bgcolor: "#16a34a",
+                      boxShadow: "0 10px 25px rgba(22, 163, 74, 0.3)",
+                      "&:hover": { bgcolor: "#15803d" },
                     }}
                   >
                     Enviar mensaje
@@ -344,45 +348,51 @@ export default function Contacto() {
             </Box>
           </Box>
 
-          {/* MAPA / CÓMO LLEGAR */}
-          <Box sx={{ mt: 6 }}>
+          {/* MAPA */}
+          <Box sx={{ mt: { xs: 5, md: 8 } }}>
             <Paper
               elevation={0}
               sx={{
-                p: 3,
-                borderRadius: 3,
+                p: { xs: 2.5, sm: 3 },
+                borderRadius: 5,
                 bgcolor: "#ffffff",
-                boxShadow: "0 8px 24px rgba(15,23,42,0.06)",
-                border: "1px solid #e5e7eb",
+                boxShadow: "0 10px 40px rgba(15,23,42,0.05)",
+                border: "1px solid #e2e8f0",
+                overflow: "hidden",
               }}
             >
-              <Typography
-                variant="h6"
-                sx={{ fontWeight: 700, mb: 1.5, color: "#0f172a" }}
-              >
-                ¿Cómo llegar?
-              </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                Visualiza la ubicación del mercado directamente en el mapa.
-              </Typography>
+              <Box sx={{ mb: 3, px: 1 }}>
+                <Typography
+                  variant="h6"
+                  sx={{ fontWeight: 800, color: "#0f172a", mb: 0.5 }}
+                >
+                  ¿Cómo llegar?
+                </Typography>
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  sx={{ fontSize: 14 }}
+                >
+                  Estamos ubicados en el corazón de San Juan de Miraflores.
+                </Typography>
+              </Box>
 
               <Box
                 sx={{
                   width: "100%",
-                  height: { xs: 260, sm: 320 },
-                  borderRadius: 2,
+                  height: { xs: 280, sm: 400 },
+                  borderRadius: 3,
                   overflow: "hidden",
-                  border: "1px solid #e5e7eb",
+                  border: "1px solid #f1f5f9",
                 }}
               >
                 <Box
                   component="iframe"
-                  src="https://www.google.com/maps/embed?pb=!1m17!1m12!1m3!1d3900.4019921225045!2d-76.98261291466386!3d-12.153011957388744!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m2!1m1!2zMTLCsDA5JzEwLjgiUyA3NsKwNTgnMzkuOSJX!5e0!3m2!1ses-419!2sus!4v1765327369647!5m2!1ses-419!2sus"
+                  src="https://www.google.com/maps/embed?pb=!1m14!1m12!1m3!1d15601.766341490226!2d-76.963283!3d-12.14995!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!5e0!3m2!1ses!2spe!4v1700000000000!5m2!1ses!2spe"
                   width="100%"
                   height="100%"
                   loading="lazy"
                   style={{ border: 0 }}
-                  referrerPolicy="no-referrer-when-downgrade"
                 />
               </Box>
             </Paper>

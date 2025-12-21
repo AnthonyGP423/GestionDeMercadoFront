@@ -1,5 +1,5 @@
 // src/layouts/store/HeaderTienda.tsx
-import React from "react";
+import React, { useState } from "react";
 import {
   AppBar,
   Toolbar,
@@ -12,6 +12,13 @@ import {
   MenuItem,
   Divider,
   ListItemIcon,
+  Drawer,
+  List,
+  ListItemButton,
+  ListItemText,
+  useMediaQuery,
+  useTheme,
+  Stack,
 } from "@mui/material";
 
 import StorefrontIcon from "@mui/icons-material/Storefront";
@@ -19,6 +26,7 @@ import LanguageIcon from "@mui/icons-material/Language";
 import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
 import FavoriteBorderIcon from "@mui/icons-material/FavoriteBorder";
 import LogoutIcon from "@mui/icons-material/Logout";
+import MenuIcon from "@mui/icons-material/Menu";
 
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../auth/useAuth";
@@ -28,6 +36,14 @@ const isClienteRole = (rol?: string) => {
   return r === "CLIENTE" || r === "ROLE_CLIENTE" || r.includes("CLIENTE");
 };
 
+// 🔹 Aquí definimos las rutas correctas
+const navLinks = [
+  { label: "Inicio", path: "/tienda" },
+  { label: "Mapa", path: "/tienda/mapa-stand" },
+  { label: "Precios", path: "/tienda/precios-productos" },
+  { label: "Sobre el mercado", path: "/tienda/contacto" },
+];
+
 export default function HeaderTienda() {
   const navigate = useNavigate();
   const { isAuthenticated, user, logout } = useAuth() as any;
@@ -35,13 +51,15 @@ export default function HeaderTienda() {
   const rol = String(user?.rol ?? "");
   const isCliente = Boolean(isAuthenticated && isClienteRole(rol));
 
-  // ===== menu cliente =====
-  const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
-  const open = Boolean(anchorEl);
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
 
-  const handleOpenMenu = (e: React.MouseEvent<HTMLElement>) => {
+  // ===== Menu Cliente (Desktop) =====
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const openMenu = Boolean(anchorEl);
+
+  const handleOpenMenu = (e: React.MouseEvent<HTMLElement>) =>
     setAnchorEl(e.currentTarget);
-  };
   const handleCloseMenu = () => setAnchorEl(null);
 
   const displayName =
@@ -50,16 +68,13 @@ export default function HeaderTienda() {
     user?.nombres?.trim?.() ||
     (user?.email ? String(user.email).split("@")[0] : "Cliente");
 
-  const initial = String(displayName || "C").charAt(0).toUpperCase();
+  const initial = String(displayName || "C")
+    .charAt(0)
+    .toUpperCase();
 
-  const goPerfil = () => {
+  const handleAction = (path: string) => {
     handleCloseMenu();
-    navigate("/tienda/perfil-usuario");
-  };
-
-  const goFavoritos = () => {
-    handleCloseMenu();
-    navigate("/tienda/favoritos");
+    navigate(path);
   };
 
   const doLogout = () => {
@@ -68,169 +83,282 @@ export default function HeaderTienda() {
     navigate("/tienda", { replace: true });
   };
 
-  return (
-    <AppBar
-      position="sticky"
-      elevation={0}
-      sx={{
-        bgcolor: "#ffffff",
-        color: "text.primary",
-        borderBottom: "1px solid #e5e7eb",
-      }}
-    >
-      <Toolbar
+  // ===== Drawer Móvil =====
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const toggleMobileDrawer = (open: boolean) => () => setMobileOpen(open);
+
+  const handleNavMobile = (path: string) => {
+    navigate(path);
+    setMobileOpen(false);
+  };
+
+  const mobileDrawer = (
+    <Box sx={{ width: 280 }} role="presentation">
+      <Box
         sx={{
-          maxWidth: 1200,
-          mx: "auto",
-          width: "100%",
-          minHeight: 72,
+          p: 3,
           display: "flex",
           alignItems: "center",
           gap: 2,
+          borderBottom: "1px solid #f1f5f9",
         }}
       >
-        {/* LOGO + NOMBRE */}
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1, mr: 4 }}>
-          <Box
-            sx={{
-              width: 34,
-              height: 34,
-              borderRadius: 2,
-              bgcolor: "#22c55e1a",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <StorefrontIcon sx={{ color: "#16a34a" }} />
-          </Box>
-
+        <Avatar sx={{ bgcolor: "#16a34a", width: 40, height: 40 }}>
+          <StorefrontIcon />
+        </Avatar>
+        <Box>
           <Typography
-            component={Link}
-            to="/tienda"
-            variant="h6"
-            sx={{
-              textDecoration: "none",
-              color: "inherit",
-              fontWeight: 800,
-              fontFamily:
-                '"Poppins","Inter",system-ui,-apple-system,BlinkMacSystemFont',
-            }}
+            variant="subtitle1"
+            sx={{ fontWeight: 800, lineHeight: 1 }}
           >
-            Mercado Santa Anita
+            Santa Anita
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            Market Digital
           </Typography>
         </Box>
+      </Box>
 
-        {/* LINKS PRINCIPALES */}
-        <Box
+      <List sx={{ px: 1 }}>
+        {navLinks.map((item) => (
+          <ListItemButton
+            key={item.label}
+            onClick={() => handleNavMobile(item.path)}
+            sx={{ borderRadius: 2 }}
+          >
+            <ListItemText
+              primary={item.label}
+              primaryTypographyProps={{ fontWeight: 600 }}
+            />
+          </ListItemButton>
+        ))}
+      </List>
+
+      <Divider sx={{ my: 1, mx: 2 }} />
+
+      <Box sx={{ p: 2 }}>
+        {!isCliente ? (
+          <Stack spacing={1.5}>
+            <Button
+              fullWidth
+              variant="contained"
+              component={Link}
+              to="/cliente/login"
+              sx={{
+                borderRadius: 3,
+                bgcolor: "#16a34a",
+                textTransform: "none",
+                fontWeight: 700,
+              }}
+            >
+              Soy cliente
+            </Button>
+            <Button
+              fullWidth
+              variant="outlined"
+              component={Link}
+              to="/cliente/registro"
+              sx={{
+                borderRadius: 3,
+                color: "#16a34a",
+                borderColor: "#16a34a",
+                textTransform: "none",
+              }}
+            >
+              Registrarme
+            </Button>
+          </Stack>
+        ) : (
+          <Stack spacing={1}>
+            <Typography
+              variant="overline"
+              sx={{ px: 1, color: "text.secondary" }}
+            >
+              Mi Cuenta
+            </Typography>
+            <ListItemButton
+              onClick={() => handleNavMobile("/tienda/perfil-usuario")}
+              sx={{ borderRadius: 2 }}
+            >
+              <ListItemIcon>
+                <PersonOutlineIcon />
+              </ListItemIcon>
+              <ListItemText primary="Mi Perfil" />
+            </ListItemButton>
+            <ListItemButton
+              onClick={() => handleNavMobile("/tienda/favoritos")}
+              sx={{ borderRadius: 2 }}
+            >
+              <ListItemIcon>
+                <FavoriteBorderIcon />
+              </ListItemIcon>
+              <ListItemText primary="Favoritos" />
+            </ListItemButton>
+            <ListItemButton
+              onClick={doLogout}
+              sx={{ borderRadius: 2, color: "error.main" }}
+            >
+              <ListItemIcon>
+                <LogoutIcon color="error" />
+              </ListItemIcon>
+              <ListItemText primary="Cerrar Sesión" />
+            </ListItemButton>
+          </Stack>
+        )}
+      </Box>
+
+      <Box sx={{ p: 2, mt: "auto" }}>
+        <Button
+          fullWidth
+          component={Link}
+          to="/login"
+          variant="contained"
+          sx={{ bgcolor: "#0f172a", borderRadius: 3, textTransform: "none" }}
+        >
+          Intranet
+        </Button>
+      </Box>
+    </Box>
+  );
+
+  return (
+    <>
+      <AppBar
+        position="sticky"
+        elevation={0}
+        sx={{
+          bgcolor: "rgba(255, 255, 255, 0.95)",
+          backdropFilter: "blur(8px)",
+          color: "text.primary",
+          borderBottom: "1px solid #f1f5f9",
+        }}
+      >
+        <Toolbar
           sx={{
-            display: "flex",
-            gap: 2.5,
-            flexGrow: 1,
-            alignItems: "center",
-            fontSize: 14,
+            maxWidth: 1400,
+            mx: "auto",
+            width: "100%",
+            minHeight: { xs: 70, md: 85 },
+            px: { xs: 2, sm: 3, md: 5 },
           }}
         >
-          <Button
+          {/* LOGO */}
+          <Box
             component={Link}
             to="/tienda"
-            color="inherit"
-            sx={{ fontWeight: 600, textTransform: "none" }}
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 1.5,
+              textDecoration: "none",
+              color: "inherit",
+              flexShrink: 0,
+              mr: { md: 4, lg: 6 },
+            }}
           >
-            Inicio
-          </Button>
+            <Box
+              sx={{
+                width: 36,
+                height: 36,
+                borderRadius: 2,
+                bgcolor: "#16a34a",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                boxShadow: "0 4px 12px rgba(22,163,74,0.25)",
+              }}
+            >
+              <StorefrontIcon sx={{ color: "white", fontSize: 20 }} />
+            </Box>
+            <Typography
+              variant="h6"
+              sx={{
+                fontWeight: 800,
+                letterSpacing: "-0.02em",
+                fontSize: { xs: "1.1rem", md: "1.3rem" },
+              }}
+            >
+              Santa Anita{" "}
+              <Box
+                component="span"
+                sx={{ color: "#16a34a", display: { xs: "none", sm: "inline" } }}
+              >
+                Market
+              </Box>
+            </Typography>
+          </Box>
 
-          <Button
-            component={Link}
-            to="/tienda/mapa-stand"
-            color="inherit"
-            sx={{ fontWeight: 600, textTransform: "none" }}
-          >
-            Mapa
-          </Button>
-
-          <Button
-            component={Link}
-            to="/tienda/precios-productos"
-            color="inherit"
-            sx={{ fontWeight: 600, textTransform: "none" }}
-          >
-            Precios
-          </Button>
-
-          <Button
-            component={Link}
-            to="/tienda/contacto"
-            color="inherit"
-            sx={{ fontWeight: 600, textTransform: "none" }}
-          >
-            Sobre el mercado
-          </Button>
-        </Box>
-
-        {/* ACCIONES DERECHA */}
-        <Box sx={{ display: "flex", alignItems: "center", gap: 2.5 }}>
-          {/* ===== BLOQUE CLIENTE ===== */}
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            {!isCliente ? (
-              <>
+          {/* LINKS CENTRO (Desktop) */}
+          {!isMobile && (
+            <Box sx={{ display: "flex", gap: 1, flexGrow: 1 }}>
+              {navLinks.map((item) => (
                 <Button
+                  key={item.label}
                   component={Link}
-                  to="/cliente/login"
-                  variant="contained"
-                  size="small"
+                  to={item.path}
                   sx={{
-                    borderRadius: 999,
-                    textTransform: "none",
-                    fontWeight: 700,
-                    px: 2.5,
-                    fontSize: 13,
-                    backgroundColor: "#16a34a",
-                    boxShadow: "0 8px 18px rgba(22,163,74,0.35)",
-                    "&:hover": {
-                      backgroundColor: "#15803d",
-                      boxShadow: "0 10px 24px rgba(22,163,74,0.45)",
-                    },
-                  }}
-                >
-                  Soy cliente
-                </Button>
-
-                <Button
-                  component={Link}
-                  to="/cliente/registro"
-                  variant="text"
-                  size="small"
-                  sx={{
+                    color: "#64748b",
                     textTransform: "none",
                     fontWeight: 600,
-                    fontSize: 12,
-                    color: "#16a34a",
-                    px: 0.5,
-                    "&:hover": {
-                      color: "#0f766e",
-                      backgroundColor: "transparent",
-                    },
+                    px: 2,
+                    fontSize: "0.95rem",
+                    "&:hover": { color: "#16a34a", bgcolor: "transparent" },
                   }}
                 >
-                  Registrarme
+                  {item.label}
                 </Button>
-              </>
-            ) : (
-              <>
+              ))}
+            </Box>
+          )}
+
+          {/* ACCIONES DERECHA (Desktop) */}
+          {!isMobile && (
+            <Stack
+              direction="row"
+              spacing={2}
+              alignItems="center"
+              sx={{ ml: 2 }}
+            >
+              {!isCliente ? (
+                <Stack direction="row" spacing={1}>
+                  <Button
+                    component={Link}
+                    to="/cliente/login"
+                    variant="contained"
+                    sx={{
+                      borderRadius: 999,
+                      bgcolor: "#16a34a",
+                      px: 3,
+                      fontWeight: 700,
+                      textTransform: "none",
+                      "&:hover": { bgcolor: "#15803d" },
+                    }}
+                  >
+                    Soy cliente
+                  </Button>
+                  <Button
+                    component={Link}
+                    to="/cliente/registro"
+                    sx={{
+                      color: "#16a34a",
+                      fontWeight: 600,
+                      textTransform: "none",
+                    }}
+                  >
+                    Registrarme
+                  </Button>
+                </Stack>
+              ) : (
                 <Button
                   onClick={handleOpenMenu}
-                  variant="text"
                   sx={{
                     textTransform: "none",
-                    borderRadius: 999,
-                    px: 1,
-                    py: 0.5,
+                    borderRadius: 4,
+                    px: 1.5,
+                    py: 0.7,
+                    bgcolor: openMenu ? "#f8fafc" : "transparent",
                     color: "text.primary",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 1,
-                    "&:hover": { bgcolor: "#f1f5f9" },
+                    "&:hover": { bgcolor: "#f8fafc" },
                   }}
                 >
                   <Avatar
@@ -238,115 +366,121 @@ export default function HeaderTienda() {
                       width: 34,
                       height: 34,
                       bgcolor: "#16a34a",
+                      mr: 1.5,
                       fontWeight: 800,
-                      fontSize: 14,
-                      boxShadow: "0 8px 18px rgba(22,163,74,0.25)",
+                      fontSize: 13,
                     }}
                   >
                     {initial}
                   </Avatar>
-
-                  <Box
-                    sx={{
-                      display: { xs: "none", sm: "block" },
-                      textAlign: "left",
-                    }}
-                  >
-                    <Typography sx={{ fontSize: 13, fontWeight: 800, lineHeight: 1.1 }}>
+                  <Box sx={{ textAlign: "left" }}>
+                    <Typography
+                      sx={{ fontSize: 13, fontWeight: 700, lineHeight: 1.1 }}
+                    >
                       {displayName}
                     </Typography>
-                    <Typography sx={{ fontSize: 11, color: "text.secondary", lineHeight: 1.1 }}>
+                    <Typography sx={{ fontSize: 11, color: "text.secondary" }}>
                       Cliente
                     </Typography>
                   </Box>
                 </Button>
+              )}
 
-                <Menu
-                  anchorEl={anchorEl}
-                  open={open}
-                  onClose={handleCloseMenu}
-                  PaperProps={{
-                    elevation: 0,
-                    sx: {
-                      mt: 1,
-                      borderRadius: 3,
-                      border: "1px solid #e5e7eb",
-                      boxShadow:
-                        "0 20px 40px rgba(15,23,42,0.10), 0 0 0 1px rgba(0,0,0,0.02)",
-                      minWidth: 220,
-                      overflow: "hidden",
-                    },
-                  }}
-                >
-                  <MenuItem onClick={goPerfil}>
-                    <ListItemIcon>
-                      <PersonOutlineIcon fontSize="small" />
-                    </ListItemIcon>
-                    Mi perfil
-                  </MenuItem>
+              <Divider
+                orientation="vertical"
+                flexItem
+                sx={{ height: 28, my: "auto" }}
+              />
 
-                  <MenuItem onClick={goFavoritos}>
-                    <ListItemIcon>
-                      <FavoriteBorderIcon fontSize="small" />
-                    </ListItemIcon>
-                    Mis favoritos
-                  </MenuItem>
+              <Button
+                component={Link}
+                to="/login"
+                variant="contained"
+                sx={{
+                  bgcolor: "#0f172a",
+                  borderRadius: 2.5,
+                  px: 3,
+                  fontWeight: 600,
+                  textTransform: "none",
+                  "&:hover": { bgcolor: "#1e293b" },
+                }}
+              >
+                Intranet
+              </Button>
+            </Stack>
+          )}
 
-                  <Divider />
-
-                  <MenuItem onClick={doLogout} sx={{ color: "#b91c1c" }}>
-                    <ListItemIcon sx={{ color: "#b91c1c" }}>
-                      <LogoutIcon fontSize="small" />
-                    </ListItemIcon>
-                    Cerrar sesión
-                  </MenuItem>
-                </Menu>
-              </>
-            )}
-          </Box>
-
-          {/* ===== BLOQUE ADMIN / INTRANET ===== */}
-          <Box
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              gap: 1,
-              pl: 2,
-              ml: 1,
-              borderLeft: "1px solid #e5e7eb",
-            }}
-          >
-            <Button
-              component={Link}
-              to="/login"
-              variant="contained"
-              sx={{
-                borderRadius: 999,
-                textTransform: "none",
-                fontWeight: 600,
-                px: 2.5,
-                fontSize: 13,
-                bgcolor: "#0f172a",
-                color: "#f9fafb",
-                "&:hover": { bgcolor: "#020617" },
-              }}
-            >
-              Intranet
-            </Button>
-
+          {/* BOTÓN MÓVIL */}
+          {isMobile && (
             <IconButton
-              size="small"
+              onClick={toggleMobileDrawer(true)}
               sx={{
-                borderRadius: 999,
-                border: "1px solid #e5e7eb",
-                ml: 0.5,
+                ml: "auto",
+                bgcolor: "#f8fafc",
+                border: "1px solid #e2e8f0",
+                borderRadius: 2,
               }}
             >
-              <LanguageIcon sx={{ fontSize: 19 }} />
+              <MenuIcon />
             </IconButton>
-          </Box>
-        </Box>
-      </Toolbar>
-    </AppBar>
+          )}
+        </Toolbar>
+      </AppBar>
+
+      {/* Menú Dropdown Cliente (Desktop) */}
+      <Menu
+        anchorEl={anchorEl}
+        open={openMenu}
+        onClose={handleCloseMenu}
+        transformOrigin={{ horizontal: "right", vertical: "top" }}
+        anchorOrigin={{ horizontal: "right", vertical: "bottom" }}
+        PaperProps={{
+          elevation: 0,
+          sx: {
+            mt: 1.5,
+            borderRadius: 3,
+            minWidth: 200,
+            border: "1px solid #e2e8f0",
+            boxShadow: "0 10px 25px -5px rgba(0,0,0,0.1)",
+            overflow: "hidden",
+          },
+        }}
+      >
+        <MenuItem
+          onClick={() => handleAction("/tienda/perfil-usuario")}
+          sx={{ py: 1.5 }}
+        >
+          <ListItemIcon>
+            <PersonOutlineIcon fontSize="small" />
+          </ListItemIcon>
+          Mi perfil
+        </MenuItem>
+        <MenuItem
+          onClick={() => handleAction("/tienda/favoritos")}
+          sx={{ py: 1.5 }}
+        >
+          <ListItemIcon>
+            <FavoriteBorderIcon fontSize="small" />
+          </ListItemIcon>
+          Favoritos
+        </MenuItem>
+        <Divider />
+        <MenuItem onClick={doLogout} sx={{ py: 1.5, color: "error.main" }}>
+          <ListItemIcon>
+            <LogoutIcon fontSize="small" color="error" />
+          </ListItemIcon>
+          Cerrar sesión
+        </MenuItem>
+      </Menu>
+
+      {/* Sidebar Móvil */}
+      <Drawer
+        anchor="right"
+        open={mobileOpen}
+        onClose={toggleMobileDrawer(false)}
+      >
+        {mobileDrawer}
+      </Drawer>
+    </>
   );
 }

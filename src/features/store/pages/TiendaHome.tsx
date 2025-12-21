@@ -11,6 +11,9 @@ import {
   alpha,
   Fade,
   Divider,
+  Avatar,
+  IconButton,
+  Tooltip,
 } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 
@@ -18,35 +21,28 @@ import PublicHeader from "../../../layouts/store/HeaderTienda";
 import PublicFooter from "../../../layouts/store/FooterTienda";
 
 import { useAuthContext } from "../../../auth/AuthContext";
-
 import { clienteApi } from "../../../api/cliente/clienteApi";
 
-// ICONOS MUI (bloques)
+// --- ICONOS ---
 import LocalFloristIcon from "@mui/icons-material/LocalFlorist";
 import EcoIcon from "@mui/icons-material/EnergySavingsLeafOutlined";
 import KebabDiningIcon from "@mui/icons-material/KebabDining";
 import StorefrontIcon from "@mui/icons-material/Storefront";
-
-// ICONOS MUI (categorías)
 import EggAltIcon from "@mui/icons-material/EggAlt";
 import SetMealIcon from "@mui/icons-material/SetMeal";
 import LiquorIcon from "@mui/icons-material/Liquor";
 import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
-
-// ✅ Iconos más adecuados
-import ShoppingBasketIcon from "@mui/icons-material/ShoppingBasket"; // Abarrotes
-import LocalDrinkIcon from "@mui/icons-material/LocalDrink"; // Lácteos
-import AllInboxIcon from "@mui/icons-material/AllInbox"; // Empacados
-
-// HERO
+import ShoppingBasketIcon from "@mui/icons-material/ShoppingBasket";
+import LocalDrinkIcon from "@mui/icons-material/LocalDrink";
+import AllInboxIcon from "@mui/icons-material/AllInbox";
 import ExploreIcon from "@mui/icons-material/Explore";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
-
-// Acciones
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import LogoutIcon from "@mui/icons-material/Logout";
 import FavoriteBorderIcon from "@mui/icons-material/FavoriteBorder";
+import LoginIcon from "@mui/icons-material/Login";
+import PersonAddIcon from "@mui/icons-material/PersonAdd";
 
 function normalizeRole(rol?: string) {
   return String(rol ?? "").toUpperCase();
@@ -62,27 +58,18 @@ export default function TiendaHome() {
 
   const clienteLogueado = isAuthenticated && isClienteRole(user?.rol);
 
-  // ✅ Traemos un "displayName" inteligente:
-  // - 1) nombreCompleto si existe
-  // - 2) nombres+apellidos si los tenemos (luego del /me)
-  // - 3) email como fallback
+  // --- LÓGICA DE USUARIO ---
   const displayName = useMemo(() => {
     const nombreCompleto = user?.nombreCompleto?.trim();
     if (nombreCompleto) return nombreCompleto;
-
-    // Si tu backend ya devuelve nombres/apellidos, los juntamos cuando los guardemos en nombreCompleto
-    // (Esto ya quedará resuelto después de la llamada /me).
     const email = user?.email?.trim();
     return email || "Cliente";
   }, [user]);
 
-  // ✅ Si está logueado como cliente pero no tiene nombreCompleto,
-  // consultamos /api/v1/cliente/me y actualizamos AuthContext.
   const [loadingMe, setLoadingMe] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
-
     const needsMe =
       clienteLogueado &&
       !!token &&
@@ -94,19 +81,17 @@ export default function TiendaHome() {
       try {
         setLoadingMe(true);
         const { data } = await clienteApi.me();
-
         if (cancelled) return;
+        const nombreCompleto = `${data.nombres ?? ""} ${
+          data.apellidos ?? ""
+        }`.trim();
 
-        const nombreCompleto = `${data.nombres ?? ""} ${data.apellidos ?? ""}`.trim();
-
-        // ✅ Re-hidratamos el contexto con el mismo token (sin romper sesión)
         login(token!, {
           email: data.email,
           nombreCompleto: nombreCompleto || data.email,
           rol: data.rol ?? "CLIENTE",
         });
       } catch (e) {
-        // Si falla, no rompemos nada: seguirá mostrando email.
         console.warn("No se pudo obtener /cliente/me:", e);
       } finally {
         if (!cancelled) setLoadingMe(false);
@@ -119,6 +104,7 @@ export default function TiendaHome() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clienteLogueado, token, user?.nombreCompleto]);
 
+  // --- NAVEGACIÓN ---
   const irAProductos = (categoriaFiltro?: string) => {
     if (categoriaFiltro) {
       navigate("/tienda/precios-productos", {
@@ -132,11 +118,7 @@ export default function TiendaHome() {
   const irAMapaStands = () => navigate("/tienda/mapa-stand");
   const irLoginCliente = () => navigate("/cliente/login");
   const irRegistroCliente = () => navigate("/cliente/registro");
-
-  // ✅ RUTA REAL que pediste
   const irMiCuenta = () => navigate("/tienda/perfil-usuario");
-
-  // Si aún no existe favoritos, cámbialo por /tienda o elimínalo.
   const irFavoritos = () => navigate("/tienda/favoritos");
 
   const cerrarSesion = () => {
@@ -144,581 +126,507 @@ export default function TiendaHome() {
     navigate("/tienda", { replace: true });
   };
 
+  // --- DATOS ESTÁTICOS ---
   const bloques = [
     {
       id: "A",
       nombre: "Bloque A",
-      detalle: "42 Puestos · Frutas y Verduras",
+      detalle: "Frutas y Verduras",
+      count: "42 Puestos",
       icon: <LocalFloristIcon />,
-      imagen:
-        "https://lh3.googleusercontent.com/aida-public/AB6AXuAB9APYlCmTK0lIuC0GlKSWEjg3BaHmDaJ2VHf6BPW1qjDGc2KteQMzJS5MJkKjA4jm_DPji4JML_yIy6BWMknOj0mYeYjNPPxg73jKhFIdXe4Cm2hHKiJ7K7ccfIYxWbF4rU8KCvRl-E6HHFOh4Ry22_8rJUdrGAu1YG4j0S4A_UYSmmbhXu5_wvJIZm8heW8alE9LN8PFQ96i3F_EVmsxDc5g-pfCx0DgFjNrEDNy75zRpEzl82A2XlM2PUApgG5QUyWrP2CCEcQ",
-      color: "#10b981",
+      color: "#10b981", // Emerald
+      bgGradient: "linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%)",
     },
     {
       id: "B",
       nombre: "Bloque B",
-      detalle: "38 Puestos · Verduras y Hortalizas",
+      detalle: "Hortalizas y Tubérculos",
+      count: "38 Puestos",
       icon: <EcoIcon />,
-      imagen:
-        "https://lh3.googleusercontent.com/aida-public/AB6AXuBq6n1z6a5cBbNitoHWAepny_-JY6x7x_wq3_dNSi-YShIc1lNxULI3apWvMGKZLOqpns8gFGOeYt9-bsiBAtP02O8yjL8dWjzPHsK_6gRTlCurP5NgcEXT8n-rCFuVhLA1aL3HpJiIZEFMsGjZ_cRiosuYv3MEC3f5D7eE57wphh7b5S5KNvWOUdI9uARGPuveVTQFMOAAgc5jkkety0vqjH73-MwHca9f1_e_bB-sU3m9Byp8VKUWpWV73J4t5zOdDu-GuXRNA3Q",
-      color: "#0ea5e9",
+      color: "#0ea5e9", // Sky
+      bgGradient: "linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%)",
     },
     {
       id: "C",
       nombre: "Bloque C",
-      detalle: "25 Puestos · Carnes y Aves",
+      detalle: "Carnes y Aves",
+      count: "25 Puestos",
       icon: <KebabDiningIcon />,
-      imagen:
-        "https://lh3.googleusercontent.com/aida-public/AB6AXuB2oOC9EUxRrPsmsrKubCtewPzOB5k_OLIs0oUvW7msszL1Ahi9Cda71z3ESq-wkb48UhVhGdnTi_abJ5tSLvazGTzu7fAogNUzxPu4Dj7ZBZqFlWjnFt9uWbPCACnmiy2bb8IWt9VSbOdUxzwDAZIOLK8waYLYFq01LfeVXCHI2ZIgQAKu2ETg5znfn8SyYEuOf9alnQM5dLhAg0r5Ro8w9XYKdf-U6DbAcm-aAeXsBm4L98S8on7zxBJ38cr11wohwpSDQ4Eg0Dw",
-      color: "#ef4444",
+      color: "#ef4444", // Red
+      bgGradient: "linear-gradient(135deg, #fee2e2 0%, #fecaca 100%)",
     },
     {
       id: "D",
       nombre: "Bloque D",
-      detalle: "50 Puestos · Abarrotes y Lácteos",
+      detalle: "Abarrotes y Lácteos",
+      count: "50 Puestos",
       icon: <StorefrontIcon />,
-      imagen:
-        "https://lh3.googleusercontent.com/aida-public/AB6AXuBNWZ9cR_lB1-KaacvD4sUXhzHMbeAFf3B4zZN26LPLCzOfBhklqqXHlICaJ4lRtRQ9T4NOlZ1tLm_jjuOHUs_8ySmqxbcb5IskwmC_4jWWCJYr9AsUelwsPVWN7XTF3GmphYvzBEQww1UTklZ6EDe2YPrGQHYTQfRg5sShZIooKFe_UNG8JnFQO0yFEejWnirCyPrQAFeLGvknXUY_q5lPjlBkbDZLihiG14CO6u1BPFigK2M9Tjei0car_Hr0Fh_04zwTze6Dm4Y",
-      color: "#8b5cf6",
+      color: "#8b5cf6", // Violet
+      bgGradient: "linear-gradient(135deg, #ede9fe 0%, #ddd6fe 100%)",
     },
   ];
 
   const categorias = [
-    { nombre: "Frutas", tag: "Popular", icon: <LocalFloristIcon />, value: "frutas", color: "#22c55e" },
-    { nombre: "Verduras", tag: "Popular", icon: <EcoIcon />, value: "verduras", color: "#10b981" },
-    { nombre: "Carnes", icon: <KebabDiningIcon />, value: "carnes", color: "#ef4444" },
+    {
+      nombre: "Frutas",
+      icon: <LocalFloristIcon />,
+      value: "frutas",
+      color: "#22c55e",
+    },
+    {
+      nombre: "Verduras",
+      icon: <EcoIcon />,
+      value: "verduras",
+      color: "#10b981",
+    },
+    {
+      nombre: "Carnes",
+      icon: <KebabDiningIcon />,
+      value: "carnes",
+      color: "#ef4444",
+    },
     { nombre: "Aves", icon: <EggAltIcon />, value: "aves", color: "#f59e0b" },
-    { nombre: "Pescados", icon: <SetMealIcon />, value: "pescados", color: "#3b82f6" },
-    { nombre: "Abarrotes", icon: <ShoppingBasketIcon />, value: "abarrotes", color: "#8b5cf6" },
-    { nombre: "Lácteos", icon: <LocalDrinkIcon />, value: "lacteos", color: "#06b6d4" },
-    { nombre: "Bebidas", icon: <LiquorIcon />, value: "bebidas", color: "#6366f1" },
-    { nombre: "Empacados", icon: <AllInboxIcon />, value: "empacados", color: "#64748b" },
-    { nombre: "Otros", icon: <MoreHorizIcon />, value: "otros", color: "#94a3b8" },
+    {
+      nombre: "Pescados",
+      icon: <SetMealIcon />,
+      value: "pescados",
+      color: "#3b82f6",
+    },
+    {
+      nombre: "Abarrotes",
+      icon: <ShoppingBasketIcon />,
+      value: "abarrotes",
+      color: "#8b5cf6",
+    },
+    {
+      nombre: "Lácteos",
+      icon: <LocalDrinkIcon />,
+      value: "lacteos",
+      color: "#06b6d4",
+    },
+    {
+      nombre: "Bebidas",
+      icon: <LiquorIcon />,
+      value: "bebidas",
+      color: "#6366f1",
+    },
+    {
+      nombre: "Empacados",
+      icon: <AllInboxIcon />,
+      value: "empacados",
+      color: "#64748b",
+    },
+    {
+      nombre: "Otros",
+      icon: <MoreHorizIcon />,
+      value: "otros",
+      color: "#94a3b8",
+    },
   ];
 
   return (
     <Box
       sx={{
         minHeight: "100vh",
-        bgcolor: "#f8fafc",
         display: "flex",
         flexDirection: "column",
-        backgroundImage:
-          "radial-gradient(circle at 15% 50%, rgba(22, 163, 74, 0.05) 0%, transparent 25%), radial-gradient(circle at 85% 30%, rgba(245, 158, 11, 0.05) 0%, transparent 25%)",
+        background:
+          "linear-gradient(180deg, #ecfdf5 0%, #f8fafc 50%, #ffffff 100%)",
       }}
     >
       <PublicHeader />
 
-      {/* HERO */}
+      {/* --- HERO SECTION --- */}
       <Box
         sx={{
           position: "relative",
-          color: "#fff",
-          py: { xs: 10, md: 12 },
-          px: 2,
-          backgroundImage: `
-            linear-gradient(135deg, rgba(15,23,42,0.92) 0%, rgba(30,41,59,0.92) 100%),
-            url('https://lh3.googleusercontent.com/aida-public/AB6AXuDA4pVkyWlRyF6THFJXvi93T83zgwctf1f2ldTv7QWvmsWrt1PKsznA6fRBAptI38i_qC1wiDHV4wZX99ylVaFns67Rt9y0CvBLhvAg1cze4kYDGKL-Cu070jQqdBxBhTjZqh9uegsZgSTqVKdJUoEfBwXk-XERXDpK9l6FsCRNMo63B5DocetxqzFjt_39X52CD1iD94ZbnBqkb2hxqkOoZ22A6hjHkoBa4HzrjqxTJKxSHyCoxRpEasCsO55YlkjcndoBGaRMARA')
-          `,
-          backgroundSize: "cover",
-          backgroundPosition: "center",
+          pt: { xs: 6, md: 10 },
+          pb: { xs: 8, md: 12 },
           overflow: "hidden",
-          "&::before": {
-            content: '""',
-            position: "absolute",
-            inset: 0,
-            background:
-              "linear-gradient(135deg, transparent 30%, rgba(22, 163, 74, 0.1) 100%)",
-            pointerEvents: "none",
-          },
+          background:
+            "radial-gradient(circle at 50% 50%, rgba(22,163,74,0.05) 0%, transparent 70%)",
         }}
       >
-        <Container maxWidth="lg">
-          <Fade in={true} timeout={800}>
-            <Box
-              sx={{
-                maxWidth: 800,
-                mx: "auto",
-                textAlign: "center",
-                position: "relative",
-                zIndex: 1,
-              }}
-            >
+        <Container maxWidth="lg" sx={{ position: "relative", zIndex: 2 }}>
+          <Fade in timeout={800}>
+            <Stack spacing={4} alignItems="center" textAlign="center">
               <Chip
-                label="Mercado Mayorista"
-                size="small"
+                label="Mercado Mayorista de Santa Anita"
                 sx={{
-                  mb: 3,
-                  px: 2,
-                  py: 1,
-                  bgcolor: "rgba(255,255,255,0.15)",
-                  backdropFilter: "blur(10px)",
-                  color: "white",
-                  fontWeight: 600,
-                  fontSize: "0.85rem",
-                  border: "1px solid rgba(255,255,255,0.2)",
+                  bgcolor: "rgba(22,163,74,0.1)",
+                  color: "#15803d",
+                  fontWeight: 700,
+                  border: "1px solid rgba(22,163,74,0.2)",
+                  px: 1,
                 }}
               />
 
               <Typography
-                variant="h2"
+                variant="h1"
                 sx={{
                   fontWeight: 900,
+                  fontSize: { xs: "2.5rem", sm: "3.5rem", md: "4.5rem" },
                   lineHeight: 1.1,
-                  mb: 3,
-                  fontFamily: '"Inter", "Poppins", sans-serif',
-                  fontSize: { xs: "2.75rem", md: "3.75rem" },
-                  background: "linear-gradient(135deg, #ffffff 0%, #e5e7eb 100%)",
+                  background:
+                    "linear-gradient(135deg, #0f172a 0%, #334155 100%)",
                   WebkitBackgroundClip: "text",
                   WebkitTextFillColor: "transparent",
-                  textShadow: "0 2px 4px rgba(0,0,0,0.1)",
+                  letterSpacing: "-0.02em",
                 }}
               >
-                Mercado Mayorista de Santa Anita
+                Calidad y frescura <br />
+                <Box
+                  component="span"
+                  sx={{ color: "#16a34a", WebkitTextFillColor: "#16a34a" }}
+                >
+                  al mejor precio
+                </Box>
               </Typography>
 
               <Typography
-                variant="h5"
+                variant="h6"
                 sx={{
-                  mb: 4,
-                  opacity: 0.9,
+                  color: "text.secondary",
+                  maxWidth: 700,
                   fontWeight: 400,
-                  maxWidth: 650,
-                  mx: "auto",
-                  fontFamily: '"Inter", sans-serif',
-                  color: "#e2e8f0",
+                  lineHeight: 1.6,
+                  fontSize: { xs: "1rem", md: "1.25rem" },
                 }}
               >
-                Tu conexión directa con los mejores productos frescos y precios
-                competitivos del mercado mayorista.
+                Conecta directamente con los puestos del mercado. Consulta
+                precios, ubica stands y gestiona tus pedidos mayoristas en un
+                solo lugar.
               </Typography>
 
-              {/* BOTONES */}
+              {/* BOTONES HERO */}
               <Stack
                 direction={{ xs: "column", sm: "row" }}
                 spacing={2}
-                justifyContent="center"
-                alignItems="center"
-                sx={{ mb: 4 }}
+                pt={2}
+                width={{ xs: "100%", sm: "auto" }}
               >
                 <Button
                   variant="contained"
                   size="large"
                   startIcon={<ExploreIcon />}
+                  onClick={irAMapaStands}
+                  fullWidth
                   sx={{
-                    borderRadius: 3,
-                    px: 5,
-                    py: 1.8,
-                    fontWeight: 700,
-                    fontSize: "1.05rem",
+                    borderRadius: 999,
+                    px: 4,
+                    py: 1.5,
+                    fontSize: "1rem",
+                    fontWeight: 800,
                     textTransform: "none",
-                    background: "linear-gradient(135deg, #16a34a 0%, #22c55e 100%)",
-                    boxShadow: "0 8px 32px rgba(22,163,74,0.4)",
+                    background:
+                      "linear-gradient(135deg, #16a34a 0%, #15803d 100%)",
+                    boxShadow: "0 8px 20px rgba(22,163,74,0.3)",
                     "&:hover": {
-                      background: "linear-gradient(135deg, #15803d 0%, #16a34a 100%)",
-                      boxShadow: "0 12px 40px rgba(22,163,74,0.6)",
+                      background:
+                        "linear-gradient(135deg, #15803d 0%, #14532d 100%)",
                       transform: "translateY(-2px)",
+                      boxShadow: "0 12px 25px rgba(22,163,74,0.4)",
                     },
                     transition: "all 0.3s ease",
                   }}
-                  onClick={irAMapaStands}
                 >
                   Explorar Mapa
                 </Button>
-
                 <Button
-                  variant="contained"
+                  variant="outlined"
                   size="large"
                   startIcon={<TrendingUpIcon />}
+                  onClick={() => irAProductos()}
+                  fullWidth
                   sx={{
-                    borderRadius: 3,
-                    px: 5,
-                    py: 1.8,
-                    fontWeight: 700,
-                    fontSize: "1.05rem",
+                    borderRadius: 999,
+                    px: 4,
+                    py: 1.5,
+                    fontSize: "1rem",
+                    fontWeight: 800,
                     textTransform: "none",
-                    background: "linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%)",
-                    boxShadow: "0 8px 32px rgba(245,158,11,0.4)",
+                    borderColor: "#e2e8f0",
+                    color: "#0f172a",
+                    bgcolor: "#fff",
                     "&:hover": {
-                      background: "linear-gradient(135deg, #d97706 0%, #f59e0b 100%)",
-                      boxShadow: "0 12px 40px rgba(217,119,6,0.6)",
+                      borderColor: "#cbd5e1",
+                      bgcolor: "#f8fafc",
                       transform: "translateY(-2px)",
                     },
                     transition: "all 0.3s ease",
                   }}
-                  onClick={() => irAProductos()}
                 >
-                  Ver Precios
+                  Ver Productos
                 </Button>
               </Stack>
 
-              {/* LOGIN / SALUDO */}
-              {!clienteLogueado ? (
-                <Box
-                  sx={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 2,
-                    p: 2,
-                    borderRadius: 3,
-                    bgcolor: "rgba(255,255,255,0.08)",
-                    backdropFilter: "blur(10px)",
-                    border: "1px solid rgba(255,255,255,0.1)",
-                  }}
-                >
-                  <Typography variant="body2" sx={{ opacity: 0.9, fontWeight: 500 }}>
-                    ¿Eres cliente registrado?
-                  </Typography>
-
-                  <Stack direction="row" spacing={1} alignItems="center">
-                    <Button
-                      variant="text"
-                      size="small"
-                      endIcon={<ArrowForwardIcon sx={{ fontSize: 16 }} />}
-                      sx={{
-                        textTransform: "none",
-                        color: "#e5e7eb",
-                        fontWeight: 600,
-                        px: 2,
-                        py: 0.5,
-                        borderRadius: 2,
-                        "&:hover": {
-                          bgcolor: "rgba(255,255,255,0.1)",
-                          color: "#ffffff",
-                        },
-                      }}
-                      onClick={irLoginCliente}
+              {/* TARJETA DE ESTADO DE USUARIO */}
+              <Paper
+                elevation={0}
+                sx={{
+                  mt: 6,
+                  p: 1,
+                  pr: 3,
+                  pl: 3,
+                  display: "inline-flex",
+                  flexDirection: { xs: "column", sm: "row" },
+                  alignItems: "center",
+                  gap: { xs: 2, sm: 3 },
+                  borderRadius: 999, // Pill shape
+                  border: "1px solid rgba(22,163,74,0.15)",
+                  bgcolor: "rgba(255,255,255,0.8)",
+                  backdropFilter: "blur(12px)",
+                  boxShadow: "0 10px 30px rgba(0,0,0,0.05)",
+                }}
+              >
+                {!clienteLogueado ? (
+                  <>
+                    <Typography
+                      variant="body2"
+                      fontWeight={600}
+                      color="text.secondary"
                     >
-                      Iniciar Sesión
-                    </Button>
-
-                    <Box sx={{ color: "rgba(255,255,255,0.3)" }}>|</Box>
-
-                    <Button
-                      variant="outlined"
-                      size="small"
-                      sx={{
-                        textTransform: "none",
-                        color: "#facc15",
-                        borderColor: "rgba(250,204,21,0.3)",
-                        fontWeight: 700,
-                        px: 2,
-                        py: 0.5,
-                        borderRadius: 2,
-                        "&:hover": {
-                          borderColor: "#facc15",
-                          bgcolor: "rgba(250,204,21,0.1)",
-                          color: "#fef08a",
-                        },
-                      }}
-                      onClick={irRegistroCliente}
-                    >
-                      Registrarme
-                    </Button>
-                  </Stack>
-                </Box>
-              ) : (
-                <Box
-                  sx={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 2,
-                    p: 2,
-                    borderRadius: 3,
-                    bgcolor: "rgba(255,255,255,0.08)",
-                    backdropFilter: "blur(10px)",
-                    border: "1px solid rgba(255,255,255,0.1)",
-                  }}
-                >
-                  <Box sx={{ textAlign: "left" }}>
-                    <Typography variant="body2" sx={{ opacity: 0.95, fontWeight: 800 }}>
-                      👋 Hola, {displayName}
-                      {loadingMe ? "…" : ""}
+                      ¿Eres cliente frecuente?
                     </Typography>
-                    <Typography variant="caption" sx={{ opacity: 0.85, color: "#e2e8f0" }}>
-                      Bienvenido de vuelta. Accede rápido a tus opciones.
-                    </Typography>
-                  </Box>
+                    <Stack direction="row" spacing={1}>
+                      <Button
+                        size="small"
+                        startIcon={<LoginIcon />}
+                        onClick={irLoginCliente}
+                        sx={{
+                          textTransform: "none",
+                          fontWeight: 700,
+                          color: "#16a34a",
+                        }}
+                      >
+                        Ingresar
+                      </Button>
+                      <Divider
+                        orientation="vertical"
+                        flexItem
+                        sx={{ height: 20, my: "auto" }}
+                      />
+                      <Button
+                        size="small"
+                        startIcon={<PersonAddIcon />}
+                        onClick={irRegistroCliente}
+                        sx={{
+                          textTransform: "none",
+                          fontWeight: 700,
+                          color: "#0f172a",
+                        }}
+                      >
+                        Registrarse
+                      </Button>
+                    </Stack>
+                  </>
+                ) : (
+                  <>
+                    <Stack direction="row" spacing={1.5} alignItems="center">
+                      <Avatar
+                        sx={{
+                          width: 32,
+                          height: 32,
+                          bgcolor: "#16a34a",
+                          fontSize: 14,
+                          fontWeight: 800,
+                        }}
+                      >
+                        {displayName.charAt(0).toUpperCase()}
+                      </Avatar>
+                      <Box textAlign="left">
+                        <Typography
+                          variant="body2"
+                          fontWeight={700}
+                          lineHeight={1.2}
+                        >
+                          Hola, {displayName}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          Sesión activa
+                        </Typography>
+                      </Box>
+                    </Stack>
 
-                  <Divider
-                    orientation="vertical"
-                    flexItem
-                    sx={{ borderColor: "rgba(255,255,255,0.15)" }}
-                  />
-
-                  <Stack direction="row" spacing={1} alignItems="center">
-                    <Button
-                      variant="text"
-                      size="small"
-                      startIcon={<AccountCircleIcon sx={{ fontSize: 18 }} />}
+                    <Divider
+                      orientation="vertical"
+                      flexItem
+                      sx={{ display: { xs: "none", sm: "block" } }}
+                    />
+                    <Divider
+                      flexItem
                       sx={{
-                        textTransform: "none",
-                        color: "#e5e7eb",
-                        fontWeight: 700,
-                        px: 2,
-                        py: 0.5,
-                        borderRadius: 2,
-                        "&:hover": {
-                          bgcolor: "rgba(255,255,255,0.1)",
-                          color: "#ffffff",
-                        },
+                        display: { xs: "block", sm: "none" },
+                        width: "100%",
                       }}
-                      onClick={irMiCuenta}
-                    >
-                      Mi cuenta
-                    </Button>
+                    />
 
-                    <Button
-                      variant="outlined"
-                      size="small"
-                      startIcon={<FavoriteBorderIcon sx={{ fontSize: 18 }} />}
-                      sx={{
-                        textTransform: "none",
-                        color: "#facc15",
-                        borderColor: "rgba(250,204,21,0.3)",
-                        fontWeight: 800,
-                        px: 2,
-                        py: 0.5,
-                        borderRadius: 2,
-                        "&:hover": {
-                          borderColor: "#facc15",
-                          bgcolor: "rgba(250,204,21,0.1)",
-                          color: "#fef08a",
-                        },
-                      }}
-                      onClick={irFavoritos}
-                    >
-                      Favoritos
-                    </Button>
-
-                    <Button
-                      variant="text"
-                      size="small"
-                      startIcon={<LogoutIcon sx={{ fontSize: 18 }} />}
-                      sx={{
-                        textTransform: "none",
-                        color: "rgba(255,255,255,0.85)",
-                        fontWeight: 700,
-                        px: 2,
-                        py: 0.5,
-                        borderRadius: 2,
-                        "&:hover": {
-                          bgcolor: "rgba(255,255,255,0.1)",
-                          color: "#ffffff",
-                        },
-                      }}
-                      onClick={cerrarSesion}
-                    >
-                      Salir
-                    </Button>
-                  </Stack>
-                </Box>
-              )}
-            </Box>
+                    <Stack direction="row" spacing={1}>
+                      <Tooltip title="Mi Perfil">
+                        <IconButton size="small" onClick={irMiCuenta}>
+                          <AccountCircleIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Mis Favoritos">
+                        <IconButton size="small" onClick={irFavoritos}>
+                          <FavoriteBorderIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Salir">
+                        <IconButton
+                          size="small"
+                          onClick={cerrarSesion}
+                          color="error"
+                        >
+                          <LogoutIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    </Stack>
+                  </>
+                )}
+              </Paper>
+            </Stack>
           </Fade>
         </Container>
       </Box>
 
-      {/* CONTENIDO PRINCIPAL */}
-      <Container
-        maxWidth="lg"
-        sx={{
-          mt: { xs: 4, md: 6 },
-          mb: 10,
-          flex: 1,
-          px: { xs: 2, sm: 3 },
-        }}
-      >
-        {/* BLOQUES */}
-        <Box sx={{ mb: 8 }}>
-          <Box sx={{ textAlign: "center", mb: 6 }}>
-            <Typography
-              variant="h4"
-              sx={{
-                fontWeight: 800,
-                mb: 2,
-                fontFamily: '"Inter", "Poppins", sans-serif',
-                color: "#1e293b",
-                position: "relative",
-                display: "inline-block",
-                "&::after": {
-                  content: '""',
-                  position: "absolute",
-                  bottom: -8,
-                  left: "50%",
-                  transform: "translateX(-50%)",
-                  width: 60,
-                  height: 4,
-                  bgcolor: "#16a34a",
-                  borderRadius: 2,
-                },
-              }}
-            >
-              Bloques del Mercado
-            </Typography>
-            <Typography
-              variant="body1"
-              sx={{
-                color: "text.secondary",
-                maxWidth: 600,
-                mx: "auto",
-                fontSize: "1.1rem",
-              }}
-            >
-              Navega por nuestra distribución organizada para encontrar
-              exactamente lo que necesitas.
-            </Typography>
-          </Box>
-
-          <Box
-            sx={{
-              display: "grid",
-              gridTemplateColumns: {
-                xs: "1fr",
-                sm: "repeat(2, 1fr)",
-                md: "repeat(4, 1fr)",
-              },
-              gap: 3,
-            }}
+      {/* --- BLOQUES --- */}
+      <Container maxWidth="lg" sx={{ mb: 10, px: { xs: 2, sm: 3 } }}>
+        <Box sx={{ textAlign: "center", mb: 6 }}>
+          <Typography
+            variant="h4"
+            fontWeight={900}
+            sx={{ mb: 1, color: "#0f172a" }}
           >
-            {bloques.map((b, i) => (
-              <Paper
-                key={i}
-                elevation={0}
-                onClick={() =>
-                  navigate("/tienda/mapa-stand", { state: { initialBlock: b.id } })
-                }
-                sx={{
-                  borderRadius: 4,
-                  overflow: "hidden",
-                  bgcolor: "#ffffff",
-                  boxShadow: "0 4px 20px rgba(15,23,42,0.08)",
-                  border: "1px solid #f1f5f9",
-                  transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-                  cursor: "pointer",
-                  "&:hover": {
-                    boxShadow: "0 20px 50px rgba(15,23,42,0.15)",
-                    transform: "translateY(-8px)",
-                    borderColor: alpha(b.color, 0.3),
-                  },
-                }}
-              >
-                <Box
-                  sx={{
-                    position: "relative",
-                    width: "100%",
-                    height: 160,
-                    overflow: "hidden",
-                    "&::before": {
-                      content: '""',
-                      position: "absolute",
-                      inset: 0,
-                      background: `linear-gradient(to bottom, transparent 0%, ${alpha(
-                        b.color,
-                        0.1
-                      )} 100%)`,
-                      zIndex: 1,
-                    },
-                  }}
-                >
-                  <Box
-                    sx={{
-                      width: "100%",
-                      height: "100%",
-                      backgroundImage: `url(${b.imagen})`,
-                      backgroundSize: "cover",
-                      backgroundPosition: "center",
-                      transition: "transform 0.5s ease",
-                      "&:hover": { transform: "scale(1.05)" },
-                    }}
-                  />
-                  <Box
-                    sx={{
-                      position: "absolute",
-                      top: 16,
-                      left: 16,
-                      zIndex: 2,
-                      width: 48,
-                      height: 48,
-                      borderRadius: "50%",
-                      bgcolor: alpha(b.color, 0.9),
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      color: "white",
-                      boxShadow: "0 4px 12px rgba(0,0,0,0.2)",
-                    }}
-                  >
-                    {b.icon}
-                  </Box>
-                </Box>
-                <Box sx={{ p: 3 }}>
-                  <Typography
-                    variant="h6"
-                    sx={{
-                      fontWeight: 800,
-                      mb: 1,
-                      color: "#1e293b",
-                      fontFamily: '"Inter", sans-serif',
-                    }}
-                  >
-                    {b.nombre}
-                  </Typography>
-                  <Typography
-                    variant="body2"
-                    sx={{
-                      color: "#64748b",
-                      lineHeight: 1.6,
-                      fontWeight: 500,
-                    }}
-                  >
-                    {b.detalle}
-                  </Typography>
-                </Box>
-              </Paper>
-            ))}
-          </Box>
+            Navega por Bloques
+          </Typography>
+          <Typography color="text.secondary" sx={{ maxWidth: 500, mx: "auto" }}>
+            El mercado está organizado para que encuentres rápidamente lo que
+            buscas.
+          </Typography>
         </Box>
 
-        {/* CATEGORÍAS */}
-        <Box sx={{ mb: 4 }}>
-          <Box sx={{ textAlign: "center", mb: 6 }}>
-            <Typography
-              variant="h4"
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: {
+              xs: "1fr",
+              sm: "1fr 1fr",
+              md: "repeat(4, 1fr)",
+            },
+            gap: 3,
+          }}
+        >
+          {bloques.map((b) => (
+            <Paper
+              key={b.id}
+              elevation={0}
+              onClick={() =>
+                navigate("/tienda/mapa-stand", {
+                  state: { initialBlock: b.id },
+                })
+              }
               sx={{
-                fontWeight: 800,
-                mb: 2,
-                fontFamily: '"Inter", "Poppins", sans-serif',
-                color: "#1e293b",
+                p: 3,
+                borderRadius: 4,
+                bgcolor: "#ffffff",
+                border: "1px solid #f1f5f9",
+                cursor: "pointer",
+                transition: "all 0.3s ease",
                 position: "relative",
-                display: "inline-block",
-                "&::after": {
-                  content: '""',
-                  position: "absolute",
-                  bottom: -8,
-                  left: "50%",
-                  transform: "translateX(-50%)",
-                  width: 60,
-                  height: 4,
-                  bgcolor: "#f59e0b",
-                  borderRadius: 2,
+                overflow: "hidden",
+                "&:hover": {
+                  transform: "translateY(-5px)",
+                  boxShadow: "0 20px 40px -10px rgba(0,0,0,0.1)",
+                  borderColor: alpha(b.color, 0.3),
                 },
               }}
             >
-              Categorías Principales
-            </Typography>
-            <Typography
-              variant="body1"
-              sx={{
-                color: "text.secondary",
-                maxWidth: 600,
-                mx: "auto",
-                fontSize: "1.1rem",
-              }}
+              {/* Fondo decorativo sutil */}
+              <Box
+                sx={{
+                  position: "absolute",
+                  top: 0,
+                  right: 0,
+                  width: "60%",
+                  height: "60%",
+                  background: b.bgGradient,
+                  filter: "blur(40px)",
+                  opacity: 0.5,
+                  zIndex: 0,
+                }}
+              />
+
+              <Box sx={{ position: "relative", zIndex: 1 }}>
+                <Box
+                  sx={{
+                    width: 56,
+                    height: 56,
+                    borderRadius: 3,
+                    mb: 2,
+                    bgcolor: alpha(b.color, 0.1),
+                    color: b.color,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  {b.icon}
+                </Box>
+                <Typography variant="h6" fontWeight={800} gutterBottom>
+                  {b.nombre}
+                </Typography>
+                <Typography
+                  variant="body2"
+                  fontWeight={600}
+                  color="text.primary"
+                  sx={{ mb: 0.5 }}
+                >
+                  {b.detalle}
+                </Typography>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  fontWeight={500}
+                >
+                  {b.count}
+                </Typography>
+              </Box>
+            </Paper>
+          ))}
+        </Box>
+      </Container>
+
+      {/* --- CATEGORÍAS --- */}
+      <Box sx={{ bgcolor: "#fff", py: 10, borderTop: "1px solid #f1f5f9" }}>
+        <Container maxWidth="lg">
+          <Stack
+            direction={{ xs: "column", md: "row" }}
+            justifyContent="space-between"
+            alignItems="end"
+            mb={6}
+            spacing={2}
+          >
+            <Box>
+              <Typography
+                variant="h4"
+                fontWeight={900}
+                sx={{ mb: 1, color: "#0f172a" }}
+              >
+                Categorías Populares
+              </Typography>
+              <Typography color="text.secondary">
+                Todo lo que necesitas para tu negocio o tu hogar.
+              </Typography>
+            </Box>
+            <Button
+              endIcon={<ArrowForwardIcon />}
+              onClick={() => irAProductos()}
+              sx={{ fontWeight: 700, color: "#16a34a" }}
             >
-              Explora nuestra amplia gama de productos frescos y de calidad.
-            </Typography>
-          </Box>
+              Ver todo el catálogo
+            </Button>
+          </Stack>
 
           <Box
             sx={{
@@ -737,85 +645,53 @@ export default function TiendaHome() {
                 elevation={0}
                 onClick={() => irAProductos(cat.value)}
                 sx={{
-                  borderRadius: 3,
                   p: 3,
-                  textAlign: "center",
-                  bgcolor: "#ffffff",
+                  borderRadius: 3,
+                  bgcolor: "#f8fafc",
                   border: "1px solid #f1f5f9",
-                  boxShadow: "0 4px 16px rgba(15,23,42,0.05)",
-                  transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
                   cursor: "pointer",
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  justifyContent: "center",
+                  textAlign: "center",
+                  transition: "all 0.2s ease",
                   "&:hover": {
-                    boxShadow: "0 16px 40px rgba(15,23,42,0.12)",
+                    bgcolor: "#fff",
                     transform: "translateY(-4px)",
+                    boxShadow: "0 10px 25px -5px rgba(0,0,0,0.08)",
                     borderColor: alpha(cat.color, 0.3),
-                    bgcolor: alpha(cat.color, 0.02),
                   },
                 }}
               >
                 <Box
                   sx={{
-                    width: 70,
-                    height: 70,
+                    width: 64,
+                    height: 64,
                     borderRadius: "50%",
+                    mx: "auto",
+                    mb: 2,
                     bgcolor: alpha(cat.color, 0.1),
+                    color: cat.color,
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    color: cat.color,
-                    mb: 2.5,
-                    transition: "all 0.3s ease",
-                    "&:hover": {
-                      transform: "scale(1.1)",
-                      bgcolor: alpha(cat.color, 0.15),
-                    },
-                    "& svg": { fontSize: 32 },
+                    transition: "transform 0.2s",
+                    ".MuiPaper-root:hover &": { transform: "scale(1.1)" },
                   }}
                 >
                   {cat.icon}
                 </Box>
-
                 <Typography
                   variant="subtitle1"
-                  sx={{
-                    fontWeight: 700,
-                    mb: cat.tag ? 1 : 0,
-                    color: "#1e293b",
-                    fontFamily: '"Inter", sans-serif',
-                  }}
+                  fontWeight={700}
+                  color="text.primary"
                 >
                   {cat.nombre}
                 </Typography>
-
-                {cat.tag && (
-                  <Chip
-                    label={cat.tag}
-                    size="small"
-                    sx={{
-                      height: 24,
-                      fontSize: "0.7rem",
-                      fontWeight: 700,
-                      borderRadius: 999,
-                      bgcolor: alpha("#f59e0b", 0.15),
-                      color: "#92400e",
-                      border: "1px solid",
-                      borderColor: alpha("#f59e0b", 0.3),
-                    }}
-                  />
-                )}
               </Paper>
             ))}
           </Box>
-        </Box>
-      </Container>
-
-      <Box sx={{ mt: "auto" }}>
-        <PublicFooter />
+        </Container>
       </Box>
+
+      <PublicFooter />
     </Box>
   );
 }

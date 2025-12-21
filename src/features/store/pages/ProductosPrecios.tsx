@@ -12,9 +12,19 @@ import {
   Alert,
   Paper,
   Chip,
+  Fade,
+  useTheme,
+  useMediaQuery,
+  Button,
 } from "@mui/material";
 import axios from "axios";
 import { useLocation, useNavigate } from "react-router-dom";
+
+// Iconos
+import NavigateNextIcon from "@mui/icons-material/NavigateNext";
+import SearchOffIcon from "@mui/icons-material/SearchOff";
+import FilterListIcon from "@mui/icons-material/FilterList";
+import ClearAllIcon from "@mui/icons-material/ClearAll";
 
 import PublicHeader from "../../../layouts/store/HeaderTienda";
 import PublicFooter from "../../../layouts/store/FooterTienda";
@@ -40,6 +50,7 @@ const CATEGORY_MAP: Record<string, string> = {
   abarrotes: "Abarrotes",
   lacteos: "Lácteos",
   bebidas: "Bebidas",
+  empacados: "Empacados",
   otros: "Otros",
 };
 
@@ -49,6 +60,8 @@ export default function PreciosProductos() {
   const location = useLocation() as {
     state?: { initialCategory?: string };
   };
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
 
   // ===== estados de filtros =====
   const [search, setSearch] = useState("");
@@ -198,207 +211,275 @@ export default function PreciosProductos() {
     setSortBy("ofertas");
   };
 
+  const handleClearFilters = () => {
+    setCategory("todos");
+    setPriceRange("todos");
+    setSortBy("relevancia");
+    setSearch("");
+  };
+
   return (
     <Box
       sx={{
         minHeight: "100vh",
         background:
-          "linear-gradient(180deg, #f1f5f9 0%, #f8fafc 40%, #ffffff 100%)",
+          "linear-gradient(180deg, #ecfdf5 0%, #f8fafc 50%, #ffffff 100%)",
         display: "flex",
         flexDirection: "column",
       }}
     >
       <PublicHeader />
 
-      <Box sx={{ flex: 1, py: 5 }}>
+      {/* HERO SECTION */}
+      <Box
+        sx={{
+          pt: { xs: 4, md: 6 },
+          pb: { xs: 2, md: 4 },
+          background:
+            "radial-gradient(circle at 20% 20%, rgba(34,197,94,0.08) 0%, transparent 50%)",
+        }}
+      >
         <Container maxWidth="lg">
-          <Stack spacing={4}>
-            {/* CABECERA */}
-            <Box>
-              <Breadcrumbs sx={{ mb: 1 }} aria-label="breadcrumb">
-                <MuiLink
-                  underline="hover"
-                  color="inherit"
-                  href="/tienda"
-                  sx={{ display: "flex", alignItems: "center" }}
-                >
-                  Inicio
-                </MuiLink>
-                <Typography color="text.primary" fontWeight={500}>
-                  Directorio de precios
-                </Typography>
-              </Breadcrumbs>
+          {/* BREADCRUMBS */}
+          <Breadcrumbs
+            separator={<NavigateNextIcon fontSize="small" />}
+            aria-label="breadcrumb"
+            sx={{ mb: 2 }}
+          >
+            <MuiLink
+              underline="hover"
+              color="inherit"
+              href="/tienda"
+              sx={{ display: "flex", alignItems: "center", fontWeight: 500 }}
+            >
+              Inicio
+            </MuiLink>
+            <Typography color="text.primary" fontWeight={700}>
+              Directorio de precios
+            </Typography>
+          </Breadcrumbs>
 
-              <Typography
-                variant="h3"
-                sx={{
-                  fontWeight: 800,
-                  mb: 1,
-                  letterSpacing: "-0.03em",
-                }}
-              >
-                Precios y productos del mercado
-              </Typography>
-              <Typography
-                variant="body1"
-                color="text.secondary"
-                sx={{ maxWidth: 720 }}
-              >
-                Explora los productos ofrecidos por los stands del mercado,
-                filtra por categoría y rango de precios, y encuentra las mejores
-                ofertas disponibles para hoy.
-              </Typography>
-            </Box>
-
-            {/* CONTENEDOR PRINCIPAL */}
-            <Paper
-              elevation={1}
+          <Box mb={4} textAlign={{ xs: "center", md: "left" }}>
+            <Typography
+              variant="h3"
               sx={{
-                p: 3,
-                borderRadius: 3,
-                bgcolor: "#ffffff",
-                border: "1px solid #e2e8f0",
+                fontWeight: 900,
+                mb: 1,
+                fontSize: { xs: "2rem", md: "2.75rem" },
+                letterSpacing: "-0.02em",
+                color: "#0f172a",
               }}
             >
-              <Stack spacing={3}>
-                {/* BARRA DE FILTROS */}
-                <Box>
-                  <ProductFiltersBar
-                    search={search}
-                    onSearchChange={setSearch}
-                    category={category}
-                    onCategoryChange={setCategory}
-                    priceRange={priceRange}
-                    onPriceRangeChange={setPriceRange}
-                    sortBy={sortBy}
-                    onSortByChange={setSortBy}
+              Precios y Productos
+            </Typography>
+            <Typography
+              variant="body1"
+              color="text.secondary"
+              maxWidth={700}
+              sx={{ mx: { xs: "auto", md: 0 }, fontSize: "1.1rem" }}
+            >
+              Consulta los precios actualizados del día, filtra por categorías y
+              encuentra las mejores ofertas de nuestros comerciantes.
+            </Typography>
+          </Box>
+        </Container>
+      </Box>
+
+      {/* CONTENIDO PRINCIPAL */}
+      <Container maxWidth="lg" sx={{ pb: 8, flex: 1 }}>
+        <Paper
+          elevation={0}
+          sx={{
+            p: { xs: 2, md: 4 },
+            borderRadius: 4,
+            bgcolor: "#ffffff",
+            border: "1px solid #e2e8f0",
+            boxShadow: "0 10px 30px rgba(0,0,0,0.04)",
+          }}
+        >
+          <Stack spacing={4}>
+            {/* BARRA DE FILTROS */}
+            <Box>
+              <ProductFiltersBar
+                search={search}
+                onSearchChange={setSearch}
+                category={category}
+                onCategoryChange={setCategory}
+                priceRange={priceRange}
+                onPriceRangeChange={setPriceRange}
+                sortBy={sortBy}
+                onSortByChange={setSortBy}
+              />
+
+              {/* Resumen de filtros activos */}
+              <Stack
+                direction="row"
+                spacing={1}
+                mt={2}
+                flexWrap="wrap"
+                alignItems="center"
+                useFlexGap
+              >
+                <Stack direction="row" alignItems="center" spacing={0.5} mr={1}>
+                  <FilterListIcon
+                    fontSize="small"
+                    sx={{ color: "text.secondary" }}
                   />
-
-                  {/* Resumen de filtros activos */}
-                  <Stack
-                    direction="row"
-                    spacing={1}
-                    mt={1.5}
-                    flexWrap="wrap"
-                    alignItems="center"
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    fontWeight={700}
                   >
-                    <Typography
-                      variant="caption"
-                      color="text.secondary"
-                      sx={{ mr: 1 }}
-                    >
-                      Filtros activos:
-                    </Typography>
-                    {category !== "todos" && (
-                      <Chip
-                        size="small"
-                        label={`Categoría: ${
-                          CATEGORY_MAP[category] ?? category
-                        }`}
-                      />
-                    )}
-                    {priceRange !== "todos" && (
-                      <Chip size="small" label={`Precio: ${priceRange}`} />
-                    )}
-                    {sortBy !== "relevancia" && (
-                      <Chip size="small" label={`Orden: ${sortBy}`} />
-                    )}
-                    {category === "todos" &&
-                      priceRange === "todos" &&
-                      sortBy === "relevancia" && (
-                        <Chip
-                          size="small"
-                          variant="outlined"
-                          label="Sin filtros"
-                        />
-                      )}
-                  </Stack>
-                </Box>
+                    Filtros:
+                  </Typography>
+                </Stack>
 
-                {/* LOADING / ERROR */}
-                {loading && (
-                  <Box sx={{ py: 6, textAlign: "center" }}>
-                    <CircularProgress />
-                    <Typography
-                      variant="body2"
-                      sx={{ mt: 2 }}
-                      color="text.secondary"
-                    >
-                      Cargando productos públicos...
-                    </Typography>
+                {category !== "todos" && (
+                  <Chip
+                    size="small"
+                    label={`Categoría: ${CATEGORY_MAP[category] ?? category}`}
+                    onDelete={() => setCategory("todos")}
+                    sx={{ bgcolor: "#f1f5f9", fontWeight: 600 }}
+                  />
+                )}
+                {priceRange !== "todos" && (
+                  <Chip
+                    size="small"
+                    label={`Precio: ${priceRange}`}
+                    onDelete={() => setPriceRange("todos")}
+                    sx={{ bgcolor: "#f1f5f9", fontWeight: 600 }}
+                  />
+                )}
+                {sortBy !== "relevancia" && (
+                  <Chip
+                    size="small"
+                    label={`Orden: ${sortBy}`}
+                    onDelete={() => setSortBy("relevancia")}
+                    sx={{ bgcolor: "#f1f5f9", fontWeight: 600 }}
+                  />
+                )}
+
+                {(category !== "todos" ||
+                  priceRange !== "todos" ||
+                  sortBy !== "relevancia" ||
+                  search) && (
+                  <Button
+                    size="small"
+                    startIcon={<ClearAllIcon />}
+                    onClick={handleClearFilters}
+                    sx={{ textTransform: "none", color: "#64748b" }}
+                  >
+                    Limpiar todo
+                  </Button>
+                )}
+              </Stack>
+            </Box>
+
+            <Divider sx={{ borderColor: "#f1f5f9" }} />
+
+            {/* LOADING / ERROR / CONTENIDO */}
+            {loading ? (
+              <Box sx={{ py: 8, textAlign: "center" }}>
+                <CircularProgress size={40} sx={{ color: "#22c55e" }} />
+                <Typography
+                  variant="body2"
+                  sx={{ mt: 2, fontWeight: 600 }}
+                  color="text.secondary"
+                >
+                  Buscando los mejores precios...
+                </Typography>
+              </Box>
+            ) : error ? (
+              <Fade in>
+                <Alert severity="error" sx={{ borderRadius: 3 }}>
+                  {error}
+                </Alert>
+              </Fade>
+            ) : (
+              <>
+                {/* OFERTAS DEL DÍA */}
+                {offers.length > 0 && category === "todos" && !search && (
+                  <Box>
+                    <OffersStrip
+                      offers={offers}
+                      onViewStand={handleViewStand}
+                      onViewAll={handleViewAllOffers}
+                    />
+                    <Divider sx={{ my: 4, borderColor: "#f1f5f9" }} />
                   </Box>
                 )}
 
-                {error && !loading && <Alert severity="error">{error}</Alert>}
+                {/* BANNER COMPARADOR */}
+                <Box mb={4}>
+                  <PriceComparatorBanner
+                    onClick={() =>
+                      console.log("Abrir comparador de precios público")
+                    }
+                  />
+                </Box>
 
-                {/* CONTENIDO SOLO SI NO HAY ERROR NI LOADING */}
-                {!loading && !error && (
-                  <>
-                    {/* OFERTAS DEL DÍA */}
-                    {offers.length > 0 && category === "todos" && (
-                      <Box>
-                        <OffersStrip
-                          offers={offers}
-                          onViewStand={handleViewStand}
-                          onViewAll={handleViewAllOffers}
-                        />
-                      </Box>
-                    )}
+                {/* GRID PRINCIPAL */}
+                <Box>
+                  <Stack
+                    direction="row"
+                    alignItems="center"
+                    justifyContent="space-between"
+                    mb={3}
+                  >
+                    <Typography variant="h5" sx={{ fontWeight: 800 }}>
+                      Productos Disponibles
+                    </Typography>
+                    <Chip
+                      label={`${filteredProducts.length} resultados`}
+                      size="small"
+                      sx={{ fontWeight: 700 }}
+                    />
+                  </Stack>
 
-                    {/* BANNER COMPARADOR */}
-                    <Box>
-                      <PriceComparatorBanner
-                        onClick={() =>
-                          console.log("Abrir comparador de precios público")
-                        }
+                  {filteredProducts.length > 0 ? (
+                    <ProductsGrid
+                      products={filteredProducts}
+                      onViewStand={handleViewStand}
+                    />
+                  ) : (
+                    <Paper
+                      elevation={0}
+                      sx={{
+                        py: 8,
+                        textAlign: "center",
+                        bgcolor: "#f8fafc",
+                        borderRadius: 4,
+                        border: "2px dashed #e2e8f0",
+                      }}
+                    >
+                      <SearchOffIcon
+                        sx={{ fontSize: 64, color: "#cbd5e1", mb: 2 }}
                       />
-                    </Box>
-
-                    {/* GRID PRINCIPAL */}
-                    <Box>
-                      <Stack
-                        direction="row"
-                        alignItems="center"
-                        spacing={2}
-                        mb={2}
+                      <Typography
+                        variant="h6"
+                        fontWeight={700}
+                        color="text.secondary"
                       >
-                        <Typography variant="h5" sx={{ fontWeight: 700 }}>
-                          Productos disponibles
-                        </Typography>
-                        <Divider
-                          flexItem
-                          orientation="vertical"
-                          sx={{ height: 24, alignSelf: "center" }}
-                        />
-                        <Typography variant="body2" color="text.secondary">
-                          {filteredProducts.length} resultados encontrados
-                        </Typography>
-                      </Stack>
-
-                      {filteredProducts.length > 0 ? (
-                        <ProductsGrid
-                          products={filteredProducts}
-                          onViewStand={handleViewStand}
-                        />
-                      ) : (
-                        <Box sx={{ py: 6, textAlign: "center" }}>
-                          <Typography variant="h6" color="text.secondary">
-                            No encontramos productos con esos filtros.
-                          </Typography>
-                          <Typography variant="body2" color="text.secondary">
-                            Intenta buscar con otros términos o limpia los
-                            filtros para ver todos los productos disponibles.
-                          </Typography>
-                        </Box>
-                      )}
-                    </Box>
-                  </>
-                )}
-              </Stack>
-            </Paper>
+                        No encontramos productos
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Intenta cambiar los filtros o busca con otro término.
+                      </Typography>
+                      <Button
+                        variant="outlined"
+                        onClick={handleClearFilters}
+                        sx={{ mt: 3, borderRadius: 3, textTransform: "none" }}
+                      >
+                        Ver todos los productos
+                      </Button>
+                    </Paper>
+                  )}
+                </Box>
+              </>
+            )}
           </Stack>
-        </Container>
-      </Box>
+        </Paper>
+      </Container>
 
       <PublicFooter />
     </Box>

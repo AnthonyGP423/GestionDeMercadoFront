@@ -25,6 +25,8 @@ import {
   Tooltip,
   Fade,
   Grow,
+  useTheme,
+  useMediaQuery,
 } from "@mui/material";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import axios from "axios";
@@ -35,8 +37,9 @@ import RefreshIcon from "@mui/icons-material/Refresh";
 import StorefrontIcon from "@mui/icons-material/Storefront";
 import StarRoundedIcon from "@mui/icons-material/StarRounded";
 import LocationOnOutlinedIcon from "@mui/icons-material/LocationOnOutlined";
-import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
+import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
+import AddCommentIcon from "@mui/icons-material/AddComment";
 
 import PublicHeader from "../../../layouts/store/HeaderTienda";
 import PublicFooter from "../../../layouts/store/FooterTienda";
@@ -49,7 +52,6 @@ import ProductsGrid, {
 import { useAuth } from "../../../auth/useAuth";
 import { favoritosApi } from "../../../api/cliente/favoritosApi";
 import { calificacionesClienteApi } from "../../../api/cliente/calificacionesClienteApi";
-
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
@@ -89,6 +91,8 @@ export default function PerfilStand() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
   const { isAuthenticated, user } = useAuth() as any;
   const esCliente = useMemo(() => {
@@ -391,8 +395,8 @@ export default function PerfilStand() {
       <Box
         sx={{
           position: "relative",
-          pt: 5,
-          pb: 8,
+          pt: { xs: 4, md: 6 },
+          pb: { xs: 4, md: 8 },
           background:
             "radial-gradient(circle at 20% 20%, rgba(34,197,94,0.08) 0%, transparent 50%), radial-gradient(circle at 80% 80%, rgba(16,185,129,0.06) 0%, transparent 50%)",
         }}
@@ -434,7 +438,7 @@ export default function PerfilStand() {
                   elevation={0}
                   sx={{
                     mb: 4,
-                    p: 4,
+                    p: { xs: 3, md: 4 },
                     borderRadius: 5,
                     border: "1px solid rgba(34,197,94,0.15)",
                     background:
@@ -442,38 +446,37 @@ export default function PerfilStand() {
                     boxShadow:
                       "0 20px 50px rgba(34,197,94,0.12), 0 0 0 1px rgba(34,197,94,0.05)",
                     backdropFilter: "blur(10px)",
-                    transition: "all 0.3s ease",
-                    "&:hover": {
-                      boxShadow: "0 25px 60px rgba(34,197,94,0.18)",
-                      transform: "translateY(-2px)",
-                    },
                   }}
                 >
                   <Stack
                     direction={{ xs: "column", md: "row" }}
-                    spacing={4}
-                    alignItems={{ xs: "flex-start", md: "center" }}
+                    spacing={{ xs: 3, md: 4 }}
+                    alignItems={{ xs: "center", md: "center" }}
                     justifyContent="space-between"
+                    textAlign={{ xs: "center", md: "left" }}
                   >
                     <Stack
-                      direction="row"
+                      direction={{ xs: "column", md: "row" }}
                       spacing={3}
-                      alignItems="center"
+                      alignItems={{ xs: "center", md: "center" }}
                       flex={1}
+                      width="100%"
                     >
                       <Box sx={{ position: "relative" }}>
                         <Avatar
                           sx={{
-                            width: 80,
-                            height: 80,
+                            width: { xs: 80, sm: 96 },
+                            height: { xs: 80, sm: 96 },
                             background:
                               "linear-gradient(135deg, #22c55e 0%, #16a34a 100%)",
-                            fontSize: 36,
+                            fontSize: { xs: 32, sm: 40 },
                             fontWeight: 900,
                             boxShadow: "0 8px 20px rgba(34,197,94,0.3)",
                           }}
                         >
-                          <StorefrontIcon sx={{ fontSize: 44 }} />
+                          <StorefrontIcon
+                            sx={{ fontSize: { xs: 36, sm: 44 } }}
+                          />
                         </Avatar>
                         <Box
                           sx={{
@@ -490,7 +493,7 @@ export default function PerfilStand() {
                         />
                       </Box>
 
-                      <Box flex={1}>
+                      <Box flex={1} width="100%">
                         <Typography
                           variant="overline"
                           sx={{
@@ -502,7 +505,7 @@ export default function PerfilStand() {
                             mb: 0.5,
                           }}
                         >
-                          Stand del mercado mayorista
+                          MERCADO MAYORISTA
                         </Typography>
 
                         <Typography
@@ -511,7 +514,8 @@ export default function PerfilStand() {
                             fontWeight: 900,
                             letterSpacing: "-0.02em",
                             mb: 1.5,
-                            fontSize: { xs: "1.5rem", sm: "2rem" },
+                            fontSize: { xs: "1.75rem", sm: "2.25rem" },
+                            lineHeight: 1.1,
                           }}
                         >
                           {stand.nombreComercial ?? "Stand sin nombre"}
@@ -519,12 +523,16 @@ export default function PerfilStand() {
 
                         <Stack
                           direction="row"
-                          spacing={1.5}
+                          spacing={1}
                           flexWrap="wrap"
                           alignItems="center"
+                          justifyContent={{ xs: "center", md: "flex-start" }}
+                          useFlexGap
                         >
                           <Chip
-                            label={stand.nombreCategoriaStand ?? "Sin categoría"}
+                            label={
+                              stand.nombreCategoriaStand ?? "Sin categoría"
+                            }
                             size="small"
                             sx={{
                               bgcolor: "#dcfce7",
@@ -539,10 +547,10 @@ export default function PerfilStand() {
                             icon={<StarRoundedIcon sx={{ fontSize: 18 }} />}
                             label={
                               totalReseñas > 0
-                                ? `${ratingPromedio.toFixed(1)} · ${totalReseñas} ${
-                                    totalReseñas === 1 ? "reseña" : "reseñas"
-                                  }`
-                                : "Sin reseñas"
+                                ? `${ratingPromedio.toFixed(
+                                    1
+                                  )} (${totalReseñas})`
+                                : "Nuevo"
                             }
                             size="small"
                             sx={{
@@ -555,7 +563,11 @@ export default function PerfilStand() {
                             }}
                           />
 
-                          <Stack direction="row" spacing={0.5} alignItems="center">
+                          <Stack
+                            direction="row"
+                            spacing={0.5}
+                            alignItems="center"
+                          >
                             <LocationOnOutlinedIcon
                               sx={{ fontSize: 18, color: "#64748b" }}
                             />
@@ -563,8 +575,8 @@ export default function PerfilStand() {
                               variant="body2"
                               sx={{ fontWeight: 600, color: "#64748b" }}
                             >
-                              Bloque {stand.bloque ?? "—"} · Puesto{" "}
-                              {stand.numeroStand ?? "—"}
+                              Bloque {stand.bloque ?? "?"} · Puesto{" "}
+                              {stand.numeroStand ?? "?"}
                             </Typography>
                           </Stack>
                         </Stack>
@@ -573,99 +585,68 @@ export default function PerfilStand() {
 
                     {/* Acciones */}
                     <Stack
+                      direction={{ xs: "row", md: "column" }}
                       spacing={2}
-                      alignItems={{ xs: "stretch", md: "flex-end" }}
-                      minWidth={{ xs: "100%", md: "auto" }}
+                      alignItems={{ xs: "center", md: "flex-end" }}
+                      justifyContent={{ xs: "center", md: "flex-start" }}
+                      width={{ xs: "100%", md: "auto" }}
+                      mt={{ xs: 3, md: 0 }}
                     >
-                      <Stack
-                        direction="row"
-                        spacing={1.5}
-                        justifyContent={{ xs: "center", md: "flex-end" }}
-                      >
-                        <Tooltip title="Actualizar datos" arrow>
-                          <IconButton
-                            onClick={refreshAll}
-                            sx={{
-                              borderRadius: "12px",
-                              bgcolor: "#fff",
-                              border: "1px solid #e5e7eb",
-                              boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
-                              "&:hover": {
-                                bgcolor: "#f9fafb",
-                                borderColor: "#22c55e",
-                                transform: "rotate(180deg)",
-                              },
-                              transition: "all 0.3s ease",
-                            }}
-                          >
-                            <RefreshIcon />
-                          </IconButton>
-                        </Tooltip>
-
-                        <Tooltip
-                          title={
-                            esCliente
-                              ? isFav
-                                ? "Quitar de favoritos"
-                                : "Guardar en favoritos"
-                              : "Inicia sesión para guardar"
-                          }
-                          arrow
+                      <Tooltip title="Actualizar datos" arrow>
+                        <IconButton
+                          onClick={refreshAll}
+                          sx={{
+                            borderRadius: "12px",
+                            bgcolor: "#fff",
+                            border: "1px solid #e5e7eb",
+                            boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
+                            "&:hover": {
+                              bgcolor: "#f9fafb",
+                              borderColor: "#22c55e",
+                              transform: "rotate(180deg)",
+                            },
+                            transition: "all 0.3s ease",
+                          }}
                         >
-                          <span>
-                            <IconButton
-                              onClick={toggleFavorito}
-                              disabled={loadingFav}
-                              sx={{
-                                borderRadius: "12px",
-                                bgcolor: isFav ? "#fef2f2" : "#fff",
-                                border: isFav
-                                  ? "1px solid #fecaca"
-                                  : "1px solid #e5e7eb",
-                                boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
-                                "&:hover": {
-                                  bgcolor: isFav ? "#fee2e2" : "#fef2f2",
-                                  borderColor: "#ef4444",
-                                  transform: "scale(1.1)",
-                                },
-                                transition: "all 0.2s ease",
-                              }}
-                            >
-                              {isFav ? (
-                                <FavoriteIcon sx={{ color: "#ef4444" }} />
-                              ) : (
-                                <FavoriteBorderIcon />
-                              )}
-                            </IconButton>
-                          </span>
-                        </Tooltip>
-                      </Stack>
+                          <RefreshIcon />
+                        </IconButton>
+                      </Tooltip>
 
-                      <Button
-                        variant="contained"
-                        fullWidth
-                        sx={{
-                          borderRadius: "12px",
-                          px: 4,
-                          py: 1.5,
-                          fontWeight: 900,
-                          textTransform: "none",
-                          fontSize: 15,
-                          background:
-                            "linear-gradient(135deg, #22c55e 0%, #16a34a 100%)",
-                          boxShadow: "0 8px 20px rgba(34,197,94,0.3)",
-                          "&:hover": {
-                            background:
-                              "linear-gradient(135deg, #16a34a 0%, #15803d 100%)",
-                            boxShadow: "0 12px 28px rgba(22,163,74,0.4)",
-                            transform: "translateY(-2px)",
-                          },
-                          transition: "all 0.3s ease",
-                        }}
-                        onClick={() => setTab("productos")}
+                      <Tooltip
+                        title={
+                          esCliente
+                            ? isFav
+                              ? "Quitar de favoritos"
+                              : "Guardar en favoritos"
+                            : "Inicia sesión para guardar"
+                        }
+                        arrow
                       >
-                        Ver productos
-                      </Button>
+                        <Button
+                          onClick={toggleFavorito}
+                          disabled={loadingFav}
+                          variant={isFav ? "contained" : "outlined"}
+                          startIcon={
+                            isFav ? <FavoriteIcon /> : <FavoriteBorderIcon />
+                          }
+                          color={isFav ? "error" : "inherit"}
+                          sx={{
+                            borderRadius: "12px",
+                            textTransform: "none",
+                            fontWeight: 700,
+                            px: 3,
+                            borderColor: isFav ? "transparent" : "#e5e7eb",
+                            bgcolor: isFav ? "#ef4444" : "#fff",
+                            color: isFav ? "#fff" : "#475569",
+                            "&:hover": {
+                              bgcolor: isFav ? "#dc2626" : "#f1f5f9",
+                              borderColor: isFav ? "transparent" : "#cbd5e1",
+                            },
+                          }}
+                        >
+                          {isFav ? "Favorito" : "Guardar"}
+                        </Button>
+                      </Tooltip>
                     </Stack>
                   </Stack>
                 </Paper>
@@ -681,18 +662,34 @@ export default function PerfilStand() {
                     overflow: "hidden",
                   }}
                 >
-                  <Box sx={{ px: 4, pt: 3 }}>
-                    <AppTabs
-                      value={tab}
-                      onChange={(v) => setTab(v as TabKey)}
-                      items={STAND_TABS}
-                      aria-label="secciones del perfil del stand"
-                    />
+                  <Box
+                    sx={{
+                      px: { xs: 0, sm: 4 },
+                      pt: 2,
+                      bgcolor: "#fff",
+                      borderBottom: "1px solid #f1f5f9",
+                    }}
+                  >
+                    <Box
+                      sx={{
+                        width: "100%",
+                        overflowX: "auto",
+                        "&::-webkit-scrollbar": { height: 4 },
+                        "&::-webkit-scrollbar-thumb": {
+                          borderRadius: 2,
+                          bgcolor: "#cbd5e1",
+                        },
+                      }}
+                    >
+                      <AppTabs
+                        value={tab}
+                        onChange={(v) => setTab(v as TabKey)}
+                        items={STAND_TABS}
+                      />
+                    </Box>
                   </Box>
 
-                  <Divider sx={{ borderColor: "#f3f4f6" }} />
-
-                  <Box sx={{ p: 4 }}>
+                  <Box sx={{ p: { xs: 2.5, sm: 4 } }}>
                     {/* INFO TAB */}
                     <TabPanel current={tab} value="info">
                       <Typography variant="h6" fontWeight={900} mb={3}>
@@ -707,14 +704,13 @@ export default function PerfilStand() {
                             borderRadius: 3,
                             border: "1px solid #f3f4f6",
                             bgcolor: "#fafafa",
-                            transition: "all 0.2s ease",
-                            "&:hover": {
-                              borderColor: "#e5e7eb",
-                              bgcolor: "#ffffff",
-                            },
                           }}
                         >
-                          <Stack direction="row" spacing={2} alignItems="flex-start">
+                          <Stack
+                            direction="row"
+                            spacing={2}
+                            alignItems="flex-start"
+                          >
                             <Box
                               sx={{
                                 width: 40,
@@ -725,6 +721,7 @@ export default function PerfilStand() {
                                 alignItems: "center",
                                 justifyContent: "center",
                                 color: "#16a34a",
+                                flexShrink: 0,
                               }}
                             >
                               <PersonOutlineIcon />
@@ -756,14 +753,13 @@ export default function PerfilStand() {
                             borderRadius: 3,
                             border: "1px solid #f3f4f6",
                             bgcolor: "#fafafa",
-                            transition: "all 0.2s ease",
-                            "&:hover": {
-                              borderColor: "#e5e7eb",
-                              bgcolor: "#ffffff",
-                            },
                           }}
                         >
-                          <Stack direction="row" spacing={2} alignItems="flex-start">
+                          <Stack
+                            direction="row"
+                            spacing={2}
+                            alignItems="flex-start"
+                          >
                             <Box
                               sx={{
                                 width: 40,
@@ -774,6 +770,7 @@ export default function PerfilStand() {
                                 alignItems: "center",
                                 justifyContent: "center",
                                 color: "#16a34a",
+                                flexShrink: 0,
                               }}
                             >
                               <DescriptionOutlinedIcon />
@@ -791,7 +788,13 @@ export default function PerfilStand() {
                               >
                                 Descripción
                               </Typography>
-                              <Typography sx={{ mt: 0.5, lineHeight: 1.6 }}>
+                              <Typography
+                                sx={{
+                                  mt: 0.5,
+                                  lineHeight: 1.6,
+                                  whiteSpace: "pre-wrap",
+                                }}
+                              >
                                 {stand.descripcionNegocio ??
                                   "Este stand aún no tiene una descripción registrada."}
                               </Typography>
@@ -806,14 +809,13 @@ export default function PerfilStand() {
                             borderRadius: 3,
                             border: "1px solid #f3f4f6",
                             bgcolor: "#fafafa",
-                            transition: "all 0.2s ease",
-                            "&:hover": {
-                              borderColor: "#e5e7eb",
-                              bgcolor: "#ffffff",
-                            },
                           }}
                         >
-                          <Stack direction="row" spacing={2} alignItems="flex-start">
+                          <Stack
+                            direction="row"
+                            spacing={2}
+                            alignItems="flex-start"
+                          >
                             <Box
                               sx={{
                                 width: 40,
@@ -824,6 +826,7 @@ export default function PerfilStand() {
                                 alignItems: "center",
                                 justifyContent: "center",
                                 color: "#f59e0b",
+                                flexShrink: 0,
                               }}
                             >
                               <StarRoundedIcon />
@@ -839,7 +842,7 @@ export default function PerfilStand() {
                                   letterSpacing: "0.1em",
                                 }}
                               >
-                                Valoración
+                                Valoración Global
                               </Typography>
                               <Stack
                                 direction="row"
@@ -847,7 +850,11 @@ export default function PerfilStand() {
                                 alignItems="center"
                                 sx={{ mt: 1 }}
                               >
-                                <Rating value={ratingPromedio} precision={0.5} readOnly />
+                                <Rating
+                                  value={ratingPromedio}
+                                  precision={0.5}
+                                  readOnly
+                                />
                                 <Typography variant="h6" fontWeight={900}>
                                   {ratingPromedio.toFixed(1)}
                                 </Typography>
@@ -856,8 +863,8 @@ export default function PerfilStand() {
                                   color="text.secondary"
                                   fontWeight={600}
                                 >
-                                  · {totalReseñas}{" "}
-                                  {totalReseñas === 1 ? "reseña" : "reseñas"}
+                                  ({totalReseñas}{" "}
+                                  {totalReseñas === 1 ? "reseña" : "reseñas"})
                                 </Typography>
                               </Stack>
                             </Box>
@@ -868,13 +875,30 @@ export default function PerfilStand() {
 
                     {/* PRODUCTOS TAB */}
                     <TabPanel current={tab} value="productos">
-                      <Typography variant="h6" fontWeight={900} mb={3}>
-                        Productos del stand
-                      </Typography>
+                      <Stack
+                        direction="row"
+                        alignItems="center"
+                        justifyContent="space-between"
+                        mb={3}
+                      >
+                        <Typography variant="h6" fontWeight={900}>
+                          Productos del stand
+                        </Typography>
+                        {productosStand.length > 0 && (
+                          <Chip
+                            label={`${productosStand.length} productos`}
+                            size="small"
+                            sx={{ fontWeight: 700 }}
+                          />
+                        )}
+                      </Stack>
 
                       {loadingProductos ? (
                         <Box sx={{ textAlign: "center", py: 6 }}>
-                          <CircularProgress size={32} sx={{ color: "#22c55e" }} />
+                          <CircularProgress
+                            size={32}
+                            sx={{ color: "#22c55e" }}
+                          />
                           <Typography
                             sx={{ mt: 2, fontWeight: 600 }}
                             color="text.secondary"
@@ -917,82 +941,9 @@ export default function PerfilStand() {
                             Aún no hay productos publicados
                           </Typography>
                           <Typography color="text.secondary" sx={{ mb: 2 }}>
-                            Este stand todavía no registra productos visibles en la tienda.
+                            Este stand todavía no registra productos visibles en
+                            la tienda.
                           </Typography>
-
-                          <Button
-                            variant="outlined"
-                            onClick={() => {
-                              // refresca solo productos
-                              setLoadingProductos(true);
-                              setErrorProductos(null);
-                              // reutilizamos el endpoint ya cargado con un mini refresh
-                              axios
-                                .get(`${API_BASE_URL}/api/public/productos/por-stand/${id}`)
-                                .then((resp) => {
-                                  const data: any[] = resp.data ?? [];
-                                  const mapped: StoreProduct[] = data.map((p: any) => {
-                                    const enOferta = p.enOferta === true;
-                                    const tienePrecioOferta =
-                                      enOferta &&
-                                      p.precioOferta !== null &&
-                                      p.precioOferta !== undefined;
-
-                                    const precioFinal = tienePrecioOferta
-                                      ? Number(p.precioOferta)
-                                      : Number(p.precioActual);
-
-                                    let descuentoPorc = 0;
-                                    if (
-                                      tienePrecioOferta &&
-                                      typeof p.precioActual === "number" &&
-                                      p.precioActual > 0 &&
-                                      p.precioOferta < p.precioActual
-                                    ) {
-                                      descuentoPorc = Math.round(
-                                        (1 - p.precioOferta / p.precioActual) * 100
-                                      );
-                                    }
-
-                                    return {
-                                      id: p.idProducto,
-                                      nombre: p.nombreProducto,
-                                      categoriaTag: p.categoriaProducto ?? "Sin categoría",
-                                      stand: p.nombreStand
-                                        ? `${p.nombreStand} · Bloque ${p.bloque}, Puesto ${p.numeroStand}`
-                                        : "Stand no asignado",
-                                      precio: precioFinal,
-                                      unidad: p.unidadMedida ?? "unidad",
-                                      moneda: "S/.",
-                                      esOferta: enOferta,
-                                      descuentoPorc,
-                                      imageUrl:
-                                        p.imagenUrl ??
-                                        "https://via.placeholder.com/400x300?text=Sin+imagen",
-                                    } as StoreProduct;
-                                  });
-
-                                  setProductosStand(mapped);
-                                })
-                                .catch(() => {
-                                  setErrorProductos("No se pudieron cargar los productos del stand.");
-                                })
-                                .finally(() => setLoadingProductos(false));
-                            }}
-                            sx={{
-                              borderRadius: "12px",
-                              textTransform: "none",
-                              fontWeight: 800,
-                              borderColor: "#22c55e",
-                              color: "#166534",
-                              "&:hover": {
-                                borderColor: "#16a34a",
-                                bgcolor: "rgba(34,197,94,0.06)",
-                              },
-                            }}
-                          >
-                            Reintentar
-                          </Button>
                         </Paper>
                       ) : (
                         <ProductsGrid
@@ -1009,59 +960,49 @@ export default function PerfilStand() {
                         spacing={2}
                         alignItems={{ xs: "stretch", sm: "center" }}
                         justifyContent="space-between"
-                        mb={2}
+                        mb={3}
                       >
                         <Box>
                           <Typography variant="h6" fontWeight={900}>
-                            Reseñas
+                            Reseñas de clientes
                           </Typography>
-                          <Typography color="text.secondary" sx={{ mt: 0.25 }}>
-                            Lo que opinan los clientes sobre este stand.
+                          <Typography color="text.secondary" variant="body2">
+                            Opiniones verificadas sobre este negocio.
                           </Typography>
                         </Box>
 
-                        <Stack direction="row" spacing={1.25} justifyContent="flex-end">
-                          <Button
-                            variant="outlined"
-                            onClick={fetchReseñas}
-                            sx={{
-                              borderRadius: "12px",
-                              textTransform: "none",
-                              fontWeight: 800,
-                              borderColor: "#e5e7eb",
-                              color: "#0f172a",
-                              "&:hover": { bgcolor: "#f8fafc" },
-                            }}
-                          >
-                            Actualizar
-                          </Button>
-
-                          <Button
-                            variant="contained"
-                            onClick={onClickAgregarReseña}
-                            sx={{
-                              borderRadius: "12px",
-                              textTransform: "none",
-                              fontWeight: 900,
+                        <Button
+                          variant="contained"
+                          onClick={onClickAgregarReseña}
+                          startIcon={<AddCommentIcon />}
+                          sx={{
+                            borderRadius: "12px",
+                            textTransform: "none",
+                            fontWeight: 900,
+                            background:
+                              "linear-gradient(135deg, #0f172a 0%, #020617 100%)",
+                            "&:hover": {
                               background:
-                                "linear-gradient(135deg, #0f172a 0%, #020617 100%)",
-                              "&:hover": {
-                                background:
-                                  "linear-gradient(135deg, #020617 0%, #000 100%)",
-                              },
-                            }}
-                          >
-                            {esCliente ? "Agregar reseña" : "Inicia sesión para calificar"}
-                          </Button>
-                        </Stack>
+                                "linear-gradient(135deg, #020617 0%, #000 100%)",
+                            },
+                          }}
+                        >
+                          {esCliente
+                            ? "Escribir reseña"
+                            : "Inicia sesión para opinar"}
+                        </Button>
                       </Stack>
 
-                      <Divider sx={{ borderColor: "#f3f4f6", mb: 2 }} />
+                      <Divider sx={{ borderColor: "#f3f4f6", mb: 3 }} />
 
                       {loadingReseñas ? (
                         <Box sx={{ textAlign: "center", py: 6 }}>
                           <CircularProgress size={28} />
-                          <Typography sx={{ mt: 1.5 }} color="text.secondary" fontWeight={600}>
+                          <Typography
+                            sx={{ mt: 1.5 }}
+                            color="text.secondary"
+                            fontWeight={600}
+                          >
                             Cargando reseñas...
                           </Typography>
                         </Box>
@@ -1103,14 +1044,13 @@ export default function PerfilStand() {
                           </Typography>
                         </Paper>
                       ) : (
-                        <List sx={{ p: 0 }}>
+                        <Stack spacing={2}>
                           {reseñas.map((r) => (
                             <Paper
                               key={r.id}
                               elevation={0}
                               sx={{
-                                mb: 1.5,
-                                p: 2.25,
+                                p: 2.5,
                                 borderRadius: 4,
                                 border: "1px solid #f1f5f9",
                                 bgcolor: "#ffffff",
@@ -1121,48 +1061,53 @@ export default function PerfilStand() {
                                 },
                               }}
                             >
-                              <ListItem disableGutters alignItems="flex-start" sx={{ p: 0 }}>
-                                <ListItemText
-                                  primary={
-                                    <Stack
-                                      direction="row"
-                                      justifyContent="space-between"
-                                      alignItems="baseline"
-                                      spacing={2}
-                                    >
-                                      <Typography fontWeight={900}>
-                                        {r.autor}
-                                      </Typography>
-                                      <Typography
-                                        variant="caption"
-                                        color="text.secondary"
-                                        sx={{ fontWeight: 700 }}
-                                      >
-                                        {r.fecha}
-                                      </Typography>
-                                    </Stack>
-                                  }
-                                  secondary={
-                                    <Box mt={1}>
-                                      <Rating
-                                        value={r.rating}
-                                        readOnly
-                                        size="small"
-                                        sx={{ mb: 0.75 }}
-                                      />
-                                      <Typography
-                                        variant="body2"
-                                        sx={{ whiteSpace: "pre-wrap", lineHeight: 1.6 }}
-                                      >
-                                        {r.comentario || "—"}
-                                      </Typography>
-                                    </Box>
-                                  }
-                                />
-                              </ListItem>
+                              <Stack
+                                direction="row"
+                                justifyContent="space-between"
+                                alignItems="baseline"
+                                spacing={2}
+                                mb={1}
+                              >
+                                <Typography fontWeight={900} color="#0f172a">
+                                  {r.autor}
+                                </Typography>
+                                <Typography
+                                  variant="caption"
+                                  color="text.secondary"
+                                  fontWeight={700}
+                                >
+                                  {r.fecha}
+                                </Typography>
+                              </Stack>
+
+                              <Rating
+                                value={r.rating}
+                                readOnly
+                                size="small"
+                                sx={{ mb: 1.5 }}
+                              />
+
+                              <Typography
+                                variant="body2"
+                                sx={{
+                                  whiteSpace: "pre-wrap",
+                                  lineHeight: 1.6,
+                                  color: "#334155",
+                                }}
+                              >
+                                {r.comentario || (
+                                  <Box
+                                    component="span"
+                                    fontStyle="italic"
+                                    color="text.disabled"
+                                  >
+                                    Sin comentario escrito.
+                                  </Box>
+                                )}
+                              </Typography>
                             </Paper>
                           ))}
-                        </List>
+                        </Stack>
                       )}
                     </TabPanel>
                   </Box>
@@ -1173,16 +1118,17 @@ export default function PerfilStand() {
         </Container>
       </Box>
 
-      {/* MODAL RESEÑA */}
+      {/* MODAL AGREGAR RESEÑA */}
       <Dialog
         open={openResena}
         onClose={() => setOpenResena(false)}
         fullWidth
         maxWidth="sm"
+        PaperProps={{ sx: { borderRadius: 4 } }}
       >
-        <DialogTitle sx={{ fontWeight: 900 }}>Tu reseña</DialogTitle>
+        <DialogTitle sx={{ fontWeight: 900 }}>Tu experiencia</DialogTitle>
         <DialogContent>
-          <Stack spacing={2} sx={{ mt: 1 }}>
+          <Stack spacing={3} sx={{ mt: 1 }}>
             {errorCrearResena && (
               <Alert severity="error" sx={{ borderRadius: 3 }}>
                 {errorCrearResena}
@@ -1193,11 +1139,21 @@ export default function PerfilStand() {
               <Typography
                 variant="caption"
                 color="text.secondary"
-                sx={{ fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.12em" }}
+                sx={{
+                  fontWeight: 800,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.12em",
+                  mb: 1,
+                  display: "block",
+                }}
               >
-                Puntuación
+                Calificación
               </Typography>
-              <Rating value={miRating} onChange={(_, v) => setMiRating(v)} />
+              <Rating
+                value={miRating}
+                onChange={(_, v) => setMiRating(v)}
+                size="large"
+              />
             </Box>
 
             <TextField
@@ -1206,15 +1162,25 @@ export default function PerfilStand() {
               minRows={3}
               value={miComentario}
               onChange={(e) => setMiComentario(e.target.value)}
-              placeholder="Cuéntanos tu experiencia"
+              placeholder="¿Qué te pareció el servicio y los productos?"
+              fullWidth
+              variant="outlined"
+              sx={{
+                "& .MuiOutlinedInput-root": { borderRadius: 3 },
+              }}
             />
           </Stack>
         </DialogContent>
-        <DialogActions sx={{ p: 2 }}>
+        <DialogActions sx={{ p: 3, pt: 0 }}>
           <Button
             onClick={() => setOpenResena(false)}
             disabled={savingResena}
-            sx={{ textTransform: "none", fontWeight: 800 }}
+            sx={{
+              textTransform: "none",
+              fontWeight: 800,
+              color: "text.secondary",
+              borderRadius: 2,
+            }}
           >
             Cancelar
           </Button>
@@ -1226,13 +1192,14 @@ export default function PerfilStand() {
               textTransform: "none",
               fontWeight: 900,
               borderRadius: 2.5,
+              px: 4,
               background: "linear-gradient(135deg, #22c55e 0%, #16a34a 100%)",
               "&:hover": {
                 background: "linear-gradient(135deg, #16a34a 0%, #15803d 100%)",
               },
             }}
           >
-            {savingResena ? "Publicando..." : "Publicar"}
+            {savingResena ? "Publicando..." : "Publicar Reseña"}
           </Button>
         </DialogActions>
       </Dialog>
