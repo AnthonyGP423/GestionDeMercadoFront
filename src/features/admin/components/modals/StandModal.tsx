@@ -12,12 +12,25 @@ import {
   Stack,
   Box,
   Typography,
+  CircularProgress,
+  InputAdornment,
 } from "@mui/material";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
+
+import http from "../../../../api/httpClient";
 
 interface CategoriaOption {
   id: number;
   nombre: string;
+}
+
+interface CategoriaAdminApi {
+  id: number;
+  nombre: string;
+  descripcion?: string;
+  colorHex?: string;
+  iconoUrl?: string;
+  estado?: boolean;
 }
 
 interface PropietarioOption {
@@ -55,6 +68,50 @@ export default function StandModal({
   });
 
   const [errors, setErrors] = useState<any>({});
+
+  // categorías internas (si el padre no manda)
+  const [catsLocal, setCatsLocal] = useState<CategoriaOption[]>([]);
+  const [loadingCats, setLoadingCats] = useState(false);
+  const [errorCats, setErrorCats] = useState<string | null>(null);
+
+  // fuente final: si vienen por props, usa props; si no, usa local
+  const categoriasFinal = useMemo(() => {
+    return categorias.length > 0 ? categorias : catsLocal;
+  }, [categorias, catsLocal]);
+
+  // cargar categorías SOLO si el modal abre y el padre no mandó
+  useEffect(() => {
+    if (!open) return;
+    if (categorias.length > 0) return;
+
+    const loadCats = async () => {
+      try {
+        setLoadingCats(true);
+        setErrorCats(null);
+
+        const res = await http.get<CategoriaAdminApi[]>("/api/v1/admin/categorias-stands");
+
+        const mapped: CategoriaOption[] = (res.data ?? [])
+          // opcional: si estado=false no queremos mostrarla
+          .filter((c) => c.estado !== false)
+          .map((c) => ({
+            id: Number(c.id),
+            nombre: String(c.nombre ?? "").trim(),
+          }))
+          .filter((c) => c.id && c.nombre);
+
+        setCatsLocal(mapped);
+      } catch (e) {
+        console.error(e);
+        setErrorCats("No se pudieron cargar las categorías.");
+        setCatsLocal([]);
+      } finally {
+        setLoadingCats(false);
+      }
+    };
+
+    loadCats();
+  }, [open, categorias.length]);
 
   useEffect(() => {
     const emptyForm = {
@@ -108,8 +165,7 @@ export default function StandModal({
       err.id_propietario = "Selecciona un propietario / socio";
     }
 
-    // 🔹 Mientras NO tengas categorías implementadas, NO obliguemos este campo
-    if (categorias.length > 0 && !form.id_categoria_stand) {
+    if (!form.id_categoria_stand) {
       err.id_categoria_stand = "Selecciona una categoría";
     }
 
@@ -127,7 +183,18 @@ export default function StandModal({
 
   const handleSave = () => {
     if (!validar()) return;
-    onSubmit(form);
+
+    // convertir ids a número para el backend
+    const payload = {
+      ...form,
+      id_propietario: Number(form.id_propietario),
+      id_categoria_stand: Number(form.id_categoria_stand),
+      // opcional: normalizar bloque
+      bloque: String(form.bloque ?? "").toUpperCase().trim(),
+      numero_stand: String(form.numero_stand ?? "").trim(),
+    };
+
+    onSubmit(payload);
   };
 
   // 🔹 Evitar “out-of-range” si el valor no existe en las opciones
@@ -137,11 +204,13 @@ export default function StandModal({
     ? form.id_propietario
     : "";
 
-  const categoriaValue = categorias.some(
+  const categoriaValue = categoriasFinal.some(
     (c) => String(c.id) === form.id_categoria_stand
   )
     ? form.id_categoria_stand
     : "";
+
+  const categoriasDisabled = loadingCats || categoriasFinal.length === 0;
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
@@ -150,11 +219,7 @@ export default function StandModal({
       </DialogTitle>
 
       <DialogContent dividers>
-        <Typography
-          variant="body2"
-          color="text.secondary"
-          sx={{ mb: 2 }}
-        >
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
           Asigna el stand a un <strong>socio propietario</strong>, define su
           ubicación y describe el negocio que atiende en este puesto.
         </Typography>
@@ -190,12 +255,24 @@ export default function StandModal({
             onChange={handleChange}
             error={!!errors.id_categoria_stand}
             helperText={
-              categorias.length === 0
-                ? "Aún no hay categorías configuradas"
+              errorCats
+                ? errorCats
+                : loadingCats
+                ? "Cargando categorías..."
+                : categoriasFinal.length === 0
+                ? "No hay categorías configuradas (crea al menos 1)."
                 : errors.id_categoria_stand
             }
+            disabled={categoriasDisabled}
+            InputProps={{
+              endAdornment: loadingCats ? (
+                <InputAdornment position="end">
+                  <CircularProgress size={16} />
+                </InputAdornment>
+              ) : undefined,
+            }}
           >
-            {categorias.map((c) => (
+            {categoriasFinal.map((c) => (
               <MenuItem key={c.id} value={String(c.id)}>
                 {c.nombre}
               </MenuItem>
@@ -298,7 +375,13 @@ export default function StandModal({
         <Button onClick={onClose} color="inherit">
           Cancelar
         </Button>
-        <Button variant="contained" onClick={handleSave} disableElevation>
+
+        <Button
+          variant="contained"
+          onClick={handleSave}
+          disableElevation
+          disabled={categoriasFinal.length === 0 || loadingCats}
+        >
           Guardar
         </Button>
       </DialogActions>

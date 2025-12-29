@@ -202,9 +202,9 @@ export default function Stand() {
         setStands((prev) => [...prev, nuevo]);
         showToast("Nuevo stand registrado", "success");
       }
-    } catch (e: any) {
-      console.error(e);
-      showToast("No se pudo guardar el stand", "error");
+    } catch (error) {
+      console.error(error);
+      showToast((error as any)?.userMessage || "No se pudo guardar el stand", "error");
     } finally {
       setOpenModal(false);
       setEditingStand(null);

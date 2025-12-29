@@ -31,4 +31,41 @@ http.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
+// Interceptor de respuesta del backend
+http.interceptors.response.use(
+  (res) => res,
+  (error) => {
+    const data = error?.response?.data;
+
+    let msg = "Ocurrió un error";
+
+    // 1) Si backend devuelve texto plano
+    if (typeof data === "string" && data.trim()) {
+      msg = data;
+    }
+
+    // 2) Si backend devuelve JSON con campos comunes
+    if (data && typeof data === "object") {
+      msg =
+        data.message ||
+        data.mensaje ||
+        data.error ||
+        data.detail ||
+        data.title ||
+        data.descripcion ||
+        msg;
+    }
+
+    // 3) Si no hay response (caída de red, CORS, etc.)
+    if (!error?.response) {
+      msg = "No se pudo conectar con el servidor. Revisa tu conexión.";
+    }
+
+    // Guardamos el mensaje para usarlo en los catch
+    (error as any).userMessage = msg;
+
+    return Promise.reject(error);
+  }
+);
+
 export default http;

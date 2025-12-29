@@ -8,7 +8,7 @@ export default function ScrollToTop() {
     window.scrollTo({
       top: 0,
       left: 0,
-      behavior: "smooth", // o "auto" si quieres que sea instantáneo
+      behavior: "smooth", 
     });
   }, [pathname]);
 

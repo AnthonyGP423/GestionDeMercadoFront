@@ -47,7 +47,7 @@ const AppRoutes = () => {
       {/* Auth (Intranet / Admin-Socio-Supervisor) */}
       <Route path="/login" element={<Login />} />
 
-      {/* ✅ Auth Cliente */}
+      {/* Auth Cliente */}
       <Route path="/cliente/login" element={<ClienteLogin />} />
       <Route path="/cliente/registro" element={<ClienteRegistro />} />
 
