@@ -7,6 +7,7 @@ import {
   Chip,
   Button,
 } from "@mui/material";
+import { useEffect, useState } from "react";
 
 export interface StoreProduct {
   id: number;
@@ -26,10 +27,16 @@ interface ProductsGridProps {
   onViewStand: (product: StoreProduct) => void;
 }
 
-export default function ProductsGrid({
-  products,
-  onViewStand,
-}: ProductsGridProps) {
+const FALLBACK_IMG = "https://via.placeholder.com/800x600?text=Sin+imagen";
+
+export default function ProductsGrid({ products, onViewStand }: ProductsGridProps) {
+
+  const [broken, setBroken] = useState<Record<number, boolean>>({});
+
+  useEffect(() => {
+    setBroken({});
+  }, [products]);
+
   return (
     <Box
       sx={{
@@ -43,112 +50,148 @@ export default function ProductsGrid({
         gap: 3,
       }}
     >
-      {products.map((p) => (
-        <Card
-          key={p.id}
-          elevation={1}
-          sx={{
-            borderRadius: 3,
-            overflow: "hidden",
-            display: "flex",
-            flexDirection: "column",
-            height: "100%",
-            bgcolor: "#fff",
-            boxShadow:
-              "0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05)",
-            transition: "all 0.2s ease-out",
-            "&:hover": {
-              boxShadow:
-                "0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)",
-              transform: "translateY(-4px)",
-            },
-          }}
-        >
-          {/* IMAGEN */}
-          <Box
+      {products.map((p) => {
+        const hasImg = Boolean(p.imageUrl) && !broken[p.id];
+        const bg = hasImg
+          ? `url(${p.imageUrl})`
+          : p.imageUrl
+          ? `url(${FALLBACK_IMG})`
+          : "linear-gradient(135deg,#22c55e,#16a34a)";
+
+        return (
+          <Card
+            key={p.id}
+            elevation={1}
             sx={{
-              width: "100%",
-              height: 160,
-              backgroundImage: p.imageUrl
-                ? `url(${p.imageUrl})`
-                : "linear-gradient(135deg,#22c55e,#16a34a)",
-              backgroundSize: "cover",
-              backgroundPosition: "center",
+              borderRadius: 3,
+              overflow: "hidden",
+              display: "flex",
+              flexDirection: "column",
+              height: "100%",
+              bgcolor: "#fff",
+              boxShadow:
+                "0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05)",
+              transition: "all 0.2s ease-out",
+              "&:hover": {
+                boxShadow:
+                  "0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)",
+                transform: "translateY(-4px)",
+              },
             }}
-          />
-
-          {/* CONTENIDO */}
-          <CardContent sx={{ flexGrow: 1, p: 2 }}>
-            <Typography
-              variant="subtitle1"
-              sx={{ fontWeight: 700, lineHeight: 1.2, mb: 0.5 }}
-            >
-              {p.nombre}
-            </Typography>
-
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
-              {p.stand}
-            </Typography>
-
+          >
+            {/* IMAGEN */}
             <Box
               sx={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                flexWrap: "wrap",
-                gap: 1,
-                mb: 1,
+                width: "100%",
+                height: 160,
+                backgroundImage: bg,
+                backgroundSize: "cover",
+                backgroundPosition: "center",
+                position: "relative",
               }}
             >
-              <Typography
-                variant="h6"
-                sx={{ fontWeight: 800, color: "success.main" }}
-              >
-                {p.moneda ?? "S/."} {p.precio.toFixed(2)}{" "}
-                <Typography
-                  component="span"
-                  variant="caption"
-                  color="text.secondary"
-                  sx={{ fontWeight: 400 }}
-                >
-                  / {p.unidad}
-                </Typography>
-              </Typography>
+              {p.imageUrl && !broken[p.id] && (
+                <Box
+                  component="img"
+                  src={p.imageUrl}
+                  alt=""
+                  loading="lazy"
+                  onError={() => setBroken((prev) => ({ ...prev, [p.id]: true }))}
+                  sx={{ width: 0, height: 0, opacity: 0, position: "absolute" }}
+                />
+              )}
 
-              <Chip
-                label={p.categoriaTag}
-                size="small"
-                sx={{ fontWeight: 600, height: 24 }}
-              />
+              {/* Badge oferta visual */}
+              {p.esOferta && (
+                <Chip
+                  label={p.descuentoPorc ? `-${p.descuentoPorc}%` : "Oferta"}
+                  size="small"
+                  color="error"
+                  variant="filled"
+                  sx={{
+                    position: "absolute",
+                    top: 10,
+                    left: 10,
+                    fontWeight: 800,
+                    height: 24,
+                    borderRadius: 2,
+                    boxShadow: "0 10px 18px rgba(2,6,23,0.12)",
+                  }}
+                />
+              )}
             </Box>
 
-            {p.esOferta && (
-              <Chip
-                label={
-                  p.descuentoPorc ? `-${p.descuentoPorc}% oferta` : "En oferta"
-                }
-                size="small"
-                color="error"
-                variant="outlined"
-                sx={{ fontWeight: 700, height: 24, border: "1px solid" }}
-              />
-            )}
-          </CardContent>
+            {/* CONTENIDO */}
+            <CardContent sx={{ flexGrow: 1, p: 2 }}>
+              <Typography
+                variant="subtitle1"
+                sx={{ fontWeight: 700, lineHeight: 1.2, mb: 0.5 }}
+              >
+                {p.nombre}
+              </Typography>
 
-          {/* BOTÓN */}
-          <CardActions sx={{ px: 2, pb: 2, pt: 0 }}>
-            <Button
-              fullWidth
-              variant="contained"
-              color="success"
-              onClick={() => onViewStand(p)}
-              sx={{ borderRadius: 2, textTransform: "none", fontWeight: 600 }}
-            >
-              Ver Detalles
-            </Button>
-          </CardActions>
-        </Card>
-      ))}
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+                {p.stand}
+              </Typography>
+
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  flexWrap: "wrap",
+                  gap: 1,
+                  mb: 1,
+                }}
+              >
+                <Typography
+                  variant="h6"
+                  sx={{ fontWeight: 800, color: "success.main" }}
+                >
+                  {p.moneda ?? "S/."} {p.precio.toFixed(2)}{" "}
+                  <Typography
+                    component="span"
+                    variant="caption"
+                    color="text.secondary"
+                    sx={{ fontWeight: 400 }}
+                  >
+                    / {p.unidad}
+                  </Typography>
+                </Typography>
+
+                <Chip
+                  label={p.categoriaTag}
+                  size="small"
+                  sx={{ fontWeight: 600, height: 24 }}
+                />
+              </Box>
+
+              {p.esOferta && (
+                <Chip
+                  label={p.descuentoPorc ? `-${p.descuentoPorc}% oferta` : "En oferta"}
+                  size="small"
+                  color="error"
+                  variant="outlined"
+                  sx={{ fontWeight: 700, height: 24, border: "1px solid" }}
+                />
+              )}
+            </CardContent>
+
+            {/* BOTÓN */}
+            <CardActions sx={{ px: 2, pb: 2, pt: 0 }}>
+              <Button
+                fullWidth
+                variant="contained"
+                color="success"
+                onClick={() => onViewStand(p)}
+                sx={{ borderRadius: 2, textTransform: "none", fontWeight: 600 }}
+              >
+                Ver Detalles
+              </Button>
+            </CardActions>
+          </Card>
+        );
+      })}
     </Box>
   );
 }

@@ -1,4 +1,5 @@
 import http from "../httpClient";
+import { filesApi } from "../filesApi";
 
 export interface UsuarioRow {
   id: number;
@@ -8,7 +9,6 @@ export interface UsuarioRow {
   estado: string;
 }
 
-// Lo que responde el backend
 export interface UsuarioBackend {
   id?: number;
   idUsuario?: number;
@@ -26,13 +26,14 @@ export interface UsuarioBackend {
   telefono?: string;
   dni?: string;
   ruc?: string;
+
   razonSocial?: string;
+  razon_social?: string;
 
   fotoUrl?: string;
   foto_url?: string;
 }
 
-// Lo que ESPERA el backend al crear usuario
 export interface UsuarioCreateBackend {
   idRol: number;
   email: string;
@@ -45,11 +46,19 @@ export interface UsuarioCreateBackend {
   apellidos: string;
 }
 
-// Para actualizar (tú decides qué campos permites)
+// ✅ Update robusto (incluye password opcional + ruc/razon + fotoUrl)
 export interface UsuarioUpdateBackend {
   nombres?: string;
   apellidos?: string;
   telefono?: string | null;
+
+  ruc?: string | null;
+  razonSocial?: string | null;
+
+  // si backend lo soporta
+  password?: string;
+
+  // url guardada (ej: "/media/usuarios/xxx.webp")
   fotoUrl?: string | null;
 }
 
@@ -58,9 +67,7 @@ const mapUsuarioToRow = (u: UsuarioBackend): UsuarioRow => {
 
   const nombre =
     u.nombreCompleto ??
-    (
-      `${u.nombres ?? ""} ${u.apellidos ?? ""}`.trim() || "(Sin nombre)"
-    );
+    (`${u.nombres ?? ""} ${u.apellidos ?? ""}`.trim() || "(Sin nombre)");
 
   const rol =
     typeof u.rol === "string"
@@ -71,7 +78,7 @@ const mapUsuarioToRow = (u: UsuarioBackend): UsuarioRow => {
 
   const estado = u.estado ?? u.estadoUsuario ?? "ACTIVO";
 
-  return { id, nombre, email: u.email, rol, estado };
+  return { id, nombre, email: u.email, rol: String(rol || "").toUpperCase(), estado };
 };
 
 export const usuarioApi = {
@@ -81,9 +88,7 @@ export const usuarioApi = {
   },
 
   obtener: async (id: number): Promise<UsuarioBackend> => {
-    const res = await http.get<UsuarioBackend>(
-      `/api/v1/admin/usuarios/${id}`
-    );
+    const res = await http.get<UsuarioBackend>(`/api/v1/admin/usuarios/${id}`);
     return res.data;
   },
 
@@ -92,15 +97,17 @@ export const usuarioApi = {
     return mapUsuarioToRow(res.data);
   },
 
-  actualizar: async (
-    id: number,
-    body: UsuarioUpdateBackend
-  ): Promise<UsuarioRow> => {
-    const res = await http.put<UsuarioBackend>(
-      `/api/v1/admin/usuarios/${id}`,
-      body
-    );
+  actualizar: async (id: number, body: UsuarioUpdateBackend): Promise<UsuarioRow> => {
+    const res = await http.put<UsuarioBackend>(`/api/v1/admin/usuarios/${id}`, body);
     return mapUsuarioToRow(res.data);
+  },
+
+  // ✅ NUEVO: sube por filesApi y luego guarda url en el usuario (fotoUrl)
+  subirFoto: async (id: number, file: File): Promise<void> => {
+    const { url } = await filesApi.upload("usuarios", file);
+
+    // Guardar la ruta en BD del usuario
+    await usuarioApi.actualizar(id, { fotoUrl: url });
   },
 
   cambiarEstado: async (id: number, nuevoEstado: string): Promise<void> => {

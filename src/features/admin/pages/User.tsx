@@ -1,16 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
-import {
-  Box,
-  Typography,
-  Paper,
-  CircularProgress,
-  Chip,
-} from "@mui/material";
+import { Box, Typography, Paper, CircularProgress, Chip } from "@mui/material";
 
 import FiltersBar from "../../../components/shared/FiltersBar";
-import NewUserModal, {
-  UsuarioFormData,
-} from "../components/modals/UserModal";
+import NewUserModal, { UsuarioFormData } from "../components/modals/UserModal";
 import { useToast } from "../../../components/ui/Toast";
 
 import VisibilityIcon from "@mui/icons-material/Visibility";
@@ -23,6 +15,8 @@ import {
   UsuarioBackend,
 } from "../../../api/admin/usuarioApi";
 import DataTable from "../../../components/shared/DataTable";
+
+import rolesApi, { RolDto } from "../../../api/admin/rolesApi";
 
 type ModalMode = "create" | "edit" | "view";
 
@@ -46,9 +40,22 @@ export default function Usuario() {
   const [initialFormData, setInitialFormData] =
     useState<UsuarioFormData | undefined>();
 
-  // =====================================================
-  // CARGAR USUARIOS
-  // =====================================================
+  // ✅ roles dinámicos
+  const [roles, setRoles] = useState<RolDto[]>([]);
+  const [loadingRoles, setLoadingRoles] = useState(false);
+
+  const cargarRoles = async () => {
+    try {
+      setLoadingRoles(true);
+      const data = await rolesApi.listar();
+      setRoles(data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingRoles(false);
+    }
+  };
+
   const cargarUsuarios = async () => {
     try {
       setLoading(true);
@@ -67,17 +74,28 @@ export default function Usuario() {
   };
 
   useEffect(() => {
-    cargarUsuarios();
+    void cargarRoles();
+    void cargarUsuarios();
   }, []);
 
-  // =====================================================
-  // FILTROS
-  // =====================================================
+  // ==========================
+  // FILTROS DINÁMICOS
+  // ==========================
+  const rolesOptions = useMemo(() => {
+    const activos = roles.filter((r) => (r.estadoRegistro ?? 1) === 1);
+    const names = activos
+      .map((r) => String(r.nombreRol || "").toUpperCase())
+      .filter(Boolean);
+    return Array.from(new Set(names));
+  }, [roles]);
+
   const filtros = [
     {
       label: "Rol",
       field: "rol",
-      options: ["ADMIN", "SUPERVISOR", "SOCIO", "TRABAJADOR", "CLIENTE"],
+      options: rolesOptions.length
+        ? rolesOptions
+        : ["ADMIN", "SUPERVISOR", "SOCIO", "TRABAJADOR", "CLIENTE"],
     },
     {
       label: "Estado",
@@ -103,40 +121,26 @@ export default function Usuario() {
     [usuarios, filtroRol, filtroEstado, busqueda]
   );
 
-  // =====================================================
-  // MAPEO DEL BACKEND → FORM
-  // =====================================================
+  // ==========================
+  // MAPEO BACKEND → FORM
+  // ==========================
   const mapBackendToForm = (u: UsuarioBackend): UsuarioFormData => {
-    const nombreRol =
-      typeof u.rol === "string"
-        ? u.rol
-        : u.rol && "nombreRol" in u.rol
-        ? u.rol.nombreRol
-        : "";
+    const rolObj =
+      typeof u.rol === "object" && u.rol && "idRol" in u.rol ? u.rol : null;
 
-    // nombreRol → idRol de TEXT (string)
+    const nombreRol =
+      typeof u.rol === "string" ? u.rol : rolObj?.nombreRol ?? "";
+
     let rolId = "";
-    switch (nombreRol.toUpperCase()) {
-      case "ADMIN":
-        rolId = "1";
-        break;
-      case "SUPERVISOR":
-        rolId = "2";
-        break;
-      case "SOCIO":
-        rolId = "3";
-        break;
-      case "CLIENTE":
-        rolId = "4";
-        break;
-      case "TRABAJADOR":
-        rolId = "5";
-        break;
-      case "VISITANTE":
-        rolId = "6";
-        break;
-      default:
-        rolId = "";
+    if (rolObj?.idRol != null) {
+      rolId = String(rolObj.idRol);
+    } else {
+      const found = roles.find(
+        (r) =>
+          String(r.nombreRol || "").toUpperCase() ===
+          String(nombreRol || "").toUpperCase()
+      );
+      rolId = found ? String(found.idRol) : "";
     }
 
     return {
@@ -147,15 +151,16 @@ export default function Usuario() {
       telefono: u.telefono ?? "",
       dni: u.dni ?? "",
       ruc: u.ruc ?? "",
-      razonSocial: u.razonSocial ?? "",
+      razonSocial: u.razonSocial ?? u.razon_social ?? "",
       rol: rolId,
       foto: u.fotoUrl ?? u.foto_url ?? "",
+      fotoFile: null,
     };
   };
 
-  // =====================================================
+  // ==========================
   // ACCIONES
-  // =====================================================
+  // ==========================
   const abrirModalConDetalle = async (row: UsuarioRow, mode: ModalMode) => {
     try {
       setModalMode(mode);
@@ -167,8 +172,7 @@ export default function Usuario() {
     } catch (err: any) {
       console.error(err);
       showToast(
-        err?.response?.data?.mensaje ||
-          "No se pudo obtener los datos del usuario.",
+        err?.response?.data?.mensaje || "No se pudo obtener los datos del usuario.",
         "error"
       );
       setOpenModal(false);
@@ -191,7 +195,7 @@ export default function Usuario() {
     try {
       await usuarioApi.eliminar(row.id);
       showToast("Usuario eliminado correctamente", "success");
-      cargarUsuarios();
+      void cargarUsuarios();
     } catch (err: any) {
       console.error(err);
       showToast(
@@ -202,26 +206,40 @@ export default function Usuario() {
     }
   };
 
-  // =====================================================
-  // CREAR / EDITAR
-  // =====================================================
+  // ==========================
+  // CREAR / EDITAR (incluye password opcional + ruc/razon + foto)
+  // ==========================
   const handleSubmitModal = async (formData: UsuarioFormData) => {
     try {
       const esEdicion = modalMode === "edit" && usuarioSeleccionado;
 
       if (esEdicion) {
-        // backend NO permite editar email, rol, password
-        const body = {
+        const passwordTrim = String(formData.password || "").trim();
+
+        const body: any = {
           nombres: formData.nombre,
           apellidos: formData.apellidos,
           telefono: formData.telefono || null,
+          ruc: formData.ruc || null,
+          razonSocial: formData.razonSocial || null,
         };
 
+        // ✅ solo enviar password si realmente escribieron una
+        if (passwordTrim.length > 0) {
+          body.password = passwordTrim;
+        }
+
         await usuarioApi.actualizar(usuarioSeleccionado!.id, body);
+
+        // ✅ si seleccionó foto, subir a filesApi y guardar url en usuario
+        if (formData.fotoFile) {
+          await usuarioApi.subirFoto(usuarioSeleccionado!.id, formData.fotoFile);
+        }
+
         showToast("Usuario actualizado correctamente", "success");
       } else {
         const body = {
-          idRol: Number(formData.rol), // convertir "3" → 3
+          idRol: Number(formData.rol),
           email: formData.email,
           password: formData.password,
           telefono: formData.telefono || null,
@@ -232,19 +250,23 @@ export default function Usuario() {
           apellidos: formData.apellidos,
         };
 
-        await usuarioApi.crear(body);
+        const creado = await usuarioApi.crear(body);
+
+        if (formData.fotoFile) {
+          await usuarioApi.subirFoto(creado.id, formData.fotoFile);
+        }
+
         showToast("Usuario creado correctamente", "success");
       }
 
       setOpenModal(false);
       setUsuarioSeleccionado(null);
       setInitialFormData(undefined);
-      cargarUsuarios();
+      void cargarUsuarios();
     } catch (err: any) {
       console.error(err);
       showToast(
-        err?.response?.data?.mensaje ||
-          "No se pudo guardar el usuario. Revisa los datos.",
+        err?.response?.data?.mensaje || "No se pudo guardar el usuario. Revisa los datos.",
         "error"
       );
     }
@@ -263,9 +285,9 @@ export default function Usuario() {
     setInitialFormData(undefined);
   };
 
-  // =====================================================
+  // ==========================
   // CHIP ESTADO
-  // =====================================================
+  // ==========================
   const renderEstadoChip = (estado: string) => {
     const e = estado.toUpperCase();
 
@@ -314,9 +336,6 @@ export default function Usuario() {
     );
   };
 
-  // =====================================================
-  // TABLA
-  // =====================================================
   const columnas = [
     { title: "Nombre completo", field: "nombre", type: "text" as const },
     { title: "Email", field: "email", type: "text" as const },
@@ -344,9 +363,6 @@ export default function Usuario() {
     },
   ];
 
-  // =====================================================
-  // LOADING / ERROR
-  // =====================================================
   if (loading) {
     return (
       <Box
@@ -385,9 +401,6 @@ export default function Usuario() {
     );
   }
 
-  // =====================================================
-  // RENDER PRINCIPAL
-  // =====================================================
   return (
     <>
       <Box sx={{ mb: 4 }}>
@@ -454,7 +467,10 @@ export default function Usuario() {
         }}
         initialData={initialFormData}
         mode={modalMode}
+        roles={roles}
       />
+
+      {loadingRoles ? null : null}
     </>
   );
 }

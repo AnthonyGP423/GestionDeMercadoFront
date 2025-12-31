@@ -12,8 +12,6 @@ export type StandBase = {
   nombreComercial: string;
   rubro: string;
   estado: StandEstado;
-
-  // ✅ NUEVO (opcional para no romper)
   idCategoriaStand?: number | null;
   nombreCategoriaStand?: string | null;
   categoriaColorHex?: string | null;

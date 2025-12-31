@@ -11,9 +11,39 @@ import {
   Avatar,
   IconButton,
   Box,
+  Paper,
+  Stack,
+  Divider,
+  Chip,
 } from "@mui/material";
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import PhotoCamera from "@mui/icons-material/PhotoCamera";
+import CloseIcon from "@mui/icons-material/Close";
+
+import type { RolDto } from "../../../../api/admin/rolesApi";
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL as string;
+
+// ✅ base pública (servidor), sin /api/v1
+function getPublicBaseUrl() {
+  const api = String(API_BASE_URL || "").replace(/\/+$/, "");
+  // elimina /api, /api/v1, /api/v1/...
+  return api.replace(/\/api(\/v\d+)?$/i, "");
+}
+
+const PUBLIC_BASE_URL = getPublicBaseUrl();
+
+function isAbsoluteUrl(url: string) {
+  return /^https?:\/\//i.test(url);
+}
+
+function buildImgSrc(raw: string) {
+  const v = String(raw ?? "").trim();
+  if (!v) return "";
+  if (isAbsoluteUrl(v)) return v;
+  if (v.startsWith("/")) return `${PUBLIC_BASE_URL}${v}`; // ✅ /media/... se pega al host
+  return `${PUBLIC_BASE_URL}/${v}`;
+}
 
 export interface UsuarioFormData {
   nombre: string;
@@ -24,9 +54,15 @@ export interface UsuarioFormData {
   dni: string;
   ruc: string;
   razonSocial: string;
-  // id de rol como string: "1", "2", "3", ...
+
+  // idRol como string: "1", "2", "3", ...
   rol: string;
+
+  // url guardada en BD (ej: "/media/usuarios/xxx.webp")
   foto?: string;
+
+  // archivo real seleccionado para subir
+  fotoFile?: File | null;
 }
 
 interface Props {
@@ -34,10 +70,9 @@ interface Props {
   onClose: () => void;
   onSubmit: (data: UsuarioFormData) => void;
 
-  /** Datos iniciales para ver/editar */
   initialData?: UsuarioFormData;
-  /** Modo del modal */
   mode?: "create" | "edit" | "view";
+  roles: RolDto[];
 }
 
 export default function NewUserModal({
@@ -46,7 +81,10 @@ export default function NewUserModal({
   onSubmit,
   initialData,
   mode = "create",
+  roles,
 }: Props) {
+  const readOnly = mode === "view";
+
   const [form, setForm] = useState<UsuarioFormData>({
     nombre: "",
     apellidos: "",
@@ -58,35 +96,38 @@ export default function NewUserModal({
     razonSocial: "",
     rol: "",
     foto: "",
+    fotoFile: null,
   });
 
-  const [preview, setPreview] = useState<string | null>(null);
+  // preview: puede ser URL backend o objectURL
+  const [preview, setPreview] = useState<string>("");
 
-  const readOnly = mode === "view";
+  const rolesActivos = useMemo(
+    () => (roles || []).filter((r) => (r.estadoRegistro ?? 1) === 1),
+    [roles]
+  );
 
-  // Cargar datos iniciales cuando cambie initialData
   useEffect(() => {
+    if (!open) return;
+
     if (initialData) {
       setForm({
         nombre: initialData.nombre ?? "",
         apellidos: initialData.apellidos ?? "",
         email: initialData.email ?? "",
-        password: "",
+        password: "", // nunca precargar password
         telefono: initialData.telefono ?? "",
         dni: initialData.dni ?? "",
         ruc: initialData.ruc ?? "",
         razonSocial: initialData.razonSocial ?? "",
         rol: initialData.rol ?? "",
         foto: initialData.foto ?? "",
+        fotoFile: null,
       });
 
-      if (initialData.foto) {
-        setPreview(initialData.foto);
-      } else {
-        setPreview(null);
-      }
+      const fotoUrl = initialData.foto ? buildImgSrc(initialData.foto) : "";
+      setPreview(fotoUrl);
     } else {
-      // Si no hay initialData (modo create), limpiar
       setForm({
         nombre: "",
         apellidos: "",
@@ -98,23 +139,34 @@ export default function NewUserModal({
         razonSocial: "",
         rol: "",
         foto: "",
+        fotoFile: null,
       });
-      setPreview(null);
+      setPreview("");
     }
-  }, [initialData]);
+  }, [initialData, open]);
+
+  // limpiar objectURL
+  useEffect(() => {
+    return () => {
+      if (preview?.startsWith("blob:")) URL.revokeObjectURL(preview);
+    };
+  }, [preview]);
+
+  const rolLabel = useMemo(() => {
+    const id = Number(form.rol || 0);
+    const found = rolesActivos.find((r) => r.idRol === id);
+    return found?.nombreRol ?? "";
+  }, [form.rol, rolesActivos]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (readOnly) return;
     const { name, value } = e.target;
 
-    if (name === "telefono" || name === "dni") {
+    if (name === "telefono" || name === "dni" || name === "ruc") {
       if (!/^\d*$/.test(value)) return;
     }
 
-    setForm((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    setForm((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleFoto = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -123,11 +175,26 @@ export default function NewUserModal({
     const file = e.target.files?.[0];
     if (!file) return;
 
+    if (preview?.startsWith("blob:")) URL.revokeObjectURL(preview);
     const url = URL.createObjectURL(file);
-    setPreview(url);
 
-    // Si más adelante manejas upload real, aquí solo guarda referencia
-    setForm((prev) => ({ ...prev, foto: url }));
+    setPreview(url);
+    setForm((prev) => ({
+      ...prev,
+      fotoFile: file,
+    }));
+  };
+
+  const handleRemovePhoto = () => {
+    if (readOnly) return;
+
+    if (preview?.startsWith("blob:")) URL.revokeObjectURL(preview);
+    setPreview("");
+    setForm((prev) => ({
+      ...prev,
+      foto: "",
+      fotoFile: null,
+    }));
   };
 
   const handleSave = () => {
@@ -142,148 +209,253 @@ export default function NewUserModal({
       : "Detalle del usuario";
 
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="md">
-      <DialogTitle sx={{ fontWeight: "bold" }}>{titulo}</DialogTitle>
+    <Dialog
+      open={open}
+      onClose={onClose}
+      fullWidth
+      maxWidth="md"
+      PaperProps={{ sx: { borderRadius: 3, overflow: "hidden" } }}
+    >
+      <DialogTitle sx={{ fontWeight: 900 }}>
+        <Stack direction="row" alignItems="center" justifyContent="space-between">
+          <Box>
+            <Typography sx={{ fontWeight: 900, lineHeight: 1.1 }}>
+              {titulo}
+            </Typography>
+
+            <Stack direction="row" spacing={1} sx={{ mt: 1 }} flexWrap="wrap">
+              {rolLabel ? (
+                <Chip
+                  label={rolLabel}
+                  size="small"
+                  sx={{
+                    borderRadius: 999,
+                    fontWeight: 800,
+                    bgcolor: "#f1f5f9",
+                  }}
+                />
+              ) : null}
+
+              {mode === "edit" && (
+                <Chip
+                  label="Email bloqueado en edición"
+                  size="small"
+                  sx={{
+                    borderRadius: 999,
+                    fontWeight: 800,
+                    bgcolor: "#fff7ed",
+                    color: "#9a3412",
+                  }}
+                />
+              )}
+            </Stack>
+          </Box>
+
+          <IconButton onClick={onClose} size="small">
+            <CloseIcon fontSize="small" />
+          </IconButton>
+        </Stack>
+      </DialogTitle>
 
       <DialogContent dividers>
-        {/* FOTO */}
-        <Box sx={{ textAlign: "center", mb: 3 }}>
-          <Avatar
-            src={preview || ""}
-            sx={{ width: 100, height: 100, margin: "0 auto" }}
-          />
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: { xs: "1fr", md: "0.9fr 1.1fr" },
+            gap: 2,
+          }}
+        >
+          {/* FOTO */}
+          <Paper
+            variant="outlined"
+            sx={{
+              borderRadius: 3,
+              borderColor: "#e5e7eb",
+              overflow: "hidden",
+            }}
+          >
+            <Box
+              sx={{
+                p: 1.25,
+                bgcolor: "#f8fafc",
+                borderBottom: "1px solid #e5e7eb",
+              }}
+            >
+              <Typography sx={{ fontWeight: 900 }}>Foto</Typography>
+            </Box>
 
-          {!readOnly && (
-            <>
-              <IconButton color="primary" component="label" sx={{ mt: 1 }}>
-                <PhotoCamera />
-                <input
-                  type="file"
-                  hidden
-                  accept="image/*"
-                  onChange={handleFoto}
-                />
-              </IconButton>
+            <Box sx={{ p: 2, display: "grid", placeItems: "center", gap: 1.25 }}>
+              <Avatar
+                src={preview || ""}
+                sx={{
+                  width: 112,
+                  height: 112,
+                  bgcolor: "#e5e7eb",
+                  boxShadow: "0 10px 20px rgba(2,6,23,0.08)",
+                }}
+              />
 
-              <Typography variant="body2" color="text.secondary">
-                Subir foto
-              </Typography>
-            </>
-          )}
-        </Box>
+              {!readOnly && (
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <IconButton color="primary" component="label">
+                    <PhotoCamera />
+                    <input
+                      type="file"
+                      hidden
+                      accept="image/*"
+                      onChange={handleFoto}
+                    />
+                  </IconButton>
 
-        {/* FORMULARIO */}
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-          <Box sx={{ display: "flex", gap: 2 }}>
-            <TextField
-              fullWidth
-              label="Nombre"
-              name="nombre"
-              value={form.nombre}
-              onChange={handleChange}
-              disabled={readOnly}
-            />
+                  <Button
+                    onClick={handleRemovePhoto}
+                    disabled={!preview}
+                    color="inherit"
+                    sx={{ textTransform: "none", fontWeight: 900 }}
+                  >
+                    Quitar
+                  </Button>
+                </Stack>
+              )}
 
-            <TextField
-              fullWidth
-              label="Apellidos"
-              name="apellidos"
-              value={form.apellidos}
-              onChange={handleChange}
-              disabled={readOnly}
-            />
-          </Box>
+              {!readOnly && (
+                <Typography variant="caption" color="text.secondary">
+                  Sube o cambia la foto del usuario.
+                </Typography>
+              )}
+            </Box>
+          </Paper>
 
-          <Box sx={{ display: "flex", gap: 2 }}>
-            <TextField
-              fullWidth
-              type="email"
-              label="Email"
-              name="email"
-              value={form.email}
-              onChange={handleChange}
-              disabled={readOnly || mode === "edit"} // no editar email en modo edit
-            />
-
-            {!readOnly && (
+          {/* FORM */}
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            <Box sx={{ display: "flex", gap: 2 }}>
               <TextField
                 fullWidth
-                type="password"
-                label={mode === "edit" ? "Nueva contraseña" : "Contraseña"}
-                name="password"
-                value={form.password}
+                label="Nombre"
+                name="nombre"
+                value={form.nombre}
                 onChange={handleChange}
+                disabled={readOnly}
               />
-            )}
+
+              <TextField
+                fullWidth
+                label="Apellidos"
+                name="apellidos"
+                value={form.apellidos}
+                onChange={handleChange}
+                disabled={readOnly}
+              />
+            </Box>
+
+            <Box sx={{ display: "flex", gap: 2 }}>
+              <TextField
+                fullWidth
+                type="email"
+                label="Email"
+                name="email"
+                value={form.email}
+                onChange={handleChange}
+                disabled={readOnly || mode === "edit"}
+              />
+
+              {!readOnly && (
+                <TextField
+                  fullWidth
+                  type="password"
+                  label={
+                    mode === "edit"
+                      ? "Nueva contraseña (opcional)"
+                      : "Contraseña"
+                  }
+                  name="password"
+                  value={form.password}
+                  onChange={handleChange}
+                />
+              )}
+            </Box>
+
+            <Box sx={{ display: "flex", gap: 2 }}>
+              <TextField
+                fullWidth
+                label="Teléfono"
+                name="telefono"
+                value={form.telefono}
+                onChange={handleChange}
+                inputProps={{ maxLength: 9 }}
+                disabled={readOnly}
+              />
+
+              <TextField
+                fullWidth
+                label="DNI"
+                name="dni"
+                value={form.dni}
+                onChange={handleChange}
+                inputProps={{ maxLength: 8 }}
+                disabled={readOnly}
+              />
+
+              <TextField
+                fullWidth
+                label="RUC"
+                name="ruc"
+                value={form.ruc}
+                onChange={handleChange}
+                inputProps={{ maxLength: 11 }}
+                disabled={readOnly}
+              />
+            </Box>
+
+            <TextField
+              fullWidth
+              label="Razón Social"
+              name="razonSocial"
+              value={form.razonSocial}
+              onChange={handleChange}
+              disabled={readOnly}
+            />
+
+            <Divider />
+
+            <TextField
+              select
+              fullWidth
+              label="Rol"
+              name="rol"
+              value={form.rol}
+              onChange={handleChange}
+              disabled={readOnly}
+            >
+              {rolesActivos.map((r) => (
+                <MenuItem key={r.idRol} value={String(r.idRol)}>
+                  {r.nombreRol}
+                </MenuItem>
+              ))}
+            </TextField>
           </Box>
-
-          <Box sx={{ display: "flex", gap: 2 }}>
-            <TextField
-              fullWidth
-              label="Teléfono"
-              name="telefono"
-              value={form.telefono}
-              onChange={handleChange}
-              inputProps={{ maxLength: 9 }}
-              disabled={readOnly}
-            />
-
-            <TextField
-              fullWidth
-              label="DNI"
-              name="dni"
-              value={form.dni}
-              onChange={handleChange}
-              inputProps={{ maxLength: 8 }}
-              disabled={readOnly}
-            />
-
-            <TextField
-              fullWidth
-              label="RUC"
-              name="ruc"
-              value={form.ruc}
-              onChange={handleChange}
-              disabled={readOnly}
-            />
-          </Box>
-
-          <TextField
-            fullWidth
-            label="Razón Social"
-            name="razonSocial"
-            value={form.razonSocial}
-            onChange={handleChange}
-            disabled={readOnly}
-          />
-
-          <TextField
-            select
-            fullWidth
-            label="Rol"
-            name="rol"
-            value={form.rol}
-            onChange={handleChange}
-            disabled={readOnly}
-          >
-            {/* IDs como string para que coincidan con Usuario.tsx */}
-            <MenuItem value="1">Admin</MenuItem>
-            <MenuItem value="2">Supervisor</MenuItem>
-            <MenuItem value="3">Socio</MenuItem>
-            <MenuItem value="4">Cliente</MenuItem>
-            <MenuItem value="5">Trabajador</MenuItem>
-            <MenuItem value="6">Visitante</MenuItem>
-          </TextField>
         </Box>
       </DialogContent>
 
-      <DialogActions>
-        <Button onClick={onClose} color="inherit">
+      <DialogActions sx={{ p: 2 }}>
+        <Button
+          onClick={onClose}
+          color="inherit"
+          sx={{ textTransform: "none", fontWeight: 900 }}
+        >
           {readOnly ? "Cerrar" : "Cancelar"}
         </Button>
 
         {!readOnly && (
-          <Button variant="contained" onClick={handleSave}>
+          <Button
+            variant="contained"
+            onClick={handleSave}
+            sx={{
+              textTransform: "none",
+              fontWeight: 900,
+              borderRadius: 999,
+            }}
+          >
             Guardar
           </Button>
         )}

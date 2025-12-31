@@ -1,3 +1,4 @@
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Dialog,
   DialogTitle,
@@ -11,8 +12,19 @@ import {
   InputAdornment,
   Stack,
   Box,
+  Typography,
+  Paper,
+  Chip,
+  Divider,
+  CircularProgress,
 } from "@mui/material";
-import React, { useState, useEffect } from "react";
+
+import type {
+  ProductoResponseDto,
+  ProductoRequestDto,
+} from "../../../../api/socio/productosSocioApi";
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL as string;
 
 export interface ProductData {
   nombre: string;
@@ -22,18 +34,115 @@ export interface ProductData {
   en_oferta: boolean;
   precio_oferta: string;
   visible_directorio: boolean;
-  estado: "Activo" | "Inactivo";
   id_stand: string | number;
   id_categoria_producto: string | number;
+  imagen_url?: string;
+  nombre_categoria?: string;
+  stand_texto?: string;
+  stand_nombre_comercial?: string;
 }
 
 interface Props {
   open: boolean;
   onClose: () => void;
-  onSubmit?: (data: ProductData) => void;
-  initialData?: ProductData;
-  // 👇 nuevo: modo del modal
+
+  // admin: solo cambia visibilidad
+  onSubmit?: (
+    payload: Partial<ProductoRequestDto> & { visibleDirectorio?: boolean }
+  ) => void;
+
+
+  initialData?: ProductoResponseDto | null;
+  loading?: boolean;
+
   mode?: "edit" | "view" | "visibilidad";
+}
+
+// Helpers
+function isAbsoluteUrl(url: string) {
+  return /^https?:\/\//i.test(url);
+}
+
+function buildImgSrc(raw: string) {
+  const v = String(raw ?? "").trim();
+  if (!v) return "";
+  if (v.startsWith("/")) return `${API_BASE_URL}${v}`;
+  if (isAbsoluteUrl(v)) return v;
+  return `${API_BASE_URL}/${v}`;
+}
+
+function numToStr(v: any) {
+  if (v == null) return "";
+  const n = Number(v);
+  return Number.isFinite(n) ? String(n) : "";
+}
+
+// Mapper: DTO backend -> Form admin
+function toForm(dto: ProductoResponseDto | null | undefined): ProductData {
+  if (!dto) {
+    return {
+      nombre: "",
+      descripcion: "",
+      unidad_medida: "Kg",
+      precio_actual: "",
+      en_oferta: false,
+      precio_oferta: "",
+      visible_directorio: true,
+      id_stand: "",
+      id_categoria_producto: "",
+      imagen_url: "",
+      nombre_categoria: "",
+      stand_texto: "",
+      stand_nombre_comercial: "",
+    };
+  }
+
+  const bloque = (dto as any).bloqueStand ?? "";
+  const numero = (dto as any).numeroStand ?? "";
+  const nombreComercial = (dto as any).nombreComercialStand ?? "";
+
+  const standTexto =
+    bloque && numero ? `${bloque}-${numero}` : numero ? String(numero) : "";
+
+  return {
+    nombre: dto.nombre ?? "",
+    descripcion: dto.descripcion ?? "",
+    unidad_medida: dto.unidadMedida ?? "Kg",
+    precio_actual: numToStr(dto.precioActual),
+    en_oferta: Boolean(dto.enOferta),
+    precio_oferta: numToStr(dto.precioOferta),
+    visible_directorio: Boolean(dto.visibleDirectorio ?? true),
+
+    id_stand: dto.idStand ?? "",
+    id_categoria_producto: dto.idCategoriaProducto ?? "",
+
+    imagen_url: dto.imagenUrl ?? "",
+    nombre_categoria: dto.nombreCategoriaProducto ?? "",
+
+    stand_texto: standTexto,
+    stand_nombre_comercial: nombreComercial,
+  };
+}
+
+// Mapper: Form admin -> Payload backend
+function toPayload(form: ProductData, mode: Props["mode"]) {
+  // Admin: por estándar SOLO cambia visibilidad
+  if (mode === "visibilidad") {
+    return { visibleDirectorio: Boolean(form.visible_directorio) };
+  }
+
+  return {
+    nombre: form.nombre?.trim() || undefined,
+    descripcion: form.descripcion?.trim() || undefined,
+    unidadMedida: form.unidad_medida?.trim() || undefined,
+    precioActual: Number(form.precio_actual || 0),
+    enOferta: Boolean(form.en_oferta),
+    precioOferta: form.en_oferta ? Number(form.precio_oferta || 0) : undefined,
+    visibleDirectorio: Boolean(form.visible_directorio),
+    idCategoriaProducto: form.id_categoria_producto
+      ? Number(form.id_categoria_producto)
+      : undefined,
+  } as Partial<ProductoRequestDto>;
 }
 
 export default function ProductModal({
@@ -41,75 +150,25 @@ export default function ProductModal({
   onClose,
   onSubmit,
   initialData,
-  mode = "edit",
+  loading = false,
+  mode = "view",
 }: Props) {
-  const defaultState: ProductData = {
-    nombre: "",
-    descripcion: "",
-    unidad_medida: "Kg",
-    precio_actual: "",
-    en_oferta: false,
-    precio_oferta: "",
-    visible_directorio: true,
-    estado: "Activo",
-    id_stand: "",
-    id_categoria_producto: "",
-  };
-
-  const [form, setForm] = useState<ProductData>(defaultState);
-
   const isView = mode === "view";
   const isVisibilidad = mode === "visibilidad";
   const isEdit = mode === "edit";
 
+  // - view: todo gris, nada editable
+  // - visibilidad: todo gris excepto switch visible_directorio
+  const lockAllFields = isView || isVisibilidad;
+
+  const [form, setForm] = useState<ProductData>(() => toForm(initialData));
+
   useEffect(() => {
-    if (initialData) {
-      setForm(initialData);
-    } else {
-      setForm(defaultState);
-    }
+    if (!open) return;
+    setForm(toForm(initialData));
   }, [initialData, open]);
 
   const unidades = ["Kg", "Unidad", "Litro", "Caja", "Paquete"];
-  // En admin solo mostramos, pero las listas se mantienen por si luego se reutiliza
-  const categorias = [
-    { id: 1, nombre: "Verduras" },
-    { id: 2, nombre: "Carnes" },
-    { id: 3, nombre: "Abarrotes" },
-  ];
-  const stands = [
-    { id: 1, codigo: "A-101" },
-    { id: 2, codigo: "B-204" },
-    { id: 3, codigo: "A-115" },
-  ];
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (isView || isVisibilidad) return; // no editar en esos modos
-    const { name, value } = e.target;
-    if (name === "precio_actual" || name === "precio_oferta") {
-      if (!/^\d*\.?\d*$/.test(value)) return;
-    }
-    setForm((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const toggleSwitch = (field: keyof ProductData) => {
-    // Solo se puede cambiar visible_directorio en modo "visibilidad" o en modo "edit"
-    if (
-      (field === "visible_directorio" && (isVisibilidad || isEdit)) ||
-      (field !== "visible_directorio" && isEdit)
-    ) {
-      setForm((prev) => ({ ...prev, [field]: !prev[field] }));
-    }
-  };
-
-  const handleSave = () => {
-    if (!onSubmit) {
-      onClose();
-      return;
-    }
-    onSubmit(form);
-    onClose();
-  };
 
   const title =
     mode === "view"
@@ -120,183 +179,361 @@ export default function ProductModal({
       ? "Editar producto"
       : "Nuevo producto";
 
-  return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="md">
-      <DialogTitle sx={{ fontWeight: "bold" }}>{title}</DialogTitle>
+  const previewOk = Boolean(
+    form.imagen_url && String(form.imagen_url).trim().length > 0
+  );
+  const previewSrc = previewOk ? buildImgSrc(String(form.imagen_url)) : "";
 
-      <DialogContent dividers>
-        <Stack spacing={2} sx={{ mt: 1 }}>
-          {/* FILA 1: Nombre y Unidad */}
-          <Box sx={{ display: "flex", gap: 2 }}>
-            <TextField
-              fullWidth
-              label="Nombre del producto"
-              name="nombre"
-              value={form.nombre}
-              onChange={handleChange}
-              sx={{ flex: 1 }}
-              InputProps={{
-                readOnly: !isEdit,
-              }}
-            />
-            <TextField
-              select
-              label="Unidad"
-              name="unidad_medida"
-              value={form.unidad_medida}
-              onChange={handleChange}
-              sx={{ width: "150px" }}
-              disabled={!isEdit}
-            >
-              {unidades.map((u) => (
-                <MenuItem key={u} value={u}>
-                  {u}
-                </MenuItem>
-              ))}
-            </TextField>
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!isEdit) return; // admin por ahora no edita datos
+    const { name, value } = e.target;
+
+    if (name === "precio_actual" || name === "precio_oferta") {
+      if (!/^\d*\.?\d*$/.test(value)) return;
+    }
+
+    setForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const toggleVisible = () => {
+    if (!(isVisibilidad || isEdit)) return;
+    setForm((prev) => ({
+      ...prev,
+      visible_directorio: !prev.visible_directorio,
+    }));
+  };
+
+  const handleSave = () => {
+    if (!onSubmit) {
+      onClose();
+      return;
+    }
+    const payload = toPayload(form, mode);
+    onSubmit(payload);
+    onClose();
+  };
+
+  const readonlyFieldSx = useMemo(
+    () => ({
+      "& .MuiInputBase-root": {
+        bgcolor: lockAllFields ? "#f8fafc" : undefined,
+      },
+    }),
+    [lockAllFields]
+  );
+
+  const standLabel = useMemo(() => {
+    // Preferencia:
+    // 1) "A-101"
+    // 2) nombre comercial + stand
+    const base = form.stand_texto?.trim() || (form.id_stand ? `ID: ${form.id_stand}` : "—");
+    const nc = form.stand_nombre_comercial?.trim();
+    return nc ? `${nc} · ${base}` : base;
+  }, [form.stand_texto, form.id_stand, form.stand_nombre_comercial]);
+
+  return (
+    <Dialog
+      open={open}
+      onClose={onClose}
+      fullWidth
+      maxWidth="md"
+      PaperProps={{ sx: { borderRadius: 3, overflow: "hidden" } }}
+    >
+      <DialogTitle sx={{ fontWeight: 900 }}>
+        <Stack
+          direction="row"
+          justifyContent="space-between"
+          alignItems="center"
+          spacing={2}
+          flexWrap="wrap"
+        >
+          <Box>
+            <Typography sx={{ fontWeight: 900, lineHeight: 1.1 }}>
+              {title}
+            </Typography>
+            <Typography variant="caption" sx={{ color: "#64748b" }}>
+              Admin: puedes ver el producto y cambiar su visibilidad.
+            </Typography>
           </Box>
 
-          {/* FILA 2: Precio, Oferta, Precio Oferta */}
-          <Box sx={{ display: "flex", gap: 2, alignItems: "center" }}>
-            <TextField
-              fullWidth
-              label="Precio (S/.)"
-              name="precio_actual"
-              value={form.precio_actual}
-              onChange={handleChange}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">S/.</InputAdornment>
-                ),
-                readOnly: !isEdit,
+          <Stack direction="row" spacing={1} flexWrap="wrap" justifyContent="flex-end">
+            {initialData?.idProducto != null && (
+              <Chip label={`ID: ${initialData.idProducto}`} sx={{ fontWeight: 900 }} />
+            )}
+            <Chip
+              label={form.visible_directorio ? "VISIBLE" : "OCULTO"}
+              sx={{
+                fontWeight: 900,
+                bgcolor: form.visible_directorio ? "#ecfdf5" : "#fffbeb",
+                color: form.visible_directorio ? "#166534" : "#b45309",
               }}
             />
+            {Boolean(form.en_oferta) && (
+              <Chip
+                label="EN OFERTA"
+                sx={{ fontWeight: 900, bgcolor: "#fef2f2", color: "#b91c1c" }}
+              />
+            )}
+          </Stack>
+        </Stack>
+      </DialogTitle>
 
-            <Box sx={{ whiteSpace: "nowrap" }}>
+      <DialogContent dividers>
+        {/* ✅ loading nativo del modal */}
+        {loading && (
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, py: 2 }}>
+            <CircularProgress size={20} />
+            <Typography sx={{ fontWeight: 800, color: "#64748b" }}>
+              Cargando detalle del producto...
+            </Typography>
+          </Box>
+        )}
+
+        {/* Layout 2 columnas */}
+        <Box
+          sx={{
+            opacity: loading ? 0.6 : 1,
+            pointerEvents: loading ? "none" : "auto",
+            display: "grid",
+            gridTemplateColumns: { xs: "1fr", md: "1.2fr 0.8fr" },
+            gap: 2,
+            alignItems: "start",
+          }}
+        >
+          {/* FORM */}
+          <Box>
+            <Stack spacing={2} sx={{ mt: 1 }}>
+              <Box sx={{ display: "flex", gap: 2 }}>
+                <TextField
+                  fullWidth
+                  label="Nombre del producto"
+                  name="nombre"
+                  value={form.nombre}
+                  onChange={handleChange}
+                  disabled={lockAllFields}
+                  sx={readonlyFieldSx}
+                />
+
+                <TextField
+                  select
+                  label="Unidad"
+                  name="unidad_medida"
+                  value={form.unidad_medida}
+                  onChange={handleChange}
+                  sx={{ width: 160, ...readonlyFieldSx }}
+                  disabled={lockAllFields}
+                >
+                  {unidades.map((u) => (
+                    <MenuItem key={u} value={u}>
+                      {u}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </Box>
+
+              <Box sx={{ display: "flex", gap: 2, alignItems: "center" }}>
+                <TextField
+                  fullWidth
+                  label="Precio (S/.)"
+                  name="precio_actual"
+                  value={form.precio_actual}
+                  onChange={handleChange}
+                  disabled={lockAllFields}
+                  sx={readonlyFieldSx}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">S/.</InputAdornment>
+                    ),
+                  }}
+                />
+
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={form.en_oferta}
+                      color="warning"
+                      disabled
+                    />
+                  }
+                  label="¿Oferta?"
+                />
+
+                <TextField
+                  fullWidth
+                  label="Precio Oferta"
+                  name="precio_oferta"
+                  value={form.precio_oferta}
+                  onChange={handleChange}
+                  disabled={lockAllFields}
+                  sx={readonlyFieldSx}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">S/.</InputAdornment>
+                    ),
+                  }}
+                />
+              </Box>
+
+              {/* Mostrar categoría */}
+              <Box
+                sx={{
+                  display: "grid",
+                  gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" },
+                  gap: 2,
+                }}
+              >
+                <TextField
+                  fullWidth
+                  label="Categoría"
+                  value={
+                    form.nombre_categoria?.trim()
+                      ? form.nombre_categoria
+                      : form.id_categoria_producto
+                      ? `ID: ${form.id_categoria_producto}`
+                      : "—"
+                  }
+                  disabled
+                  sx={readonlyFieldSx}
+                />
+                <TextField
+                  fullWidth
+                  label="Stand"
+                  value={standLabel}
+                  disabled
+                  sx={readonlyFieldSx}
+                />
+              </Box>
+
+              <TextField
+                fullWidth
+                multiline
+                minRows={3}
+                maxRows={6}
+                label="Descripción"
+                name="descripcion"
+                value={form.descripcion}
+                onChange={handleChange}
+                disabled={lockAllFields}
+                sx={readonlyFieldSx}
+              />
+
+              <Divider />
+
+              {/* ✅ Admin: visibilidad */}
               <FormControlLabel
                 control={
                   <Switch
-                    checked={form.en_oferta}
-                    onChange={() => toggleSwitch("en_oferta")}
-                    color="warning"
-                    disabled={!isEdit}
+                    checked={form.visible_directorio}
+                    onChange={toggleVisible}
+                    disabled={isView} // en view NO se cambia
                   />
                 }
-                label="¿Oferta?"
+                label="Visible en directorio"
               />
-            </Box>
+            </Stack>
+          </Box>
 
-            {form.en_oferta ? (
-              <TextField
-                fullWidth
-                label="Precio Oferta"
-                name="precio_oferta"
-                value={form.precio_oferta}
-                onChange={handleChange}
-                color="warning"
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">S/.</InputAdornment>
-                  ),
-                  readOnly: !isEdit,
+          {/* PREVIEW */}
+          <Box sx={{ position: { md: "sticky" }, top: { md: 16 } }}>
+            <Paper
+              variant="outlined"
+              sx={{
+                borderColor: "#e5e7eb",
+                borderRadius: 3,
+                overflow: "hidden",
+              }}
+            >
+              <Box
+                sx={{
+                  p: 1.5,
+                  borderBottom: "1px solid #e5e7eb",
+                  bgcolor: "#f8fafc",
                 }}
-              />
-            ) : (
-              <Box sx={{ width: "100%" }} />
-            )}
+              >
+                <Typography sx={{ fontWeight: 900 }}>Imagen</Typography>
+                <Typography variant="caption" sx={{ color: "#64748b" }}>
+                  Vista previa del producto.
+                </Typography>
+              </Box>
+
+              <Box sx={{ p: 1.5 }}>
+                {previewOk ? (
+                  <Box
+                    sx={{
+                      border: "1px solid #e5e7eb",
+                      borderRadius: 2,
+                      overflow: "hidden",
+                      height: { xs: 180, md: 240 },
+                      bgcolor: "#f8fafc",
+                    }}
+                  >
+                    <img
+                      src={previewSrc}
+                      alt="preview"
+                      style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                      onError={(e) => {
+                        (e.currentTarget as HTMLImageElement).style.display =
+                          "none";
+                      }}
+                    />
+                  </Box>
+                ) : (
+                  <Box
+                    sx={{
+                      height: { xs: 180, md: 240 },
+                      border: "1px dashed #e5e7eb",
+                      borderRadius: 2,
+                      bgcolor: "#f8fafc",
+                      display: "grid",
+                      placeItems: "center",
+                      px: 2,
+                      textAlign: "center",
+                    }}
+                  >
+                    <Typography
+                      variant="body2"
+                      sx={{ color: "#64748b", fontWeight: 700 }}
+                    >
+                      Sin imagen
+                    </Typography>
+                  </Box>
+                )}
+
+                {form.imagen_url ? (
+                  <Typography
+                    variant="caption"
+                    sx={{ color: "#64748b", display: "block", mt: 1 }}
+                  >
+                    {`URL: ${form.imagen_url}`}
+                  </Typography>
+                ) : null}
+              </Box>
+            </Paper>
           </Box>
-
-          {/* FILA 3: Categoría y Stand */}
-          <Box sx={{ display: "flex", gap: 2 }}>
-            <TextField
-              select
-              fullWidth
-              label="Categoría"
-              name="id_categoria_producto"
-              value={form.id_categoria_producto}
-              onChange={handleChange}
-              disabled={!isEdit}
-            >
-              {categorias.map((c) => (
-                <MenuItem key={c.id} value={c.id}>
-                  {c.nombre}
-                </MenuItem>
-              ))}
-            </TextField>
-
-            <TextField
-              select
-              fullWidth
-              label="Stand"
-              name="id_stand"
-              value={form.id_stand}
-              onChange={handleChange}
-              disabled={!isEdit}
-            >
-              {stands.map((s) => (
-                <MenuItem key={s.id} value={s.id}>
-                  {s.codigo}
-                </MenuItem>
-              ))}
-            </TextField>
-          </Box>
-
-          {/* FILA 4: Descripción */}
-          <TextField
-            fullWidth
-            multiline
-            minRows={3}
-            maxRows={5}
-            label="Descripción"
-            name="descripcion"
-            value={form.descripcion}
-            onChange={handleChange}
-            InputProps={{
-              readOnly: !isEdit,
-            }}
-          />
-
-          {/* FILA 5: Configuración final */}
-          <Box sx={{ display: "flex", gap: 4, pt: 1 }}>
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={form.visible_directorio}
-                  onChange={() => toggleSwitch("visible_directorio")}
-                  // 👇 solo editable en modo visibilidad o edit, no en view
-                  disabled={isView}
-                />
-              }
-              label="Visible en directorio"
-            />
-
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={form.estado === "Activo"}
-                  onChange={() =>
-                    setForm((prev) => ({
-                      ...prev,
-                      estado:
-                        prev.estado === "Activo" ? "Inactivo" : "Activo",
-                    }))
-                  }
-                  color="success"
-                  disabled={!isEdit}
-                />
-              }
-              label={`Estado: ${form.estado}`}
-            />
-          </Box>
-        </Stack>
+        </Box>
       </DialogContent>
 
       <DialogActions sx={{ p: 2 }}>
-        <Button onClick={onClose} color="inherit">
+        <Button
+          onClick={onClose}
+          color="inherit"
+          sx={{ textTransform: "none", fontWeight: 900 }}
+        >
           {mode === "view" ? "Cerrar" : "Cancelar"}
         </Button>
+
         {(isEdit || isVisibilidad) && (
-          <Button variant="contained" onClick={handleSave} disableElevation>
+          <Button
+            variant="contained"
+            onClick={handleSave}
+            disableElevation
+            sx={{
+              textTransform: "none",
+              fontWeight: 900,
+              bgcolor: "#b45309",
+              "&:hover": { bgcolor: "#92400e" },
+            }}
+          >
             Guardar
           </Button>
         )}

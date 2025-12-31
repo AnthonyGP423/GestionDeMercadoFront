@@ -1,12 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 
-import {
-  Box,
-  Paper,
-  Typography,
-  Chip,
-  CircularProgress,
-} from "@mui/material";
+import { Box, Paper, Typography, Chip, CircularProgress } from "@mui/material";
 
 import FiltersBar from "../../../components/shared/FiltersBar";
 import DataTable from "../../../components/shared/DataTable";
@@ -17,10 +11,28 @@ import EditIcon from "@mui/icons-material/Edit";
 
 import productosAdminApi, {
   ProductoRow,
+  ProductoBackend,
 } from "../../../api/admin/productosAdminApi";
-import ProductModal, {
-  ProductData,
-} from "../components/modals/ProductModal";
+
+import ProductModalAdmin from "../components/modals/ProductModal";
+
+
+type ProductoModalData = Omit<ProductoBackend, "imagenUrl" | "precioOferta"> & {
+  imagenUrl?: string;
+  precioOferta?: number;
+};
+
+function toProductoModalData(
+  p: ProductoBackend | null
+): ProductoModalData | null {
+  if (!p) return null;
+
+  return {
+    ...p,
+    imagenUrl: p.imagenUrl ?? undefined,
+    precioOferta: p.precioOferta ?? undefined,
+  };
+}
 
 export default function ProductoAdmin() {
   const { showToast } = useToast();
@@ -34,10 +46,16 @@ export default function ProductoAdmin() {
   const [search, setSearch] = useState("");
 
   const [openModal, setOpenModal] = useState(false);
-  const [selectedProducto, setSelectedProducto] =
-    useState<ProductoRow | null>(null);
-  const [modalMode, setModalMode] =
-    useState<"view" | "visibilidad" | null>(null);
+  const [selectedProducto, setSelectedProducto] = useState<ProductoRow | null>(
+    null
+  );
+  const [modalMode, setModalMode] = useState<"view" | "visibilidad" | null>(
+    null
+  );
+
+  const [selectedDetalle, setSelectedDetalle] =
+    useState<ProductoBackend | null>(null);
+  const [loadingDetalle, setLoadingDetalle] = useState(false);
 
   // ========= CARGA INICIAL =========
   const fetchProductos = async () => {
@@ -64,13 +82,11 @@ export default function ProductoAdmin() {
     [productos]
   );
   const standsOptions = useMemo(
-    () =>
-      Array.from(new Set(productos.map((p) => p.stand))).filter(Boolean),
+    () => Array.from(new Set(productos.map((p) => p.stand))).filter(Boolean),
     [productos]
   );
   const estadosOptions = useMemo(
-    () =>
-      Array.from(new Set(productos.map((p) => p.estado))).filter(Boolean),
+    () => Array.from(new Set(productos.map((p) => p.estado))).filter(Boolean),
     [productos]
   );
 
@@ -196,6 +212,7 @@ export default function ProductoAdmin() {
           filtroCategoria === "Todos" || row.categoria === filtroCategoria;
         const c2 = filtroStand === "Todos" || row.stand === filtroStand;
         const c3 = filtroEstado === "Todos" || row.estado === filtroEstado;
+
         const s = search.trim().toLowerCase();
         const c4 =
           !s ||
@@ -209,17 +226,33 @@ export default function ProductoAdmin() {
   );
 
   // ========= ACCIONES =========
-  const handleView = (row: ProductoRow) => {
+  const openWithDetalle = async (
+    row: ProductoRow,
+    mode: "view" | "visibilidad"
+  ) => {
     setSelectedProducto(row);
-    setModalMode("view");
+    setModalMode(mode);
     setOpenModal(true);
+
+    try {
+      setLoadingDetalle(true);
+      setSelectedDetalle(null);
+
+
+      // obtenerDetalle(idProducto): Promise<ProductoBackend>
+      const full = await productosAdminApi.obtenerDetalle(row.idProducto);
+      setSelectedDetalle(full);
+    } catch (e: any) {
+      console.error(e);
+      showToast("No se pudo cargar el detalle del producto", "error");
+    } finally {
+      setLoadingDetalle(false);
+    }
   };
 
-  const handleChangeVisibility = (row: ProductoRow) => {
-    setSelectedProducto(row);
-    setModalMode("visibilidad");
-    setOpenModal(true);
-  };
+  const handleView = (row: ProductoRow) => openWithDetalle(row, "view");
+  const handleChangeVisibility = (row: ProductoRow) =>
+    openWithDetalle(row, "visibilidad");
 
   const acciones = [
     {
@@ -232,25 +265,12 @@ export default function ProductoAdmin() {
     },
   ];
 
-  // ========= ADAPTAR ProductoRow -> ProductData PARA EL MODAL =========
-  const buildModalDataFromRow = (row: ProductoRow): ProductData => ({
-    nombre: row.nombre,
-    descripcion: "",
-    unidad_medida: row.unidad,
-    precio_actual: row.precioNormal.toString(),
-    en_oferta: row.tieneOferta,
-    precio_oferta:
-      row.precioOferta !== null ? row.precioOferta.toString() : "",
-    visible_directorio: row.visible,
-    estado: row.estado === "En venta" ? "Activo" : "Inactivo",
-    id_stand: "",
-    id_categoria_producto: "",
-  });
-
   // ========= SUBMIT DEL MODAL (VISIBILIDAD) =========
-  const handleModalSubmit = async (data: ProductData) => {
+
+  const handleModalSubmit = async (payload: { visibleDirectorio?: boolean }) => {
     if (!selectedProducto) return;
-    const nuevoVisible = !!data.visible_directorio;
+
+    const nuevoVisible = Boolean(payload.visibleDirectorio);
 
     try {
       await productosAdminApi.cambiarVisibilidad(
@@ -268,13 +288,12 @@ export default function ProductoAdmin() {
       );
     } catch (error: any) {
       console.error(error);
-      showToast(
-        "No se pudo actualizar la visibilidad del producto",
-        "error"
-      );
+      showToast("No se pudo actualizar la visibilidad del producto", "error");
+      throw error;
     } finally {
       setOpenModal(false);
       setSelectedProducto(null);
+      setSelectedDetalle(null);
       setModalMode(null);
     }
   };
@@ -287,8 +306,7 @@ export default function ProductoAdmin() {
           variant="h4"
           sx={{
             fontWeight: 800,
-            fontFamily:
-              `"Poppins","Inter",system-ui,-apple-system,BlinkMacSystemFont`,
+            fontFamily: `"Poppins","Inter",system-ui,-apple-system,BlinkMacSystemFont`,
           }}
         >
           Productos (Administración)
@@ -298,14 +316,13 @@ export default function ProductoAdmin() {
           color="text.secondary"
           sx={{ mt: 0.5, maxWidth: 720 }}
         >
-          Vista de auditoría para{" "}
-          <strong>ADMIN / SUPERVISOR</strong>. Revisa el catálogo de
-          productos, compara precios normales y de oferta, y controla su{" "}
-          <strong>visibilidad en el directorio público</strong>.
+          Vista de auditoría para <strong>ADMIN / SUPERVISOR</strong>. Revisa el
+          catálogo de productos, compara precios normales y de oferta, y controla
+          su <strong>visibilidad en el directorio público</strong>.
         </Typography>
       </Box>
 
-      {/* BARRA DE FILTROS, SIN BOTÓN NUEVO, ESTILO LIMPIO */}
+      {/* BARRA DE FILTROS */}
       <FiltersBar
         filters={filtros}
         searchValue={search}
@@ -318,15 +335,9 @@ export default function ProductoAdmin() {
         onAdd={undefined}
       />
 
-      {/* TABLA AL ESTILO "ROLES" */}
+      {/* TABLA */}
       {loading ? (
-        <Box
-          sx={{
-            mt: 6,
-            display: "flex",
-            justifyContent: "center",
-          }}
-        >
+        <Box sx={{ mt: 6, display: "flex", justifyContent: "center" }}>
           <CircularProgress />
         </Box>
       ) : (
@@ -340,7 +351,11 @@ export default function ProductoAdmin() {
           }}
         >
           <Box sx={{ p: 1.5 }}>
-            <DataTable columns={columnas} data={datosFiltrados} actions={acciones} />
+            <DataTable
+              columns={columnas}
+              data={datosFiltrados}
+              actions={acciones}
+            />
           </Box>
         </Paper>
       )}
@@ -360,17 +375,26 @@ export default function ProductoAdmin() {
       )}
 
       {/* Modal de detalle / visibilidad */}
-      {selectedProducto && modalMode && (
-        <ProductModal
+      {modalMode && (
+        <ProductModalAdmin
           open={openModal}
           onClose={() => {
             setOpenModal(false);
             setSelectedProducto(null);
+            setSelectedDetalle(null);
             setModalMode(null);
           }}
-          initialData={buildModalDataFromRow(selectedProducto)}
           mode={modalMode}
-          onSubmit={modalMode === "visibilidad" ? handleModalSubmit : undefined}
+          initialData={toProductoModalData(selectedDetalle)}
+          loading={loadingDetalle}
+          onSubmit={
+            modalMode === "visibilidad"
+              ? async (p: any) =>
+                  handleModalSubmit({
+                    visibleDirectorio: Boolean(p?.visibleDirectorio),
+                  })
+              : undefined
+          }
         />
       )}
     </>

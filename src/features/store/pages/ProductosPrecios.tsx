@@ -1,4 +1,4 @@
-// src/pages/Store/PreciosProductos.tsx
+// src/pages/Store/ProductosPrecios.tsx
 import { useEffect, useMemo, useState } from "react";
 import {
   Box,
@@ -32,7 +32,30 @@ import ProductsGrid, {
   StoreProduct,
 } from "../../../features/store/components/product/ProductsGrid";
 
-const API_URL = "http://localhost:8080/api/public/productos/buscar";
+import ProductModal from "../components/modal/ProductModal";
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL as string;
+
+function getPublicBaseUrl() {
+  const api = String(API_BASE_URL || "").replace(/\/+$/, "");
+  return api.replace(/\/api(\/v\d+)?$/i, "");
+}
+
+const PUBLIC_BASE_URL = getPublicBaseUrl();
+
+function isAbsoluteUrl(url: string) {
+  return /^https?:\/\//i.test(url);
+}
+
+function buildImgSrc(raw: string) {
+  const v = String(raw ?? "").trim();
+  if (!v) return "";
+  if (isAbsoluteUrl(v)) return v;
+  if (v.startsWith("/")) return `${PUBLIC_BASE_URL}${v}`; 
+  return `${PUBLIC_BASE_URL}/${v}`;
+}
+
+const API_URL = `${String(API_BASE_URL || "").replace(/\/+$/, "")}/api/public/productos/buscar`;
 
 const CATEGORY_MAP: Record<string, string> = {
   frutas: "Frutas",
@@ -46,7 +69,9 @@ const CATEGORY_MAP: Record<string, string> = {
   otros: "Otros",
 };
 
-export default function PreciosProductos() {
+const FALLBACK_IMG = "https://via.placeholder.com/400x300?text=Sin+imagen";
+
+export default function ProductosPrecios() {
   const navigate = useNavigate();
   const location = useLocation() as {
     state?: { initialCategory?: string };
@@ -60,6 +85,10 @@ export default function PreciosProductos() {
   const [products, setProducts] = useState<StoreProduct[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Modal state
+  const [modalOpen, setModalOpen] = useState(false);
+  const [selectedId, setSelectedId] = useState<number | null>(null);
 
   useEffect(() => {
     if (location.state?.initialCategory) {
@@ -80,9 +109,7 @@ export default function PreciosProductos() {
             page: 0,
             size: 200,
           },
-          headers: {
-            Accept: "*/*",
-          },
+          headers: { Accept: "*/*" },
         });
 
         const data = response.data;
@@ -93,9 +120,7 @@ export default function PreciosProductos() {
           const tienePrecioOferta =
             enOferta && p.precioOferta !== null && p.precioOferta !== undefined;
 
-          const precioFinal = tienePrecioOferta
-            ? p.precioOferta
-            : p.precioActual;
+          const precioFinal = tienePrecioOferta ? p.precioOferta : p.precioActual;
 
           let descuentoPorc = 0;
           if (
@@ -104,10 +129,18 @@ export default function PreciosProductos() {
             p.precioActual > 0 &&
             p.precioOferta < p.precioActual
           ) {
-            descuentoPorc = Math.round(
-              (1 - p.precioOferta / p.precioActual) * 100
-            );
+            descuentoPorc = Math.round((1 - p.precioOferta / p.precioActual) * 100);
           }
+
+          // Soporta varios nombres de campo y arma URL absoluta
+          const rawImg =
+            p.imagenUrl ??
+            p.imagen_url ??
+            p.fotoUrl ??
+            p.foto_url ??
+            "";
+
+          const img = rawImg ? buildImgSrc(rawImg) : FALLBACK_IMG;
 
           return {
             id: p.idProducto,
@@ -119,22 +152,16 @@ export default function PreciosProductos() {
             precio: precioFinal,
             unidad: p.unidadMedida ?? "unidad",
             moneda: "S/.",
-
             esOferta: enOferta,
             descuentoPorc,
-
-            imageUrl:
-              p.imagenUrl ??
-              "https://via.placeholder.com/400x300?text=Sin+imagen",
+            imageUrl: img,
           };
         });
 
         setProducts(mapped);
       } catch (err) {
         console.error(err);
-        setError(
-          "No se pudieron cargar los productos públicos desde el servidor."
-        );
+        setError("No se pudieron cargar los productos públicos desde el servidor.");
       } finally {
         setLoading(false);
       }
@@ -156,37 +183,34 @@ export default function PreciosProductos() {
     }
 
     if (priceRange !== "todos") {
-      if (priceRange === "0-10") {
-        list = list.filter((p) => p.precio >= 0 && p.precio <= 10);
-      } else if (priceRange === "10-50") {
-        list = list.filter((p) => p.precio > 10 && p.precio <= 50);
-      } else if (priceRange === "50-100") {
-        list = list.filter((p) => p.precio > 50 && p.precio <= 100);
-      } else if (priceRange === "100+") {
-        list = list.filter((p) => p.precio > 100);
-      }
+      if (priceRange === "0-10") list = list.filter((p) => p.precio >= 0 && p.precio <= 10);
+      else if (priceRange === "10-50") list = list.filter((p) => p.precio > 10 && p.precio <= 50);
+      else if (priceRange === "50-100") list = list.filter((p) => p.precio > 50 && p.precio <= 100);
+      else if (priceRange === "100+") list = list.filter((p) => p.precio > 100);
     }
 
-    if (sortBy === "ofertas") {
-      list = list.filter((p) => p.esOferta);
-    }
-
-    if (sortBy === "precio-asc") {
-      list = list.sort((a, b) => a.precio - b.precio);
-    } else if (sortBy === "precio-desc") {
-      list = list.sort((a, b) => b.precio - a.precio);
-    }
+    if (sortBy === "ofertas") list = list.filter((p) => p.esOferta);
+    if (sortBy === "precio-asc") list = list.sort((a, b) => a.precio - b.precio);
+    else if (sortBy === "precio-desc") list = list.sort((a, b) => b.precio - a.precio);
 
     return list;
   }, [products, category, priceRange, sortBy]);
 
+  // abre modal en lugar de navegar
   const handleViewStand = (product: StoreProduct) => {
-    navigate(`/tienda/producto/${product.id}`);
+    setSelectedId(product.id);
+    setModalOpen(true);
   };
 
-  const handleViewAllOffers = () => {
-    setSortBy("ofertas");
+  const handleCloseModal = () => setModalOpen(false);
+
+  // CTA “Ir al stand” dentro del modal
+  const handleGoStand = (standId: number) => {
+    setModalOpen(false);
+    navigate(`/tienda/stand/${standId}`); // ajusta si tu ruta difiere
   };
+
+  const handleViewAllOffers = () => setSortBy("ofertas");
 
   const activeFiltersCount = useMemo(() => {
     let count = 0;
@@ -218,7 +242,6 @@ export default function PreciosProductos() {
       >
         <Container maxWidth="xl">
           <Stack spacing={4}>
-            {/* CABECERA MEJORADA */}
             <Grow in timeout={500}>
               <Box>
                 <Breadcrumbs
@@ -245,18 +268,14 @@ export default function PreciosProductos() {
                   </Typography>
                 </Breadcrumbs>
 
-                <Stack
-                  direction="row"
-                  spacing={2}
-                  alignItems="center"
-                  mb={2}
-                >
+                <Stack direction="row" spacing={2} alignItems="center" mb={2}>
                   <Box
                     sx={{
                       width: 56,
                       height: 56,
                       borderRadius: "16px",
-                      background: "linear-gradient(135deg, #22c55e 0%, #16a34a 100%)",
+                      background:
+                        "linear-gradient(135deg, #22c55e 0%, #16a34a 100%)",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
@@ -294,11 +313,7 @@ export default function PreciosProductos() {
 
                 <Typography
                   variant="body1"
-                  sx={{
-                    color: "#64748b",
-                    maxWidth: 720,
-                    lineHeight: 1.6,
-                  }}
+                  sx={{ color: "#64748b", maxWidth: 720, lineHeight: 1.6 }}
                 >
                   Explora los productos ofrecidos por los stands del mercado,
                   filtra por categoría y rango de precios, y encuentra las mejores
@@ -307,7 +322,6 @@ export default function PreciosProductos() {
               </Box>
             </Grow>
 
-            {/* CONTENEDOR PRINCIPAL */}
             <Paper
               elevation={0}
               sx={{
@@ -319,20 +333,15 @@ export default function PreciosProductos() {
               }}
             >
               <Stack spacing={0}>
-                {/* HEADER CON FILTROS */}
                 <Box
                   sx={{
                     p: 3,
-                    background: "linear-gradient(135deg, #fafafa 0%, #ffffff 100%)",
+                    background:
+                      "linear-gradient(135deg, #fafafa 0%, #ffffff 100%)",
                     borderBottom: "1px solid #f3f4f6",
                   }}
                 >
-                  <Stack
-                    direction="row"
-                    alignItems="center"
-                    spacing={2}
-                    mb={2.5}
-                  >
+                  <Stack direction="row" alignItems="center" spacing={2} mb={2.5}>
                     <Box
                       sx={{
                         width: 40,
@@ -377,7 +386,6 @@ export default function PreciosProductos() {
                     onSortByChange={setSortBy}
                   />
 
-                  {/* Chips de filtros activos */}
                   <Stack
                     direction="row"
                     spacing={1}
@@ -427,7 +435,6 @@ export default function PreciosProductos() {
                   </Stack>
                 </Box>
 
-                {/* CONTENIDO */}
                 <Box sx={{ p: 4 }}>
                   {loading && (
                     <Fade in>
@@ -454,7 +461,6 @@ export default function PreciosProductos() {
 
                   {!loading && !error && (
                     <Stack spacing={4}>
-                      {/* OFERTAS DEL DÍA */}
                       {offers.length > 0 && category === "todos" && (
                         <Grow in timeout={600}>
                           <Box>
@@ -469,7 +475,8 @@ export default function PreciosProductos() {
                                   width: 36,
                                   height: 36,
                                   borderRadius: 2,
-                                  background: "linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)",
+                                  background:
+                                    "linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)",
                                   display: "flex",
                                   alignItems: "center",
                                   justifyContent: "center",
@@ -492,6 +499,7 @@ export default function PreciosProductos() {
                                 }}
                               />
                             </Stack>
+
                             <OffersStrip
                               offers={offers}
                               onViewStand={handleViewStand}
@@ -501,7 +509,6 @@ export default function PreciosProductos() {
                         </Grow>
                       )}
 
-                      {/* BANNER COMPARADOR */}
                       <Grow in timeout={700}>
                         <Box>
                           <PriceComparatorBanner
@@ -512,7 +519,6 @@ export default function PreciosProductos() {
                         </Box>
                       </Grow>
 
-                      {/* GRID PRINCIPAL */}
                       <Grow in timeout={800}>
                         <Box>
                           <Paper
@@ -571,14 +577,8 @@ export default function PreciosProductos() {
                                 bgcolor: "#f8fafc",
                               }}
                             >
-                              <SearchIcon
-                                sx={{ fontSize: 64, color: "#cbd5e1", mb: 2 }}
-                              />
-                              <Typography
-                                variant="h6"
-                                fontWeight={900}
-                                mb={1}
-                              >
+                              <SearchIcon sx={{ fontSize: 64, color: "#cbd5e1", mb: 2 }} />
+                              <Typography variant="h6" fontWeight={900} mb={1}>
                                 No encontramos productos
                               </Typography>
                               <Typography
@@ -603,6 +603,15 @@ export default function PreciosProductos() {
       </Box>
 
       <PublicFooter />
+
+      {/* MODAL DETALLE PRODUCTO */}
+      <ProductModal
+        open={modalOpen}
+        productId={selectedId}
+        onClose={handleCloseModal}
+        onGoStand={handleGoStand}
+        enableOfertas={false}
+      />
     </Box>
   );
 }

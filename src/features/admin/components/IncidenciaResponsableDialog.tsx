@@ -8,11 +8,26 @@ import {
   Typography,
   TextField,
   CircularProgress,
+  Box,
+  Paper,
 } from "@mui/material";
 import Autocomplete from "@mui/material/Autocomplete";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { IncidenciaResponseDto } from "../../../api/admin/incidenciasAdminApi";
 import { usuarioApi, UsuarioRow } from "../../../api/admin/usuarioApi";
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL as string;
+
+function isAbsoluteUrl(url: string) {
+  return /^https?:\/\//i.test(url);
+}
+function buildImgSrc(raw: string) {
+  const v = String(raw ?? "").trim();
+  if (!v) return "";
+  if (v.startsWith("/")) return `${API_BASE_URL}${v}`;
+  if (isAbsoluteUrl(v)) return v;
+  return `${API_BASE_URL}/${v}`;
+}
 
 interface Props {
   open: boolean;
@@ -40,6 +55,15 @@ export default function IncidenciaResponsableDialog({
     null
   );
 
+  // preview foto incidencia
+  const fotoOk = Boolean(
+    incidencia?.fotoUrl && String(incidencia.fotoUrl).trim()
+  );
+  const fotoSrc = useMemo(
+    () => (fotoOk ? buildImgSrc(String(incidencia!.fotoUrl)) : ""),
+    [fotoOk, incidencia]
+  );
+
   // Cargar usuarios cuando se abre el diálogo
   useEffect(() => {
     if (!open) return;
@@ -48,8 +72,10 @@ export default function IncidenciaResponsableDialog({
       try {
         setLoadingUsuarios(true);
 
-        // Traemos todos los usuarios y filtramos a ACTIVO
+        // Traemos todos los usuarios
         const data: UsuarioRow[] = await usuarioApi.listar();
+
+        // Filtrar ACTIVO
         const activos = data.filter(
           (u) =>
             (u.estado || "").toUpperCase() === "ACTIVO" ||
@@ -57,7 +83,12 @@ export default function IncidenciaResponsableDialog({
             u.estado == null
         );
 
-        const opciones: UsuarioOption[] = activos.map((u) => {
+        // Excluir CLIENTE como responsable
+        const sinCliente = activos.filter(
+          (u) => (u.rol || "").toUpperCase() !== "CLIENTE"
+        );
+
+        const opciones: UsuarioOption[] = sinCliente.map((u) => {
           const rol = (u.rol || "").toUpperCase();
 
           let tipo: UsuarioOption["tipo"] = "OTRO";
@@ -114,15 +145,16 @@ export default function IncidenciaResponsableDialog({
   };
 
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="xs">
-      <DialogTitle>Asignar responsable</DialogTitle>
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
+      <DialogTitle sx={{ fontWeight: 900 }}>Asignar responsable</DialogTitle>
+
       <DialogContent sx={{ pt: 1.5 }}>
         {incidencia && (
           <Stack spacing={1} sx={{ mb: 2 }}>
             <Typography variant="subtitle2" color="text.secondary">
               Incidencia #{incidencia.idIncidencia}
             </Typography>
-            <Typography variant="body1" sx={{ fontWeight: 600 }}>
+            <Typography variant="body1" sx={{ fontWeight: 700 }}>
               {incidencia.titulo}
             </Typography>
             <Typography variant="body2" color="text.secondary">
@@ -139,7 +171,6 @@ export default function IncidenciaResponsableDialog({
           value={selectedUsuario}
           onChange={(_, newValue) => setSelectedUsuario(newValue)}
           loading={loadingUsuarios}
-          // 🔍 búsqueda por nombre + rol
           filterOptions={(options, state) =>
             options.filter((opt) =>
               `${opt.nombreCompleto} ${opt.rol}`
@@ -176,10 +207,80 @@ export default function IncidenciaResponsableDialog({
             />
           )}
           noOptionsText={
-            loadingUsuarios ? "Cargando usuarios..." : "No se encontraron usuarios"
+            loadingUsuarios
+              ? "Cargando usuarios..."
+              : "No se encontraron usuarios"
           }
         />
+
+        {/* FOTO */}
+        <Paper
+          variant="outlined"
+          sx={{
+            mt: 2,
+            borderRadius: 3,
+            overflow: "hidden",
+            borderColor: "#e5e7eb",
+          }}
+        >
+          <Box
+            sx={{
+              p: 1.25,
+              bgcolor: "#f8fafc",
+              borderBottom: "1px solid #e5e7eb",
+            }}
+          >
+            <Typography sx={{ fontWeight: 900, fontSize: 13 }}>
+              Foto adjunta
+            </Typography>
+          </Box>
+
+          <Box sx={{ p: 1.25 }}>
+            {fotoOk ? (
+              <Box
+                sx={{
+                  border: "1px solid #e5e7eb",
+                  borderRadius: 2,
+                  overflow: "hidden",
+                  height: 220,
+                  bgcolor: "#f8fafc",
+                }}
+              >
+                <img
+                  src={fotoSrc}
+                  alt="foto incidencia"
+                  style={{
+                    width: "100%",
+                    height: "100%",
+                    objectFit: "cover",
+                  }}
+                  onError={(e) => {
+                    (e.currentTarget as HTMLImageElement).style.display = "none";
+                  }}
+                />
+              </Box>
+            ) : (
+              <Box
+                sx={{
+                  height: 220,
+                  border: "1px dashed #e5e7eb",
+                  borderRadius: 2,
+                  bgcolor: "#f8fafc",
+                  display: "grid",
+                  placeItems: "center",
+                  textAlign: "center",
+                  px: 2,
+                }}
+              >
+                <Typography sx={{ color: "#64748b", fontWeight: 700 }}>
+                  Sin foto
+                </Typography>
+              </Box>
+            )}
+          </Box>
+        </Paper>
       </DialogContent>
+
       <DialogActions sx={{ p: 2.5 }}>
         <Button onClick={onClose}>Cancelar</Button>
         <Button
@@ -188,7 +289,7 @@ export default function IncidenciaResponsableDialog({
           sx={{
             borderRadius: 999,
             textTransform: "none",
-            fontWeight: 700,
+            fontWeight: 800,
           }}
           disabled={!selectedUsuario}
         >

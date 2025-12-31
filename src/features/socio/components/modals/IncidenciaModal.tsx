@@ -13,14 +13,33 @@ import {
   Chip,
   Paper,
   MenuItem,
+  CircularProgress,
 } from "@mui/material";
 
 import type { SocioStandDto } from "../../../../api/socio/standsSocioApi";
 import type { IncidenciaCreateRequest } from "../../../../api/socio/incidenciasSocioApi";
+import { filesApi } from "../../../../api/filesApi";
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL as string;
 
 function nonEmpty(v: any) {
   const s = String(v ?? "").trim();
   return s.length ? s : "";
+}
+
+function isAbsoluteUrl(url: string) {
+  return /^https?:\/\//i.test(url);
+}
+
+function buildImgSrc(raw: string) {
+  const v = String(raw ?? "").trim();
+  if (!v) return "";
+  // si viene "/media/..." lo convertimos a URL completa para el navegador
+  if (v.startsWith("/")) return `${API_BASE_URL}${v}`;
+  // si viene "http(s)://..." se respeta
+  if (isAbsoluteUrl(v)) return v;
+  // fallback (por si guardas "media/..." sin slash)
+  return `${API_BASE_URL}/${v}`;
 }
 
 export default function IncidenciaModal({
@@ -39,7 +58,23 @@ export default function IncidenciaModal({
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
-  const tipoOptions = useMemo(() => ["LUZ","DESAGUE","LIMPIEZA","AGUA","ELECTRICIDAD","SEGURIDAD","RESIDUOS","INFRAESTRUCTURA","HIGIENE","RUIDO","VENTILACION","OTRO"], []);
+  const tipoOptions = useMemo(
+    () => [
+      "LUZ",
+      "DESAGUE",
+      "LIMPIEZA",
+      "AGUA",
+      "ELECTRICIDAD",
+      "SEGURIDAD",
+      "RESIDUOS",
+      "INFRAESTRUCTURA",
+      "HIGIENE",
+      "RUIDO",
+      "VENTILACION",
+      "OTRO",
+    ],
+    []
+  );
   const prioridadOptions = useMemo(() => ["BAJA", "MEDIA", "ALTA", "CRITICA"], []);
 
   const [form, setForm] = useState<IncidenciaCreateRequest>({
@@ -51,15 +86,19 @@ export default function IncidenciaModal({
     fotoUrl: "",
   });
 
+  // upload state (nuevo)
+  const [uploading, setUploading] = useState(false);
+
   useEffect(() => {
     if (!open) return;
     setErr(null);
     setBusy(false);
+    setUploading(false);
 
     const firstStand = stands?.[0]?.id ?? 0;
     setForm((p) => ({
       ...p,
-      idStand: typeof defaultStandId === "number" ? defaultStandId : (p.idStand || firstStand),
+      idStand: typeof defaultStandId === "number" ? defaultStandId : p.idStand || firstStand,
       titulo: "",
       descripcion: "",
       tipo: p.tipo || "MANTENIMIENTO",
@@ -72,6 +111,36 @@ export default function IncidenciaModal({
     () => stands.find((s) => Number(s.id) === Number(form.idStand)) ?? null,
     [stands, form.idStand]
   );
+
+  // ==========================
+  // Upload de imagen (FIX JWT)
+  // ==========================
+  const uploadFoto = async (file: File) => {
+    setErr(null);
+
+    try {
+      setUploading(true);
+
+      // ✅ usa httpClient (axios) => interceptor agrega Authorization
+      const data = await filesApi.upload("incidencias", file);
+
+      const url = String(data?.url ?? "").trim();
+      if (!url) throw new Error("El servidor no devolvió la URL de la imagen.");
+
+      // guardamos la ruta que devuelve backend, ej: "/media/incidencias/xxx.webp"
+      setForm((p) => ({ ...p, fotoUrl: url }));
+    } catch (e: any) {
+      console.error(e);
+      const msg =
+        e?.response?.data?.mensaje ||
+        e?.response?.data?.message ||
+        e?.message ||
+        "No se pudo subir la imagen.";
+      setErr(msg);
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const submit = async () => {
     setErr(null);
@@ -103,10 +172,13 @@ export default function IncidenciaModal({
     }
   };
 
+  const previewOk = Boolean(form.fotoUrl?.trim());
+  const previewSrc = previewOk ? buildImgSrc(String(form.fotoUrl)) : "";
+
   return (
     <Dialog
       open={open}
-      onClose={busy ? undefined : onClose}
+      onClose={busy || uploading ? undefined : onClose}
       fullWidth
       maxWidth="md"
       PaperProps={{
@@ -154,7 +226,11 @@ export default function IncidenciaModal({
       </DialogTitle>
 
       <DialogContent sx={{ flex: 1, overflow: "auto", py: 2 }}>
-        {err && <Alert severity="error" sx={{ mb: 2 }}>{err}</Alert>}
+        {err && (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            {err}
+          </Alert>
+        )}
 
         <Box
           sx={{
@@ -172,7 +248,7 @@ export default function IncidenciaModal({
                 label="Stand"
                 value={form.idStand || ""}
                 onChange={(e) => setForm((p) => ({ ...p, idStand: Number(e.target.value) }))}
-                disabled={busy}
+                disabled={busy || uploading}
                 fullWidth
               >
                 {stands.length === 0 ? (
@@ -190,7 +266,7 @@ export default function IncidenciaModal({
                 label="Título"
                 value={form.titulo}
                 onChange={(e) => setForm((p) => ({ ...p, titulo: e.target.value }))}
-                disabled={busy}
+                disabled={busy || uploading}
                 fullWidth
               />
 
@@ -198,7 +274,7 @@ export default function IncidenciaModal({
                 label="Descripción"
                 value={form.descripcion}
                 onChange={(e) => setForm((p) => ({ ...p, descripcion: e.target.value }))}
-                disabled={busy}
+                disabled={busy || uploading}
                 fullWidth
                 multiline
                 minRows={5}
@@ -210,11 +286,13 @@ export default function IncidenciaModal({
                   label="Tipo"
                   value={form.tipo}
                   onChange={(e) => setForm((p) => ({ ...p, tipo: e.target.value }))}
-                  disabled={busy}
+                  disabled={busy || uploading}
                   fullWidth
                 >
                   {tipoOptions.map((t) => (
-                    <MenuItem key={t} value={t}>{t}</MenuItem>
+                    <MenuItem key={t} value={t}>
+                      {t}
+                    </MenuItem>
                   ))}
                 </TextField>
 
@@ -223,22 +301,62 @@ export default function IncidenciaModal({
                   label="Prioridad"
                   value={form.prioridad}
                   onChange={(e) => setForm((p) => ({ ...p, prioridad: e.target.value }))}
-                  disabled={busy}
+                  disabled={busy || uploading}
                   fullWidth
                 >
                   {prioridadOptions.map((t) => (
-                    <MenuItem key={t} value={t}>{t}</MenuItem>
+                    <MenuItem key={t} value={t}>
+                      {t}
+                    </MenuItem>
                   ))}
                 </TextField>
               </Box>
 
-              <TextField
-                label="Foto URL (opcional)"
-                value={form.fotoUrl ?? ""}
-                onChange={(e) => setForm((p) => ({ ...p, fotoUrl: e.target.value }))}
-                disabled={busy}
-                fullWidth
-              />
+              {/* Antes era solo URL. Ahora mantenemos URL pero agregamos subida */}
+              <Stack spacing={1}>
+                <TextField
+                  label="Foto URL (opcional)"
+                  value={form.fotoUrl ?? ""}
+                  onChange={(e) => setForm((p) => ({ ...p, fotoUrl: e.target.value }))}
+                  disabled={busy || uploading}
+                  fullWidth
+                  helperText="Puedes pegar una URL o subir una imagen."
+                />
+
+                <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+                  <Button
+                    component="label"
+                    variant="outlined"
+                    disabled={busy || uploading}
+                    sx={{ textTransform: "none", fontWeight: 900, borderRadius: 2 }}
+                  >
+                    {uploading ? "Subiendo..." : "Subir foto"}
+                    <input
+                      type="file"
+                      hidden
+                      accept="image/*"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        if (f) uploadFoto(f);
+                        e.currentTarget.value = "";
+                      }}
+                    />
+                  </Button>
+
+                  {uploading && <CircularProgress size={18} />}
+
+                  {Boolean(form.fotoUrl?.trim()) && (
+                    <Button
+                      variant="text"
+                      disabled={busy || uploading}
+                      onClick={() => setForm((p) => ({ ...p, fotoUrl: "" }))}
+                      sx={{ textTransform: "none", fontWeight: 900 }}
+                    >
+                      Quitar foto
+                    </Button>
+                  )}
+                </Stack>
+              </Stack>
             </Stack>
           </Box>
 
@@ -255,7 +373,9 @@ export default function IncidenciaModal({
               <Box sx={{ p: 1.5 }}>
                 <Stack spacing={1}>
                   <Box>
-                    <Typography variant="caption" sx={{ color: "#64748b", fontWeight: 800 }}>Stand</Typography>
+                    <Typography variant="caption" sx={{ color: "#64748b", fontWeight: 800 }}>
+                      Stand
+                    </Typography>
                     <Typography sx={{ fontWeight: 900, color: "#0f172a" }}>
                       {standActual?.nombreComercial ?? (form.idStand ? `Stand ${form.idStand}` : "—")}
                     </Typography>
@@ -263,10 +383,14 @@ export default function IncidenciaModal({
 
                   <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
                     <Chip size="small" label={`Tipo: ${form.tipo || "—"}`} sx={{ fontWeight: 900, bgcolor: "#f1f5f9" }} />
-                    <Chip size="small" label={`Prioridad: ${form.prioridad || "—"}`} sx={{ fontWeight: 900, bgcolor: "#fffbeb", color: "#b45309" }} />
+                    <Chip
+                      size="small"
+                      label={`Prioridad: ${form.prioridad || "—"}`}
+                      sx={{ fontWeight: 900, bgcolor: "#fffbeb", color: "#b45309" }}
+                    />
                   </Box>
 
-                  {form.fotoUrl?.trim() ? (
+                  {previewOk ? (
                     <Box
                       sx={{
                         border: "1px solid #e5e7eb",
@@ -277,7 +401,7 @@ export default function IncidenciaModal({
                       }}
                     >
                       <img
-                        src={String(form.fotoUrl)}
+                        src={previewSrc}
                         alt="preview"
                         style={{ width: "100%", height: "100%", objectFit: "cover" }}
                         onError={(e) => {
@@ -299,7 +423,7 @@ export default function IncidenciaModal({
                       }}
                     >
                       <Typography variant="body2" sx={{ color: "#64748b", fontWeight: 700 }}>
-                        (Opcional) agrega una URL de imagen
+                        (Opcional) pega una URL o sube una imagen
                       </Typography>
                     </Box>
                   )}
@@ -320,13 +444,13 @@ export default function IncidenciaModal({
           zIndex: 2,
         }}
       >
-        <Button onClick={onClose} disabled={busy} sx={{ textTransform: "none", fontWeight: 900 }}>
+        <Button onClick={onClose} disabled={busy || uploading} sx={{ textTransform: "none", fontWeight: 900 }}>
           Cancelar
         </Button>
         <Button
           variant="contained"
           onClick={submit}
-          disabled={busy}
+          disabled={busy || uploading}
           sx={{
             textTransform: "none",
             fontWeight: 900,
@@ -336,7 +460,7 @@ export default function IncidenciaModal({
             minWidth: 160,
           }}
         >
-          {busy ? "Registrando..." : "Registrar incidencia"}
+          {busy ? "Registrando..." : uploading ? "Subiendo foto..." : "Registrar incidencia"}
         </Button>
       </DialogActions>
     </Dialog>

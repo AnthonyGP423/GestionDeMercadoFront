@@ -19,10 +19,21 @@ import {
   Paper,
 } from "@mui/material";
 
-import type { ProductoRequestDto, ProductoResponseDto } from "../../../../api/socio/productosSocioApi";
-import { categoriasProductoSocioApi, type CategoriaProductoDto } from "../../../../api/socio/categoriasProductoSocioApi.ts";
+import type {
+  ProductoRequestDto,
+  ProductoResponseDto,
+} from "../../../../api/socio/productosSocioApi";
+import {
+  categoriasProductoSocioApi,
+  type CategoriaProductoDto,
+} from "../../../../api/socio/categoriasProductoSocioApi.ts";
+
+// ✅ NUEVO: api genérico para uploads
+import { filesApi } from "../../../../api/filesApi";
 
 export type ProductoFormDraft = ProductoRequestDto;
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL as string;
 
 function num(v: any, fb = 0) {
   const n = Number(v);
@@ -67,7 +78,8 @@ export default function ProductoModal({
       imagenUrl: initial.imagenUrl ?? "",
       precioActual: num(initial.precioActual, 0),
       enOferta: Boolean(initial.enOferta),
-      precioOferta: initial.precioOferta != null ? num(initial.precioOferta, 0) : undefined,
+      precioOferta:
+        initial.precioOferta != null ? num(initial.precioOferta, 0) : undefined,
       visibleDirectorio: Boolean(initial.visibleDirectorio ?? true),
     };
   }, [initial]);
@@ -75,6 +87,10 @@ export default function ProductoModal({
   const [form, setForm] = useState<ProductoRequestDto>(defaults);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+
+  // ✅ NUEVO: estado de subida de imagen
+  const [uploading, setUploading] = useState(false);
+  const [uploadErr, setUploadErr] = useState<string | null>(null);
 
   // categorías (combo escribir/filtrar)
   const [cats, setCats] = useState<CategoriaProductoDto[]>([]);
@@ -109,10 +125,43 @@ export default function ProductoModal({
     return cats.find((c) => Number(c.id) === Number(id)) ?? null;
   }, [cats, form.idCategoriaProducto]);
 
+  // ✅ NUEVO: handler para subir imagen al backend
+  const handlePickImage = async (file: File | null) => {
+    if (!file) return;
+    if (readOnly || busy) return;
+
+    // validación rápida en front
+    const okTypes = ["image/png", "image/jpeg", "image/webp"];
+    if (!okTypes.includes(file.type)) {
+      setUploadErr("Formato no permitido. Usa PNG, JPG o WEBP.");
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setUploadErr("La imagen supera 10MB.");
+      return;
+    }
+
+    try {
+      setUploadErr(null);
+      setUploading(true);
+
+      const res = await filesApi.upload("productos", file);
+
+      // Guardamos la ruta que devuelve el backend, ej: /media/productos/xxx.jpg
+      setForm((p) => ({ ...p, imagenUrl: res.url }));
+    } catch (e) {
+      console.error(e);
+      setUploadErr("No se pudo subir la imagen.");
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const submit = async () => {
     if (readOnly) return;
 
     setErr(null);
+    if (uploading) return setErr("Espera a que termine la subida de la imagen.");
 
     const nombre = form.nombre?.trim();
     if (!nombre) return setErr("El nombre es obligatorio.");
@@ -121,11 +170,14 @@ export default function ProductoModal({
     if (precioActual <= 0) return setErr("El precio actual debe ser mayor a 0.");
 
     const enOferta = Boolean(form.enOferta);
-    const precioOferta = form.precioOferta == null ? undefined : num(form.precioOferta, 0);
+    const precioOferta =
+      form.precioOferta == null ? undefined : num(form.precioOferta, 0);
 
     if (enOferta) {
-      if (precioOferta == null || precioOferta <= 0) return setErr("Si está en oferta, ingresa el precio de oferta.");
-      if (precioOferta >= precioActual) return setErr("El precio de oferta debe ser menor al precio actual.");
+      if (precioOferta == null || precioOferta <= 0)
+        return setErr("Si está en oferta, ingresa el precio de oferta.");
+      if (precioOferta >= precioActual)
+        return setErr("El precio de oferta debe ser menor al precio actual.");
     }
 
     try {
@@ -143,7 +195,9 @@ export default function ProductoModal({
         visibleDirectorio: Boolean(form.visibleDirectorio),
       };
 
-      Object.keys(payload).forEach((k) => (payload as any)[k] === undefined && delete (payload as any)[k]);
+      Object.keys(payload).forEach(
+        (k) => (payload as any)[k] === undefined && delete (payload as any)[k]
+      );
 
       await onSave(payload);
     } catch (e) {
@@ -154,7 +208,18 @@ export default function ProductoModal({
     }
   };
 
-  const previewOk = Boolean(form.imagenUrl && String(form.imagenUrl).trim().length > 0);
+  const previewOk = Boolean(
+    form.imagenUrl && String(form.imagenUrl).trim().length > 0
+  );
+
+  // ✅ AQUÍ se cambia el preview:
+  // - Si imagenUrl es "/media/..." => usa API_BASE_URL + imagenUrl
+  // - Si ya viene como "http..." => úsala tal cual
+  const previewSrc = previewOk
+    ? String(form.imagenUrl).startsWith("http")
+      ? String(form.imagenUrl)
+      : `${API_BASE_URL}${String(form.imagenUrl)}`
+    : "";
 
   return (
     <Dialog
@@ -166,14 +231,12 @@ export default function ProductoModal({
         sx: {
           borderRadius: 3,
           overflow: "hidden",
-          // modal grande y usable
           height: { xs: "92vh", sm: "90vh" },
           display: "flex",
           flexDirection: "column",
         },
       }}
     >
-      {/* Header sticky (se mantiene visible) */}
       <DialogTitle
         sx={{
           fontWeight: 900,
@@ -185,18 +248,31 @@ export default function ProductoModal({
           py: 1.5,
         }}
       >
-        <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2} flexWrap="wrap">
+        <Stack
+          direction="row"
+          alignItems="center"
+          justifyContent="space-between"
+          spacing={2}
+          flexWrap="wrap"
+        >
           <Box>
             <Typography sx={{ fontWeight: 900, lineHeight: 1.1 }}>
               {isEdit ? "Editar producto" : "Nuevo producto"}
             </Typography>
             <Typography variant="caption" sx={{ color: "#64748b" }}>
-              Completa los datos. La visibilidad controla si aparece en el directorio.
+              Completa los datos. La visibilidad controla si aparece en el
+              directorio.
             </Typography>
           </Box>
 
           {isEdit && initial && (
-            <Stack direction="row" spacing={1} flexWrap="wrap" alignItems="center" justifyContent="flex-end">
+            <Stack
+              direction="row"
+              spacing={1}
+              flexWrap="wrap"
+              alignItems="center"
+              justifyContent="flex-end"
+            >
               <Chip label={`ID: ${initial.idProducto}`} sx={{ fontWeight: 900 }} />
               <Chip
                 label={Boolean(form.visibleDirectorio) ? "VISIBLE" : "OCULTO"}
@@ -207,14 +283,20 @@ export default function ProductoModal({
                 }}
               />
               {Boolean(form.enOferta) && (
-                <Chip label="EN OFERTA" sx={{ fontWeight: 900, bgcolor: "#fef2f2", color: "#b91c1c" }} />
+                <Chip
+                  label="EN OFERTA"
+                  sx={{
+                    fontWeight: 900,
+                    bgcolor: "#fef2f2",
+                    color: "#b91c1c",
+                  }}
+                />
               )}
             </Stack>
           )}
         </Stack>
       </DialogTitle>
 
-      {/* Content con scroll interno */}
       <DialogContent
         sx={{
           flex: 1,
@@ -249,19 +331,23 @@ export default function ProductoModal({
               <TextField
                 label="Nombre"
                 value={form.nombre}
-                onChange={(e) => setForm((p) => ({ ...p, nombre: e.target.value }))}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, nombre: e.target.value }))
+                }
                 fullWidth
-                disabled={readOnly || busy}
+                disabled={readOnly || busy || uploading}
               />
 
               <TextField
                 label="Descripción"
                 value={form.descripcion ?? ""}
-                onChange={(e) => setForm((p) => ({ ...p, descripcion: e.target.value }))}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, descripcion: e.target.value }))
+                }
                 fullWidth
                 multiline
                 minRows={4}
-                disabled={readOnly || busy}
+                disabled={readOnly || busy || uploading}
               />
 
               <Box
@@ -274,9 +360,11 @@ export default function ProductoModal({
                 <TextField
                   label="Unidad de medida (ej. Kg, Und, Lt)"
                   value={form.unidadMedida ?? ""}
-                  onChange={(e) => setForm((p) => ({ ...p, unidadMedida: e.target.value }))}
+                  onChange={(e) =>
+                    setForm((p) => ({ ...p, unidadMedida: e.target.value }))
+                  }
                   fullWidth
-                  disabled={readOnly || busy}
+                  disabled={readOnly || busy || uploading}
                 />
 
                 <Autocomplete
@@ -296,7 +384,7 @@ export default function ProductoModal({
                       {...params}
                       label="Categoría (opcional)"
                       fullWidth
-                      disabled={readOnly || busy}
+                      disabled={readOnly || busy || uploading}
                       InputProps={{
                         ...params.InputProps,
                         endAdornment: (
@@ -311,12 +399,73 @@ export default function ProductoModal({
                 />
               </Box>
 
+              {/* ✅ NUEVO: Subir imagen */}
+              <Stack spacing={1}>
+                <Box
+                  sx={{
+                    display: "flex",
+                    gap: 1,
+                    alignItems: "center",
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <Button
+                    variant="outlined"
+                    component="label"
+                    disabled={readOnly || busy || uploading}
+                    sx={{
+                      textTransform: "none",
+                      fontWeight: 900,
+                      borderRadius: 2,
+                    }}
+                  >
+                    {uploading ? "Subiendo..." : "Subir imagen"}
+                    <input
+                      type="file"
+                      hidden
+                      accept="image/png,image/jpeg,image/webp"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0] ?? null;
+                        e.currentTarget.value = "";
+                        handlePickImage(f);
+                      }}
+                    />
+                  </Button>
+
+                  {Boolean(form.imagenUrl) && (
+                    <Button
+                      variant="text"
+                      color="error"
+                      disabled={readOnly || busy || uploading}
+                      onClick={() => setForm((p) => ({ ...p, imagenUrl: "" }))}
+                      sx={{ textTransform: "none", fontWeight: 900 }}
+                    >
+                      Quitar
+                    </Button>
+                  )}
+                </Box>
+
+                {uploadErr && (
+                  <Alert severity="error" sx={{ py: 0.5 }}>
+                    {uploadErr}
+                  </Alert>
+                )}
+
+                <Typography variant="caption" sx={{ color: "#64748b" }}>
+                  Formatos: PNG/JPG/WEBP. Máx. 10MB. Se guardará como URL en el
+                  sistema.
+                </Typography>
+              </Stack>
+
+              {/* Se mantiene el campo manual (no se rompe) */}
               <TextField
                 label="Imagen URL (opcional)"
                 value={form.imagenUrl ?? ""}
-                onChange={(e) => setForm((p) => ({ ...p, imagenUrl: e.target.value }))}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, imagenUrl: e.target.value }))
+                }
                 fullWidth
-                disabled={readOnly || busy}
+                disabled={readOnly || busy || uploading}
               />
 
               <Divider sx={{ my: 0.5 }} />
@@ -333,10 +482,15 @@ export default function ProductoModal({
                   label="Precio actual (S/)"
                   type="number"
                   value={form.precioActual ?? 0}
-                  onChange={(e) => setForm((p) => ({ ...p, precioActual: Number(e.target.value) }))}
+                  onChange={(e) =>
+                    setForm((p) => ({
+                      ...p,
+                      precioActual: Number(e.target.value),
+                    }))
+                  }
                   fullWidth
                   inputProps={{ min: 0, step: "0.10" }}
-                  disabled={readOnly || busy}
+                  disabled={readOnly || busy || uploading}
                 />
 
                 <FormControlLabel
@@ -348,10 +502,12 @@ export default function ProductoModal({
                         setForm((p) => ({
                           ...p,
                           enOferta: e.target.checked,
-                          precioOferta: e.target.checked ? (p.precioOferta ?? p.precioActual) : undefined,
+                          precioOferta: e.target.checked
+                            ? p.precioOferta ?? p.precioActual
+                            : undefined,
                         }))
                       }
-                      disabled={readOnly || busy}
+                      disabled={readOnly || busy || uploading}
                     />
                   }
                   sx={{ m: 0, justifyContent: "space-between" }}
@@ -366,22 +522,34 @@ export default function ProductoModal({
                   onChange={(e) =>
                     setForm((p) => ({
                       ...p,
-                      precioOferta: e.target.value === "" ? undefined : Number(e.target.value),
+                      precioOferta:
+                        e.target.value === ""
+                          ? undefined
+                          : Number(e.target.value),
                     }))
                   }
                   fullWidth
                   inputProps={{ min: 0, step: "0.10" }}
-                  disabled={readOnly || busy}
+                  disabled={readOnly || busy || uploading}
                 />
               )}
 
               <FormControlLabel
-                label={Boolean(form.visibleDirectorio) ? "Visible en directorio" : "Oculto en directorio"}
+                label={
+                  Boolean(form.visibleDirectorio)
+                    ? "Visible en directorio"
+                    : "Oculto en directorio"
+                }
                 control={
                   <Switch
                     checked={Boolean(form.visibleDirectorio)}
-                    onChange={(e) => setForm((p) => ({ ...p, visibleDirectorio: e.target.checked }))}
-                    disabled={readOnly || busy}
+                    onChange={(e) =>
+                      setForm((p) => ({
+                        ...p,
+                        visibleDirectorio: e.target.checked,
+                      }))
+                    }
+                    disabled={readOnly || busy || uploading}
                   />
                 }
                 sx={{ m: 0 }}
@@ -399,8 +567,16 @@ export default function ProductoModal({
                 overflow: "hidden",
               }}
             >
-              <Box sx={{ p: 1.5, borderBottom: "1px solid #e5e7eb", bgcolor: "#f8fafc" }}>
-                <Typography sx={{ fontWeight: 900, color: "#0f172a" }}>Vista previa</Typography>
+              <Box
+                sx={{
+                  p: 1.5,
+                  borderBottom: "1px solid #e5e7eb",
+                  bgcolor: "#f8fafc",
+                }}
+              >
+                <Typography sx={{ fontWeight: 900, color: "#0f172a" }}>
+                  Vista previa
+                </Typography>
                 <Typography variant="caption" sx={{ color: "#64748b" }}>
                   Revisa cómo se verá la imagen y datos clave.
                 </Typography>
@@ -418,8 +594,9 @@ export default function ProductoModal({
                       mb: 1.5,
                     }}
                   >
+                    {/* ✅ PREVIEW CORRECTO (AQUÍ ESTÁ EL CAMBIO) */}
                     <img
-                      src={String(form.imagenUrl)}
+                      src={previewSrc}
                       alt="preview"
                       style={{ width: "100%", height: "100%", objectFit: "cover" }}
                       onError={(e) => {
@@ -441,7 +618,10 @@ export default function ProductoModal({
                       textAlign: "center",
                     }}
                   >
-                    <Typography variant="body2" sx={{ color: "#64748b", fontWeight: 700 }}>
+                    <Typography
+                      variant="body2"
+                      sx={{ color: "#64748b", fontWeight: 700 }}
+                    >
                       Agrega una URL de imagen para ver la vista previa
                     </Typography>
                   </Box>
@@ -449,7 +629,10 @@ export default function ProductoModal({
 
                 <Stack spacing={1}>
                   <Box>
-                    <Typography variant="caption" sx={{ color: "#64748b", fontWeight: 800 }}>
+                    <Typography
+                      variant="caption"
+                      sx={{ color: "#64748b", fontWeight: 800 }}
+                    >
                       Categoría
                     </Typography>
                     <Typography sx={{ fontWeight: 900, color: "#0f172a" }}>
@@ -458,7 +641,10 @@ export default function ProductoModal({
                   </Box>
 
                   <Box>
-                    <Typography variant="caption" sx={{ color: "#64748b", fontWeight: 800 }}>
+                    <Typography
+                      variant="caption"
+                      sx={{ color: "#64748b", fontWeight: 800 }}
+                    >
                       Precio
                     </Typography>
                     <Typography sx={{ fontWeight: 900, color: "#0f172a" }}>
@@ -500,7 +686,6 @@ export default function ProductoModal({
         </Box>
       </DialogContent>
 
-      {/* Footer sticky */}
       <DialogActions
         sx={{
           p: 2,
@@ -511,7 +696,11 @@ export default function ProductoModal({
           zIndex: 2,
         }}
       >
-        <Button onClick={onClose} disabled={busy} sx={{ textTransform: "none", fontWeight: 900 }}>
+        <Button
+          onClick={onClose}
+          disabled={busy || uploading}
+          sx={{ textTransform: "none", fontWeight: 900 }}
+        >
           Cerrar
         </Button>
 
@@ -519,7 +708,7 @@ export default function ProductoModal({
           <Button
             variant="contained"
             onClick={submit}
-            disabled={busy}
+            disabled={busy || uploading}
             sx={{
               textTransform: "none",
               fontWeight: 900,
@@ -529,7 +718,7 @@ export default function ProductoModal({
               minWidth: 140,
             }}
           >
-            {busy ? "Guardando..." : "Guardar"}
+            {busy ? "Guardando..." : uploading ? "Subiendo..." : "Guardar"}
           </Button>
         )}
       </DialogActions>

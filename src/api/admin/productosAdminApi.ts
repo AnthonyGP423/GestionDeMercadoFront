@@ -1,3 +1,4 @@
+// productosAdminApi.ts
 import http from "../httpClient";
 
 export interface ProductoBackend {
@@ -31,7 +32,6 @@ export interface ProductoRow {
   precioNormal: number;
   precioNormalTexto: string;
 
-  // Oferta
   tieneOferta: boolean;
   ofertaStatus: "Con oferta" | "Sin oferta";
   precioOferta: number | null;
@@ -55,7 +55,6 @@ const mapProductoToRow = (p: ProductoBackend): ProductoRow => {
       ? Number(p.precioOferta)
       : null;
 
-  // Regla de oferta
   const hayOferta = !!p.enOferta && precioOfertaNumber !== null;
   const ofertaStatus: "Con oferta" | "Sin oferta" = hayOferta
     ? "Con oferta"
@@ -97,10 +96,15 @@ const productosAdminApi = {
     return filtrados.map(mapProductoToRow);
   },
 
-  async cambiarVisibilidad(
-    idProducto: number,
-    visible: boolean
-  ): Promise<ProductoRow> {
+  // ✅ NUEVO: obtener detalle completo (sin endpoint nuevo)
+  async obtenerDetalle(idProducto: number): Promise<ProductoBackend> {
+    const { data } = await http.get<ProductoBackend[]>(BASE_URL);
+    const found = data.find((p) => Number(p.idProducto) === Number(idProducto));
+    if (!found) throw new Error("No se encontró el producto.");
+    return found;
+  },
+
+  async cambiarVisibilidad(idProducto: number, visible: boolean): Promise<ProductoRow> {
     const visibleParam = visible ? "True" : "False";
     const { data } = await http.patch<ProductoBackend>(
       `${BASE_URL}/${idProducto}/visibilidad?visible=${visibleParam}`

@@ -1,4 +1,4 @@
-// src/pages/Store/VistaProducto.tsx
+// src/pages/Store/pages/VistaProducto.tsx
 import { useEffect, useState } from "react";
 import {
   Box,

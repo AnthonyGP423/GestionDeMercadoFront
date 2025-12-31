@@ -1,5 +1,5 @@
 import { Box, Typography, Paper, Chip, Button } from "@mui/material";
-import type { StoreProduct } from "./product/ProductsGrid"; // Asegúrate de que esta ruta sea correcta
+import type { StoreProduct } from "./product/ProductsGrid";
 
 interface OffersStripProps {
   offers: StoreProduct[];
@@ -13,6 +13,8 @@ function formatPrecio(precio: number, moneda: string = "S/."): string {
     maximumFractionDigits: 2,
   })}`;
 }
+
+const FALLBACK_IMG = "https://via.placeholder.com/800x600?text=Sin+imagen";
 
 export default function OffersStrip({
   offers,
@@ -49,116 +51,144 @@ export default function OffersStrip({
       <Box
         sx={{
           display: "grid",
-          // Definimos las columnas responsivas
           gridTemplateColumns: {
-            xs: "1fr", // 1 columna en móvil
-            sm: "repeat(2, 1fr)", // 2 columnas en tablet
-            md: "repeat(4, 1fr)", // 4 columnas en escritorio
+            xs: "1fr",
+            sm: "repeat(2, 1fr)",
+            md: "repeat(4, 1fr)",
           },
-          gap: 3, // Espacio entre tarjetas (equivalente a spacing={3} de Grid)
+          gap: 3,
         }}
       >
-        {offers.map((product) => (
-          <Paper
-            key={product.id}
-            elevation={0} // O elevation={1} según prefieras
-            sx={{
-              borderRadius: 3,
-              p: 2.5,
-              bgcolor: "#ffffff",
-              boxShadow:
-                "0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05)",
-              display: "flex",
-              flexDirection: "column",
-              gap: 1.2,
-              height: "100%", // Importante: esto hace que todas las tarjetas tengan la misma altura visual
-              transition: "transform 0.2s, box-shadow 0.2s",
-              "&:hover": {
-                transform: "translateY(-4px)",
-                boxShadow: 4,
-              },
-            }}
-          >
-            {/* Contenido de la tarjeta */}
+        {offers.map((product) => {
+          const img = product.imageUrl?.trim() ? product.imageUrl.trim() : "";
 
-            <Typography
-              variant="subtitle1"
-              sx={{ fontWeight: 700, lineHeight: 1.2 }}
-            >
-              {product.nombre}
-            </Typography>
-
-            <Typography variant="body2" color="text.secondary">
-              {product.stand}
-            </Typography>
-
-            {/* Tags (Categoría y Oferta) */}
-            <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", mt: 0.5 }}>
-              <Chip
-                size="small"
-                label={product.categoriaTag}
-                sx={{
-                  bgcolor: "#ecfdf3",
-                  color: "#166534",
-                  fontWeight: 600,
-                  fontSize: "0.75rem",
-                  height: "24px",
-                }}
-              />
-              <Chip
-                size="small"
-                label={
-                  product.descuentoPorc
-                    ? `-${product.descuentoPorc}%`
-                    : "Oferta"
-                }
-                sx={{
-                  bgcolor: "#fee2e2",
-                  color: "#b91c1c",
-                  fontWeight: 600,
-                  fontSize: "0.75rem",
-                  height: "24px",
-                }}
-              />
-            </Box>
-
-            {/* Precio */}
-            <Box
+          return (
+            <Paper
+              key={product.id}
+              elevation={0}
               sx={{
-                mt: 1,
+                borderRadius: 3,
+                p: 0, 
+                bgcolor: "#ffffff",
+                overflow: "hidden",
+                boxShadow:
+                  "0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05)",
                 display: "flex",
-                alignItems: "baseline",
-                justifyContent: "space-between",
-                gap: 1,
+                flexDirection: "column",
+                height: "100%",
+                transition: "transform 0.2s, box-shadow 0.2s",
+                "&:hover": {
+                  transform: "translateY(-4px)",
+                  boxShadow: 4,
+                },
               }}
             >
-              <Box>
-                <Typography
-                  variant="h6"
-                  sx={{ fontWeight: 800, color: "success.main" }}
-                >
-                  {formatPrecio(product.precio, product.moneda)}
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  / {product.unidad}
-                </Typography>
-              </Box>
-            </Box>
-
-            {/* Botón inferior (empujado al fondo con mt: auto) */}
-            <Box sx={{ mt: "auto", pt: 1 }}>
-              <Button
-                variant="contained"
-                fullWidth
-                color="success"
-                sx={{ textTransform: "none", fontWeight: 600, borderRadius: 2 }}
-                onClick={() => onViewStand && onViewStand(product)}
+              {/* IMAGEN */}
+              <Box
+                sx={{
+                  width: "100%",
+                  height: 150,
+                  backgroundImage: `url(${img || FALLBACK_IMG})`,
+                  backgroundSize: "cover",
+                  backgroundPosition: "center",
+                  position: "relative",
+                }}
               >
-                Ver Detalles
-              </Button>
-            </Box>
-          </Paper>
-        ))}
+                {/* Badge oferta arriba (no rompe tu lógica) */}
+                <Chip
+                  size="small"
+                  label={
+                    product.descuentoPorc ? `-${product.descuentoPorc}%` : "Oferta"
+                  }
+                  sx={{
+                    position: "absolute",
+                    top: 10,
+                    left: 10,
+                    bgcolor: "rgba(254,226,226,0.95)",
+                    color: "#b91c1c",
+                    fontWeight: 800,
+                    fontSize: "0.75rem",
+                    height: "24px",
+                    backdropFilter: "blur(6px)",
+                  }}
+                />
+              </Box>
+
+              {/* CONTENIDO */}
+              <Box
+                sx={{
+                  p: 2.5,
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 1.2,
+                  height: "100%",
+                }}
+              >
+                <Typography
+                  variant="subtitle1"
+                  sx={{ fontWeight: 700, lineHeight: 1.2 }}
+                >
+                  {product.nombre}
+                </Typography>
+
+                <Typography variant="body2" color="text.secondary">
+                  {product.stand}
+                </Typography>
+
+                {/* Tags (Categoría) */}
+                <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", mt: 0.5 }}>
+                  <Chip
+                    size="small"
+                    label={product.categoriaTag}
+                    sx={{
+                      bgcolor: "#ecfdf3",
+                      color: "#166534",
+                      fontWeight: 700,
+                      fontSize: "0.75rem",
+                      height: "24px",
+                    }}
+                  />
+                </Box>
+
+                {/* Precio */}
+                <Box
+                  sx={{
+                    mt: 1,
+                    display: "flex",
+                    alignItems: "baseline",
+                    justifyContent: "space-between",
+                    gap: 1,
+                  }}
+                >
+                  <Box>
+                    <Typography
+                      variant="h6"
+                      sx={{ fontWeight: 800, color: "success.main" }}
+                    >
+                      {formatPrecio(product.precio, product.moneda)}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      / {product.unidad}
+                    </Typography>
+                  </Box>
+                </Box>
+
+                {/* Botón inferior */}
+                <Box sx={{ mt: "auto", pt: 1 }}>
+                  <Button
+                    variant="contained"
+                    fullWidth
+                    color="success"
+                    sx={{ textTransform: "none", fontWeight: 600, borderRadius: 2 }}
+                    onClick={() => onViewStand && onViewStand(product)}
+                  >
+                    Ver Detalles
+                  </Button>
+                </Box>
+              </Box>
+            </Paper>
+          );
+        })}
       </Box>
     </Box>
   );
