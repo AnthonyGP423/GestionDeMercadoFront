@@ -46,6 +46,7 @@ const Login = () => {
       });
 
       const data = response.data;
+
       const rol = String(data.rol ?? "").toUpperCase();
 
       // Intranet: solo ADMIN / SUPERVISOR / SOCIO
@@ -64,10 +65,12 @@ const Login = () => {
         return;
       }
 
-      // Guardar sesión
+      // Guardar sesión COMPLETA
       login(data.token, {
         email: data.email,
-        rol: data.rol,
+        rol: rol, 
+        nombreCompleto: data.nombreCompleto, 
+        fotoUrl: data.fotoUrl, 
       });
 
       // Redirect según rol permitido

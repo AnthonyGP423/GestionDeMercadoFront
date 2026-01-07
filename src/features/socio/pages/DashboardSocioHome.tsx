@@ -48,34 +48,64 @@ export default function DashboardSocioHome() {
   const [credencial, setCredencial] = useState<any | null>(null);
 
   useEffect(() => {
-    const run = async () => {
-      try {
-        setLoading(true);
-        setError(null);
+  const run = async () => {
+    try {
+      setLoading(true);
+      setError(null);
 
-        const [standsRes, cuotasRes, incRes, credRes] = await Promise.all([
-          standsSocioApi.misStands(),
-          cuotasSocioApi.misCuotas(),
-          incidenciasSocioApi.listar({ page: 0, size: 20 }),
-          credencialQrSocioApi.obtener(),
-        ]);
+      const results = await Promise.allSettled([
+        standsSocioApi.misStands(),
+        cuotasSocioApi.misCuotas(),
+        incidenciasSocioApi.listar({ page: 0, size: 20 }),
+        credencialQrSocioApi.obtener(),
+      ]);
 
-        setMisStands(toArray(standsRes.data));
-        setMisCuotas(toArray(cuotasRes.data));
-        setMisIncidencias(toArray(incRes.data));
-        setCredencial(credRes.data ?? null);
-      } catch (e: any) {
-        console.error(e);
-        setError(
-          "No se pudo cargar el panel del socio. Verifica tu sesión o el servidor."
-        );
-      } finally {
-        setLoading(false);
+      const standsR = results[0];
+      const cuotasR = results[1];
+      const incR = results[2];
+      const credR = results[3];
+
+      // si falla mostramos error real
+      if (standsR.status === "rejected" || cuotasR.status === "rejected" || incR.status === "rejected") {
+        console.error("Error cargando dashboard socio:", { standsR, cuotasR, incR });
+        setError("No se pudo cargar el panel del socio. Verifica tu sesión o el servidor.");
+        return;
       }
-    };
 
-    run();
-  }, []);
+      // Asignamos data crítica
+      setMisStands(toArray(standsR.value.data));
+      setMisCuotas(toArray(cuotasR.value.data));
+      setMisIncidencias(toArray(incR.value.data));
+
+      // NO CRÍTICO: credencial
+      if (credR.status === "fulfilled") {
+        setCredencial(credR.value.data ?? null);
+      } else {
+        const status = (credR.reason as any)?.response?.status;
+        const msg =
+          (credR.reason as any)?.userMessage ||
+          (credR.reason as any)?.response?.data?.mensaje ||
+          (credR.reason as any)?.message ||
+          "";
+
+        console.warn("Credencial no disponible:", status, msg);
+
+        setCredencial(null);
+
+        if (status === 404) {
+
+        }
+      }
+    } catch (e) {
+      console.error(e);
+      setError("No se pudo cargar el panel del socio. Verifica tu sesión o el servidor.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  run();
+}, []);
 
   const cuotasPendientes = useMemo(() => {
     return misCuotas.filter((c) => {

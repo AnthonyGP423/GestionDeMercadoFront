@@ -40,7 +40,7 @@ export default function Usuario() {
   const [initialFormData, setInitialFormData] =
     useState<UsuarioFormData | undefined>();
 
-  // ✅ roles dinámicos
+  // roles dinámicos
   const [roles, setRoles] = useState<RolDto[]>([]);
   const [loadingRoles, setLoadingRoles] = useState(false);
 
@@ -224,14 +224,14 @@ export default function Usuario() {
           razonSocial: formData.razonSocial || null,
         };
 
-        // ✅ solo enviar password si realmente escribieron una
+        // solo enviar password si realmente escribieron una
         if (passwordTrim.length > 0) {
           body.password = passwordTrim;
         }
 
         await usuarioApi.actualizar(usuarioSeleccionado!.id, body);
 
-        // ✅ si seleccionó foto, subir a filesApi y guardar url en usuario
+        // si seleccionó foto, subir a filesApi y guardar url en usuario
         if (formData.fotoFile) {
           await usuarioApi.subirFoto(usuarioSeleccionado!.id, formData.fotoFile);
         }

@@ -39,7 +39,7 @@ export default function DataTable({
   data,
   actions = [],
 }: DataTableProps) {
-  // 🔹 Paginación interna
+  // Paginación interna
   const [page, setPage] = useState(0);
   const rowsPerPage = 15;
 

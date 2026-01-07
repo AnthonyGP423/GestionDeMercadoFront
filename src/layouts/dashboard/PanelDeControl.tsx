@@ -1,4 +1,4 @@
-// src/pages/Dashboard/PaneldeControl.tsx
+// src/layouts/dashboard/PaneldeControl.tsx
 import { Box } from "@mui/material";
 import Sidebar from "./Sidebar";
 import HeaderBar from "./HeaderBar";

@@ -5,6 +5,7 @@ import AppRoutes from "./app/routes/routes";
 import { ToastProvider } from "./components/ui/Toast";
 import { AuthProvider } from "./auth/AuthContext";
 import ScrollToTop from "./features/store/components/scrolltop";
+import SessionExpiredListener from "./app/listeners/SessionExpiredListener";
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
@@ -12,6 +13,7 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
       <ScrollToTop />
       <AuthProvider>
         <ToastProvider>
+          <SessionExpiredListener />
           <AppRoutes />
         </ToastProvider>
       </AuthProvider>

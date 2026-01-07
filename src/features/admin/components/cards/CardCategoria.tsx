@@ -55,7 +55,7 @@ const CardCategoria: React.FC<CardCategoriaProps> = ({
     >
       {/* Icono + nombre */}
       <Stack direction="row" spacing={2} alignItems="center">
-        {/* 🔥 Avatar mejorado con tipografía premium y tamaño uniforme */}
+
 <Box
   sx={{
     width: 64,
@@ -73,7 +73,7 @@ const CardCategoria: React.FC<CardCategoriaProps> = ({
     textTransform: "uppercase",
     userSelect: "none",
     flexShrink: 0,
-    boxShadow: "0 4px 10px rgba(0,0,0,0.08)", // 🟦 Sombra suave profesional
+    boxShadow: "0 4px 10px rgba(0,0,0,0.08)",
   }}
 >
   {nombre

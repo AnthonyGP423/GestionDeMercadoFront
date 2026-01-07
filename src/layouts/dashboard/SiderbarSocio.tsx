@@ -22,7 +22,7 @@ import ReportProblemIcon from "@mui/icons-material/ReportProblem";
 import QrCode2Icon from "@mui/icons-material/QrCode2";
 
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "../../auth/useAuth";
 
 const drawerWidth = 280;
@@ -36,19 +36,50 @@ const textMain = "#1c1917";
 const textMuted = "#78716c";
 const bgHover = "#fafaf9";
 
+// ✅ base URL
+const RAW_API_BASE_URL = import.meta.env.VITE_API_BASE_URL as string;
+
+// Normaliza a ORIGIN (si algún día fuese ".../api" o ".../api/v1")
+function normalizeOrigin(apiBase: string) {
+  const v = String(apiBase ?? "").trim().replace(/\/$/, "");
+  return v.replace(/\/api(\/v\d+)?$/i, "");
+}
+
 export default function SidebarSocio() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
 
+  const ORIGIN = useMemo(() => normalizeOrigin(RAW_API_BASE_URL), []);
+
   const displayName = useMemo(() => {
-    if (user?.nombreCompleto) return user.nombreCompleto;
+    if (user?.nombreCompleto?.trim()) return user.nombreCompleto.trim();
     if (user?.email) return user.email.split("@")[0];
     return "Socio";
-  }, [user]);
+  }, [user?.nombreCompleto, user?.email]);
 
   const avatarInitial = displayName.charAt(0).toUpperCase();
   const rolLabel = user?.rol ?? "SOCIO";
+
+  // ✅ Avatar con foto si existe + fallback a inicial si falla
+  const [avatarError, setAvatarError] = useState(false);
+
+  const avatarSrc = useMemo(() => {
+    const v = (user?.fotoUrl ?? "").trim();
+    if (!v) return "";
+
+    let url = "";
+    if (v.startsWith("http://") || v.startsWith("https://")) url = v;
+    else if (v.startsWith("/")) url = `${ORIGIN}${v}`;
+    else url = `${ORIGIN}/${v}`;
+
+    // (Opcional) cache-busting suave (evita caché vieja)
+    return `${url}?v=${encodeURIComponent(v)}`;
+  }, [user?.fotoUrl, ORIGIN]);
+
+  useEffect(() => {
+    setAvatarError(false);
+  }, [avatarSrc]);
 
   const handleLogout = () => {
     logout();
@@ -89,9 +120,7 @@ export default function SidebarSocio() {
     },
     "&:hover": {
       backgroundColor: bgHover,
-      "&::before": {
-        backgroundColor: primary,
-      },
+      "&::before": { backgroundColor: primary },
       "& .MuiListItemIcon-root": {
         color: primary,
         transform: "scale(1.1)",
@@ -103,19 +132,13 @@ export default function SidebarSocio() {
   const selectedSx = {
     backgroundColor: primarySoft,
     boxShadow: "0 2px 8px rgba(217, 119, 6, 0.15)",
-    "&::before": {
-      backgroundColor: primary,
-    },
-    "& .MuiListItemIcon-root": {
-      color: primary,
-    },
+    "&::before": { backgroundColor: primary },
+    "& .MuiListItemIcon-root": { color: primary },
     "& .MuiListItemText-primary": {
       color: primary,
       fontWeight: 700,
     },
-    "&:hover": {
-      backgroundColor: primarySoft,
-    },
+    "&:hover": { backgroundColor: primarySoft },
   };
 
   return (
@@ -138,7 +161,7 @@ export default function SidebarSocio() {
         },
       }}
     >
-      {/* HEADER MEJORADO */}
+      {/* HEADER */}
       <Box sx={{ px: 2.5, pt: 3, pb: 2 }}>
         {/* Logo y Marca */}
         <Box
@@ -179,6 +202,7 @@ export default function SidebarSocio() {
           >
             <StorefrontIcon sx={{ fontSize: 26 }} />
           </Box>
+
           <Box sx={{ lineHeight: 1.2, flex: 1 }}>
             <Typography
               variant="caption"
@@ -209,7 +233,7 @@ export default function SidebarSocio() {
           </Box>
         </Box>
 
-        {/* Tarjeta de Usuario Mejorada */}
+        {/* Tarjeta Usuario */}
         <Box
           sx={{
             borderRadius: "16px",
@@ -229,6 +253,9 @@ export default function SidebarSocio() {
         >
           <Box sx={{ position: "relative" }}>
             <Avatar
+              key={avatarSrc || "no-photo"}
+              src={!avatarError && avatarSrc ? avatarSrc : undefined}
+              imgProps={{ onError: () => setAvatarError(true) }}
               sx={{
                 width: 48,
                 height: 48,
@@ -240,6 +267,7 @@ export default function SidebarSocio() {
             >
               {avatarInitial}
             </Avatar>
+
             <Box
               sx={{
                 position: "absolute",
@@ -254,6 +282,7 @@ export default function SidebarSocio() {
               }}
             />
           </Box>
+
           <Box sx={{ flex: 1, minWidth: 0 }}>
             <Tooltip title={displayName} placement="top">
               <Typography
@@ -299,16 +328,14 @@ export default function SidebarSocio() {
                 textTransform: "uppercase",
                 borderRadius: "6px",
                 letterSpacing: "0.05em",
-                "& .MuiChip-label": {
-                  px: 1.5,
-                },
+                "& .MuiChip-label": { px: 1.5 },
               }}
             />
           </Box>
         </Box>
       </Box>
 
-      {/* MENÚ SCROLLABLE */}
+      {/* MENÚ */}
       <Box
         sx={{
           flex: 1,
@@ -316,18 +343,12 @@ export default function SidebarSocio() {
           overflowX: "hidden",
           px: 2,
           py: 1,
-          "&::-webkit-scrollbar": {
-            width: "6px",
-          },
-          "&::-webkit-scrollbar-track": {
-            background: "transparent",
-          },
+          "&::-webkit-scrollbar": { width: "6px" },
+          "&::-webkit-scrollbar-track": { background: "transparent" },
           "&::-webkit-scrollbar-thumb": {
             background: "#e7e5e4",
             borderRadius: "10px",
-            "&:hover": {
-              background: "#d6d3d1",
-            },
+            "&:hover": { background: "#d6d3d1" },
           },
         }}
       >
@@ -349,87 +370,69 @@ export default function SidebarSocio() {
         </Typography>
 
         <List disablePadding>
-          {/* DASHBOARD */}
           <ListItemButton
             component={Link}
             to="/socio/principal"
             selected={isActive("/socio/principal")}
             sx={{ ...itemBaseSx, "&.Mui-selected": selectedSx }}
           >
-            <ListItemIcon>
-              <DashboardIcon />
-            </ListItemIcon>
+            <ListItemIcon><DashboardIcon /></ListItemIcon>
             <ListItemText primary="Dashboard" />
           </ListItemButton>
 
-          {/* MIS PUESTOS */}
           <ListItemButton
             component={Link}
             to="/socio/mis-stands"
             selected={isActive("/socio/mis-stands")}
             sx={{ ...itemBaseSx, "&.Mui-selected": selectedSx }}
           >
-            <ListItemIcon>
-              <StoreIcon />
-            </ListItemIcon>
+            <ListItemIcon><StoreIcon /></ListItemIcon>
             <ListItemText primary="Mis puestos" />
           </ListItemButton>
 
-          {/* CUOTAS Y PAGOS */}
           <ListItemButton
             component={Link}
             to="/socio/mis-cuotas"
             selected={isActive("/socio/mis-cuotas")}
             sx={{ ...itemBaseSx, "&.Mui-selected": selectedSx }}
           >
-            <ListItemIcon>
-              <PaymentsIcon />
-            </ListItemIcon>
+            <ListItemIcon><PaymentsIcon /></ListItemIcon>
             <ListItemText primary="Cuotas y pagos" />
           </ListItemButton>
 
-          {/* PRODUCTOS Y PRECIOS */}
           <ListItemButton
             component={Link}
             to="/socio/productos"
             selected={isActive("/socio/productos")}
             sx={{ ...itemBaseSx, "&.Mui-selected": selectedSx }}
           >
-            <ListItemIcon>
-              <ShoppingCartIcon />
-            </ListItemIcon>
+            <ListItemIcon><ShoppingCartIcon /></ListItemIcon>
             <ListItemText primary="Productos y precios" />
           </ListItemButton>
 
-          {/* INCIDENCIAS */}
           <ListItemButton
             component={Link}
             to="/socio/incidencias"
             selected={isActive("/socio/incidencias")}
             sx={{ ...itemBaseSx, "&.Mui-selected": selectedSx }}
           >
-            <ListItemIcon>
-              <ReportProblemIcon />
-            </ListItemIcon>
+            <ListItemIcon><ReportProblemIcon /></ListItemIcon>
             <ListItemText primary="Incidencias" />
           </ListItemButton>
 
-          {/* CREDENCIAL QR */}
           <ListItemButton
             component={Link}
             to="/socio/credencial-qr"
             selected={isActive("/socio/credencial-qr")}
             sx={{ ...itemBaseSx, "&.Mui-selected": selectedSx }}
           >
-            <ListItemIcon>
-              <QrCode2Icon />
-            </ListItemIcon>
+            <ListItemIcon><QrCode2Icon /></ListItemIcon>
             <ListItemText primary="Credencial QR" />
           </ListItemButton>
         </List>
       </Box>
 
-      {/* FOOTER MEJORADO */}
+      {/* FOOTER */}
       <Box sx={{ px: 2.5, pb: 3, pt: 2 }}>
         <Divider sx={{ mb: 2, borderColor: "#f5f5f4" }} />
         <ListItemButton
@@ -439,27 +442,18 @@ export default function SidebarSocio() {
             borderRadius: "12px",
             border: "1px solid #fecaca",
             backgroundColor: "#fef2f2",
-            "& .MuiListItemIcon-root": {
-              color: "#dc2626",
-            },
-            "& .MuiListItemText-primary": {
-              color: "#991b1b",
-              fontWeight: 600,
-            },
+            "& .MuiListItemIcon-root": { color: "#dc2626" },
+            "& .MuiListItemText-primary": { color: "#991b1b", fontWeight: 600 },
             "&:hover": {
               backgroundColor: "#fee2e2",
               borderColor: "#fca5a5",
               transform: "translateY(-1px)",
               boxShadow: "0 4px 12px rgba(220, 38, 38, 0.15)",
-              "& .MuiListItemIcon-root": {
-                transform: "scale(1.1)",
-              },
+              "& .MuiListItemIcon-root": { transform: "scale(1.1)" },
             },
           }}
         >
-          <ListItemIcon>
-            <LogoutIcon />
-          </ListItemIcon>
+          <ListItemIcon><LogoutIcon /></ListItemIcon>
           <ListItemText primary="Cerrar sesión" />
         </ListItemButton>
       </Box>

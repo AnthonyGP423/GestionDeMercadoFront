@@ -20,7 +20,10 @@ import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 
 import QRCode from "react-qr-code";
-import { credencialQrSocioApi, type CredencialQrDto } from "../../../api/socio/credencialQrSocioApi";
+import {
+  credencialQrSocioApi,
+  type CredencialQrDto,
+} from "../../../api/socio/credencialQrSocioApi";
 
 const cardBorder = "1px solid #e5e7eb";
 const amber = "#b45309";
@@ -28,6 +31,8 @@ const green = "#166534";
 const greenSoft = "#ecfdf5";
 const red = "#b91c1c";
 const redSoft = "#fef2f2";
+
+type CredencialEstado = "OK" | "NO_EXISTE" | "ERROR";
 
 function pickCodigoQr(c: CredencialQrDto | null) {
   if (!c) return "";
@@ -37,7 +42,14 @@ function pickCodigoQr(c: CredencialQrDto | null) {
 export default function CredencialQrSocioPage() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+
+  // error REAL (servidor/red/etc)
   const [error, setError] = useState<string | null>(null);
+
+  // estado de credencial (no existe vs error vs ok)
+  const [estadoCredencial, setEstadoCredencial] =
+    useState<CredencialEstado>("OK");
+
   const [cred, setCred] = useState<CredencialQrDto | null>(null);
 
   const cardRef = useRef<HTMLDivElement | null>(null);
@@ -47,8 +59,18 @@ export default function CredencialQrSocioPage() {
 
   const vigenteChip = useMemo(() => {
     return vigente
-      ? { label: "VIGENTE", bg: greenSoft, color: green, icon: <CheckCircleOutlineIcon /> }
-      : { label: "NO VIGENTE", bg: redSoft, color: red, icon: <ErrorOutlineIcon /> };
+      ? {
+          label: "VIGENTE",
+          bg: greenSoft,
+          color: green,
+          icon: <CheckCircleOutlineIcon />,
+        }
+      : {
+          label: "NO VIGENTE",
+          bg: redSoft,
+          color: red,
+          icon: <ErrorOutlineIcon />,
+        };
   }, [vigente]);
 
   const nombreCompleto = useMemo(() => {
@@ -60,12 +82,35 @@ export default function CredencialQrSocioPage() {
     try {
       setError(null);
       setBusy(true);
+      setEstadoCredencial("OK");
+
       const res = await credencialQrSocioApi.obtener();
+
+      // Si el backend retorna 200 pero data viene null
+      if (!res?.data) {
+        setCred(null);
+        setEstadoCredencial("NO_EXISTE");
+        return;
+      }
+
       setCred(res.data ?? null);
-    } catch (e) {
+      setEstadoCredencial("OK");
+    } catch (e: any) {
       console.error(e);
-      setError("No se pudo cargar tu credencial. Verifica tu sesión o el servidor.");
+      const status = e?.response?.status;
+
+      // ✅ Caso normal: NO existe credencial (usuario nuevo)
+      if (status === 404) {
+        setCred(null);
+        setEstadoCredencial("NO_EXISTE");
+        setError(null);
+        return;
+      }
+
+      // 🔴 Error real
       setCred(null);
+      setEstadoCredencial("ERROR");
+      setError("No se pudo cargar tu credencial. Verifica tu sesión o el servidor.");
     } finally {
       setBusy(false);
       setLoading(false);
@@ -141,7 +186,19 @@ export default function CredencialQrSocioPage() {
         </Typography>
       </Stack>
 
-      {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+      {/* 🔴 Error real */}
+      {estadoCredencial === "ERROR" && error && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {error}
+        </Alert>
+      )}
+
+      {/* 🟡 No existe credencial (NO ES ERROR) */}
+      {estadoCredencial === "NO_EXISTE" && (
+        <Alert severity="warning" sx={{ mb: 2 }}>
+          Aún no tienes una credencial asignada. Solicítala al administrador o supervisor.
+        </Alert>
+      )}
 
       {/* Top actions */}
       <Paper sx={{ p: 2, borderRadius: 3, border: cardBorder, mb: 2 }}>
@@ -192,7 +249,6 @@ export default function CredencialQrSocioPage() {
           <Button
             variant="contained"
             onClick={() => {
-              // UX: guía al usuario, misma técnica que admin
               printCardOnly();
             }}
             disabled={!codigo || busy || !cred}
@@ -214,7 +270,7 @@ export default function CredencialQrSocioPage() {
         </Typography>
       </Paper>
 
-      {/* Main layout */}
+      {/* Main layout (IGUAL que antes) */}
       <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
         {/* Preview / fotocheck */}
         <Paper

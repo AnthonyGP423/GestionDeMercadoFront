@@ -1,9 +1,9 @@
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 import Snackbar from "@mui/material/Snackbar";
 import Alert, { AlertColor } from "@mui/material/Alert";
+import { setGlobalToast } from "./toastBus"; // ✅ NUEVO
 
 type ToastType = AlertColor;
-// "success" | "info" | "warning" | "error"
 
 interface ToastState {
   open: boolean;
@@ -31,6 +31,11 @@ export function ToastProvider({ children }: any) {
   const closeToast = () => {
     setToast((prev) => ({ ...prev, open: false }));
   };
+
+  // ✅ Registramos el toast para que pueda ser llamado desde Axios interceptor (sin hooks)
+  useEffect(() => {
+    setGlobalToast(showToast);
+  }, []);
 
   return (
     <ToastContext.Provider value={{ showToast }}>

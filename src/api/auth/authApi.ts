@@ -9,7 +9,9 @@ export interface LoginResponse {
   token: string;      
   tipoToken: string;  // "Bearer"
   email: string;
-  rol: string;        // "ADMIN", "SOCIO", etc.
+  rol: string;  
+  nombreCompleto?: string;
+  fotoUrl?: string;   
 }
 
 export const authApi = {

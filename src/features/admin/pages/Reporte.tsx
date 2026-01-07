@@ -26,6 +26,10 @@ import StoreIcon from "@mui/icons-material/Store";
 import Inventory2Icon from "@mui/icons-material/Inventory2";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 
+import productosAdminApi, {
+  ProductoRow,
+} from "../../../api/admin/productosAdminApi";
+
 import { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 
@@ -37,7 +41,7 @@ const green = "#22c55e";
 const greenDark = "#16a34a";
 
 // ======================
-// DTOs mínimos
+// DTO
 // ======================
 
 interface CuotaDto {
@@ -190,6 +194,7 @@ export default function Reportes() {
     periodo: periodoActual,
     bloque: "Todos",
     idCategoriaStand: "",
+    vista: "MOROSOS" as "MOROSOS" | "PAGADOS",
   });
 
   const [categoriasStand, setCategoriasStand] = useState<CategoriaStandDto[]>(
@@ -221,6 +226,7 @@ export default function Reportes() {
   });
 
   // --------- Productos ---------
+
   const [productos, setProductos] = useState<ProductoDto[]>([]);
   const [categoriasProducto, setCategoriasProducto] = useState<
     CategoriaProductoDto[]
@@ -278,6 +284,7 @@ export default function Reportes() {
       periodo: periodoActual,
       bloque: "Todos",
       idCategoriaStand: "",
+      vista: "MOROSOS",
     });
   };
 
@@ -334,37 +341,53 @@ export default function Reportes() {
 
       const headers = { Authorization: `Bearer ${token}` };
 
-      const paramsMorosos: any = {
+      // params comunes
+      const params: any = {
         periodo: filtrosMorosidad.periodo || undefined,
       };
-      if (filtrosMorosidad.bloque !== "Todos") {
-        paramsMorosos.bloque = filtrosMorosidad.bloque;
-      }
-      if (filtrosMorosidad.idCategoriaStand) {
-        paramsMorosos.idCategoriaStand = filtrosMorosidad.idCategoriaStand;
-      }
+      if (filtrosMorosidad.bloque !== "Todos") params.bloque = filtrosMorosidad.bloque;
+      if (filtrosMorosidad.idCategoriaStand) params.idCategoriaStand = filtrosMorosidad.idCategoriaStand;
 
-      const [morososRes, indicadoresRes] = await Promise.all([
-        axios.get<CuotaDto[]>(
+      // 1) LISTADO (según vista)
+      let listado: CuotaDto[] = [];
+
+      if (filtrosMorosidad.vista === "MOROSOS") {
+        // usa endpoint existente
+        const morososRes = await axios.get<CuotaDto[]>(
           `${API_BASE_URL}/api/v1/admin/cuotas/morosos`,
-          { headers, params: paramsMorosos }
-        ),
-        axios.get<IndicadoresCuotas>(
-          `${API_BASE_URL}/api/v1/admin/cuotas/indicadores`,
-          {
-            headers,
-            params: { periodo: filtrosMorosidad.periodo },
-          }
-        ),
-      ]);
+          { headers, params }
+        );
+        listado = morososRes.data || [];
+      } else {
+        const allRes = await axios.get<CuotaDto[]>(
+          `${API_BASE_URL}/api/v1/admin/cuotas`,
+          { headers, params }
+        );
 
-      setDataMorosidad(morososRes.data || []);
+        const all = allRes.data || [];
+
+        // Regla: "al día" = saldoPendiente <= 0 (o montoPagado >= montoCuota)
+        listado = all.filter((c) => {
+          const saldo = Number(c.saldoPendiente ?? 0);
+          const cuota = Number(c.montoCuota ?? 0);
+          const pagado = Number(c.montoPagado ?? 0);
+          return saldo <= 0 || (cuota > 0 && pagado >= cuota);
+        });
+      }
+
+      // 2) Indicadores siempre salen del endpoint existente
+      const indicadoresRes = await axios.get<IndicadoresCuotas>(
+        `${API_BASE_URL}/api/v1/admin/cuotas/indicadores`,
+        { headers, params: { periodo: filtrosMorosidad.periodo } }
+      );
+
+      setDataMorosidad(listado);
       setIndicadoresMorosidad(indicadoresRes.data);
     } catch (err: any) {
-      console.error("Error generando reporte de morosidad:", err);
+      console.error("Error generando reporte de cuotas:", err);
       setError(
         err?.response?.data?.mensaje ||
-          "Ocurrió un error al generar el reporte de morosidad."
+          "Ocurrió un error al generar el reporte de cuotas."
       );
     } finally {
       setLoadingMorosidad(false);
@@ -489,8 +512,6 @@ export default function Reportes() {
 
       const headers = { Authorization: `Bearer ${token}` };
 
-      // Puedes pasar filtros al backend si lo implementas (bloque/idCategoria/estado),
-      // pero por ahora traemos todo y filtramos en frontend para no romper nada.
       const res = await axios.get<StandDto[]>(`${API_BASE_URL}/api/v1/stands`, {
         headers,
       });
@@ -510,13 +531,8 @@ export default function Reportes() {
     return stands.filter((s) => {
       const { estado, bloque, idCategoriaStand } = filtrosOcupacion;
 
-      const okEstado =
-        estado === "TODOS" ||
-        norm(s.estado) === norm(estado);
-
-      const okBloque =
-        bloque === "Todos" || norm(s.bloque) === norm(bloque);
-
+      const okEstado = estado === "TODOS" || norm(s.estado) === norm(estado);
+      const okBloque = bloque === "Todos" || norm(s.bloque) === norm(bloque);
       const okCategoria =
         !idCategoriaStand || s.idCategoriaStand === Number(idCategoriaStand);
 
@@ -680,7 +696,42 @@ export default function Reportes() {
   }, [standsFiltradosOcupacion]);
 
   // ======================
-  // Generar reporte de Productos
+  // Productos
+  // ======================
+  const mapProductoRowToDto = (
+    r: ProductoRow,
+    categorias: CategoriaProductoDto[]
+  ): ProductoDto => {
+    const categoriaNombre = r.categoria || "Sin categoría";
+    const cat = categorias.find((c) => norm(c.nombre) === norm(categoriaNombre));
+
+    // r.stand "BLOQUE-NUMERO" o "(Sin stand)"
+    let bloque: string | undefined = undefined;
+    let numeroStand: string | undefined = undefined;
+    if (r.stand && r.stand.includes("-") && !r.stand.includes("(Sin")) {
+      const [b, n] = r.stand.split("-");
+      bloque = b?.trim() || undefined;
+      numeroStand = n?.trim() || undefined;
+    }
+
+    const estado: "ACTIVO" | "INACTIVO" =
+      r.estado === "En venta" ? "ACTIVO" : "INACTIVO";
+
+    return {
+      idProducto: r.idProducto,
+      nombre: r.nombre,
+      estado,
+      categoriaNombre,
+      idCategoriaProducto: cat?.id,
+      standNombre: r.stand && r.stand !== "(Sin stand)" ? `Stand ${r.stand}` : undefined,
+      bloque,
+      numeroStand,
+      precio: r.tieneOferta ? Number(r.precioOferta ?? r.precioNormal) : Number(r.precioNormal),
+    };
+  };
+
+  // ======================
+  // Generar reporte de Productos (FIX: usa productosAdminApi.listar())
   // ======================
   const generarReporteProductos = async () => {
     try {
@@ -694,17 +745,17 @@ export default function Reportes() {
         return;
       }
 
-      const headers = { Authorization: `Bearer ${token}` };
-
-      const res = await axios.get<ProductoDto[]>(
-        `${API_BASE_URL}/api/v1/admin/productos`,
-        { headers }
+      const rows = await productosAdminApi.listar();
+      const adaptados = (rows || []).map((r) =>
+        mapProductoRowToDto(r, categoriasProducto)
       );
-      setProductos(res.data || []);
+
+      setProductos(adaptados);
     } catch (err: any) {
       console.error("Error generando reporte de productos:", err);
       setError(
         err?.response?.data?.mensaje ||
+          err?.message ||
           "Ocurrió un error al generar el reporte de productos."
       );
     } finally {
@@ -716,12 +767,10 @@ export default function Reportes() {
     return productos.filter((p) => {
       const { estado, idCategoriaProducto } = filtrosProductos;
 
-      const okEstado =
-        estado === "TODOS" || norm(p.estado) === norm(estado);
+      const okEstado = estado === "TODOS" || norm(p.estado) === norm(estado);
 
       const okCategoria =
-        !idCategoriaProducto ||
-        p.idCategoriaProducto === Number(idCategoriaProducto);
+        !idCategoriaProducto || p.idCategoriaProducto === Number(idCategoriaProducto);
 
       return okEstado && okCategoria;
     });
@@ -748,6 +797,20 @@ export default function Reportes() {
 
     return { total, activos, inactivos, porCategoria };
   }, [productosFiltrados, categoriasProducto]);
+
+  // ======================
+  // UX: "gráfico"
+  // ======================
+  const topCategoriasProductos = useMemo(() => {
+    const entries = Object.entries(resumenProductos.porCategoria).map(
+      ([cat, count]) => ({ cat, count })
+    );
+    return entries.sort((a, b) => b.count - a.count).slice(0, 8);
+  }, [resumenProductos.porCategoria]);
+
+  const maxCatCount = useMemo(() => {
+    return topCategoriasProductos.reduce((m, x) => Math.max(m, x.count), 0);
+  }, [topCategoriasProductos]);
 
   // ======================
   // Render helpers UI
@@ -793,6 +856,19 @@ export default function Reportes() {
                 gap: 2,
               }}
             >
+              <FormControl fullWidth>
+                <InputLabel>Vista</InputLabel>
+                <Select
+                  label="Vista"
+                  value={filtrosMorosidad.vista}
+                  onChange={(e) =>
+                    handleChangeFiltrosMorosidad("vista", String(e.target.value))
+                  }
+                >
+                  <MenuItem value="MOROSOS">Morosidad (pendientes)</MenuItem>
+                  <MenuItem value="PAGADOS">Pagados / al día</MenuItem>
+                </Select>
+              </FormControl>
               <TextField
                 fullWidth
                 label="Periodo (YYYY-MM)"
@@ -914,7 +990,10 @@ export default function Reportes() {
                   label="Estado"
                   value={filtrosIncidencias.estado}
                   onChange={(e) =>
-                    handleChangeFiltrosIncidencias("estado", String(e.target.value))
+                    handleChangeFiltrosIncidencias(
+                      "estado",
+                      String(e.target.value)
+                    )
                   }
                 >
                   <MenuItem value="TODAS">Todas</MenuItem>
@@ -930,7 +1009,10 @@ export default function Reportes() {
                   label="Prioridad"
                   value={filtrosIncidencias.prioridad}
                   onChange={(e) =>
-                    handleChangeFiltrosIncidencias("prioridad", String(e.target.value))
+                    handleChangeFiltrosIncidencias(
+                      "prioridad",
+                      String(e.target.value)
+                    )
                   }
                 >
                   <MenuItem value="TODAS">Todas</MenuItem>
@@ -993,7 +1075,10 @@ export default function Reportes() {
                   label="Estado del stand"
                   value={filtrosOcupacion.estado}
                   onChange={(e) =>
-                    handleChangeFiltrosOcupacion("estado", String(e.target.value))
+                    handleChangeFiltrosOcupacion(
+                      "estado",
+                      String(e.target.value)
+                    )
                   }
                 >
                   <MenuItem value="TODOS">Todos</MenuItem>
@@ -1087,7 +1172,10 @@ export default function Reportes() {
                   label="Estado del producto"
                   value={filtrosProductos.estado}
                   onChange={(e) =>
-                    handleChangeFiltrosProductos("estado", String(e.target.value))
+                    handleChangeFiltrosProductos(
+                      "estado",
+                      String(e.target.value)
+                    )
                   }
                 >
                   <MenuItem value="TODOS">Todos</MenuItem>
@@ -1174,11 +1262,13 @@ export default function Reportes() {
           >
             <Box>
               <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                Morosidad de cuotas – Periodo {filtrosMorosidad.periodo}
+                {filtrosMorosidad.vista === "PAGADOS" ? "Pagos de cuotas" : "Morosidad de cuotas"} – Periodo {filtrosMorosidad.periodo}
               </Typography>
               <Typography variant="caption" color="text.secondary">
-                Deuda total: S/. {deudaTotalMorosos.toFixed(2)}
-              </Typography>
+              {filtrosMorosidad.vista === "PAGADOS"
+                ? `Total pagado: S/. ${dataMorosidad.reduce((a, x) => a + Number(x.montoPagado || 0), 0).toFixed(2)}`
+                : `Deuda total: S/. ${deudaTotalMorosos.toFixed(2)}`}
+            </Typography>
             </Box>
 
             <Stack direction="row" spacing={1}>
@@ -1924,15 +2014,11 @@ export default function Reportes() {
                     IdProducto: p.idProducto,
                     Nombre: p.nombre,
                     Estado: p.estado,
-                    Categoria:
-                      p.categoriaNombre ||
-                      categoriasProducto.find(
-                        (c) => c.id === p.idCategoriaProducto
-                      )?.nombre,
+                    Categoria: p.categoriaNombre,
                     Stand: p.standNombre,
                     Ubicacion:
                       p.bloque && p.numeroStand ? `${p.bloque}-${p.numeroStand}` : "",
-                    Precio: p.precio,
+                    Precio: p.precio != null ? Number(p.precio).toFixed(2) : "",
                   }));
                   exportToCsv("reporte_productos.csv", rows);
                 }}
@@ -1948,7 +2034,85 @@ export default function Reportes() {
             </Box>
           )}
 
-          {/* Resumen por categoría */}
+          {/* UX: "gráfico" */}
+          <Box sx={{ mb: 3 }}>
+            <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
+              <Typography
+                variant="caption"
+                sx={{ color: "#9ca3af", textTransform: "uppercase" }}
+              >
+                Distribución por categoría (Top 8)
+              </Typography>
+
+              <Tooltip title="Barras proporcionales al # de productos por categoría según filtros.">
+                <IconButton size="small">
+                  <InfoOutlinedIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            </Stack>
+
+            {topCategoriasProductos.length === 0 ? (
+              <Typography variant="body2" color="text.secondary">
+                No hay información de categorías para los filtros seleccionados.
+              </Typography>
+            ) : (
+              <Paper
+                sx={{
+                  p: 2,
+                  borderRadius: 3,
+                  border: "1px solid #e5e7eb",
+                  bgcolor: "#fff",
+                }}
+              >
+                <Stack spacing={1.25}>
+                  {topCategoriasProductos.map((c) => {
+                    const pct = maxCatCount > 0 ? (c.count * 100) / maxCatCount : 0;
+
+                    return (
+                      <Box key={c.cat}>
+                        <Stack
+                          direction="row"
+                          justifyContent="space-between"
+                          alignItems="center"
+                          sx={{ mb: 0.5 }}
+                        >
+                          <Typography sx={{ fontSize: 13, fontWeight: 700 }}>
+                            {c.cat}
+                          </Typography>
+                          <Typography sx={{ fontSize: 12, color: "text.secondary" }}>
+                            {c.count}
+                          </Typography>
+                        </Stack>
+
+                        <Box
+                          sx={{
+                            height: 10,
+                            borderRadius: 999,
+                            bgcolor: "#f3f4f6",
+                            overflow: "hidden",
+                          }}
+                        >
+                          <Box
+                            sx={{
+                              height: "100%",
+                              width: `${Math.max(2, Math.min(100, pct))}%`,
+                              bgcolor: "#a855f7", // tono del card de productos
+                              borderRadius: 999,
+                              transition: "width .25s ease",
+                            }}
+                          />
+                        </Box>
+                      </Box>
+                    );
+                  })}
+                </Stack>
+              </Paper>
+            )}
+          </Box>
+
+          <Divider sx={{ my: 2 }} />
+
+          {/* Resumen por categoría (tabla) */}
           <Box sx={{ mb: 3 }}>
             <Typography
               variant="caption"
@@ -1999,6 +2163,7 @@ export default function Reportes() {
           >
             Detalle de productos
           </Typography>
+
           {productosFiltrados.length === 0 && !loadingProductos ? (
             <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
               No se encontraron productos con los filtros seleccionados.
@@ -2029,22 +2194,23 @@ export default function Reportes() {
                     <TableCell sx={{ fontSize: 13, fontWeight: 500 }}>
                       {p.nombre}
                     </TableCell>
+
                     <TableCell sx={{ fontSize: 12 }}>
-                      {p.categoriaNombre ||
-                        categoriasProducto.find(
-                          (c) => c.id === p.idCategoriaProducto
-                        )?.nombre ||
-                        "-"}
+                      {p.categoriaNombre || "-"}
                     </TableCell>
+
                     <TableCell sx={{ fontSize: 12 }}>
                       {p.standNombre || "-"}
                     </TableCell>
-                    <TableCell sx={{ fontSize: 12 }}>
+
+                    <TableCell sx={{ fontSize: 12, color: "text.secondary" }}>
                       {p.bloque && p.numeroStand ? `${p.bloque}-${p.numeroStand}` : "-"}
                     </TableCell>
+
                     <TableCell sx={{ fontSize: 12 }}>
                       {(p.estado || "").toUpperCase()}
                     </TableCell>
+
                     <TableCell
                       align="right"
                       sx={{ fontSize: 12, color: "text.secondary" }}

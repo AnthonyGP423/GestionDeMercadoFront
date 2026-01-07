@@ -24,7 +24,7 @@ import type { RolDto } from "../../../../api/admin/rolesApi";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL as string;
 
-// ✅ base pública (servidor), sin /api/v1
+// base pública (servidor), sin /api/v1
 function getPublicBaseUrl() {
   const api = String(API_BASE_URL || "").replace(/\/+$/, "");
   // elimina /api, /api/v1, /api/v1/...
@@ -41,7 +41,7 @@ function buildImgSrc(raw: string) {
   const v = String(raw ?? "").trim();
   if (!v) return "";
   if (isAbsoluteUrl(v)) return v;
-  if (v.startsWith("/")) return `${PUBLIC_BASE_URL}${v}`; // ✅ /media/... se pega al host
+  if (v.startsWith("/")) return `${PUBLIC_BASE_URL}${v}`; 
   return `${PUBLIC_BASE_URL}/${v}`;
 }
 

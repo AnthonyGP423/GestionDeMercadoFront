@@ -1,10 +1,11 @@
 // src/auth/AuthContext.tsx
 import { createContext, useContext, useMemo, useState, ReactNode } from "react";
 
-type User = {
+export type User = {
   email?: string;
   nombreCompleto?: string;
   rol?: string; // "ADMIN", "SOCIO", "CLIENTE", etc.
+  fotoUrl?: string;
 };
 
 type AuthContextType = {
@@ -32,71 +33,72 @@ function isClienteRole(rol?: string) {
   return r === "CLIENTE" || r === "ROLE_CLIENTE";
 }
 
+function safeParse<T>(v: string | null): T | null {
+  if (!v) return null;
+  try {
+    return JSON.parse(v) as T;
+  } catch {
+    return null;
+  }
+}
+
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const [user, setUser] = useState<User | null>(() => {
-    const storedCliente = localStorage.getItem(USER_CLIENTE_KEY);
-    const storedIntranet = localStorage.getItem(USER_INTRANET_KEY);
+    const intranet = safeParse<User>(localStorage.getItem(USER_INTRANET_KEY));
+    if (intranet) return intranet;
 
-    const pick = storedCliente ?? storedIntranet;
-    if (!pick) return null;
+    const cliente = safeParse<User>(localStorage.getItem(USER_CLIENTE_KEY));
+    if (cliente) return cliente;
 
-    try {
-      return JSON.parse(pick) as User;
-    } catch {
-      localStorage.removeItem(USER_CLIENTE_KEY);
-      localStorage.removeItem(TOKEN_CLIENTE_KEY);
-      localStorage.removeItem(USER_INTRANET_KEY);
-      localStorage.removeItem(TOKEN_INTRANET_KEY);
-      return null;
-    }
+    // limpieza si hubo JSON malo
+    localStorage.removeItem(USER_CLIENTE_KEY);
+    localStorage.removeItem(TOKEN_CLIENTE_KEY);
+    localStorage.removeItem(USER_INTRANET_KEY);
+    localStorage.removeItem(TOKEN_INTRANET_KEY);
+    return null;
   });
 
   const [token, setToken] = useState<string | null>(() => {
-    // Si hay user cliente, tomamos token cliente; sino intranet.
-    const storedCliente = localStorage.getItem(USER_CLIENTE_KEY);
-    if (storedCliente) return localStorage.getItem(TOKEN_CLIENTE_KEY);
 
-    const storedIntranet = localStorage.getItem(USER_INTRANET_KEY);
-    if (storedIntranet) return localStorage.getItem(TOKEN_INTRANET_KEY);
+    const hasIntranet = !!localStorage.getItem(USER_INTRANET_KEY);
+    if (hasIntranet) return localStorage.getItem(TOKEN_INTRANET_KEY);
+
+    const hasCliente = !!localStorage.getItem(USER_CLIENTE_KEY);
+    if (hasCliente) return localStorage.getItem(TOKEN_CLIENTE_KEY);
 
     return null;
   });
 
   const login = (newToken: string, userData?: User) => {
-  setToken(newToken);
-  if (userData) setUser(userData);
+    setToken(newToken);
+    if (userData) setUser(userData);
 
-  if (!userData) {
+    // si no mandan userData, lo tratamos como intranet token-only
+    if (!userData) {
+      localStorage.setItem(TOKEN_INTRANET_KEY, newToken);
+      localStorage.removeItem(TOKEN_CLIENTE_KEY);
+      localStorage.removeItem(USER_CLIENTE_KEY);
+      return;
+    }
+
+    const rol = userData.rol;
+
+    if (isClienteRole(rol)) {
+      localStorage.setItem(TOKEN_CLIENTE_KEY, newToken);
+      localStorage.setItem(USER_CLIENTE_KEY, JSON.stringify(userData));
+      // evita mezcla
+      localStorage.removeItem(TOKEN_INTRANET_KEY);
+      localStorage.removeItem(USER_INTRANET_KEY);
+      return;
+    }
+
+    // intranet
     localStorage.setItem(TOKEN_INTRANET_KEY, newToken);
-
-    // evitamos mezclas con cliente
+    localStorage.setItem(USER_INTRANET_KEY, JSON.stringify(userData));
     localStorage.removeItem(TOKEN_CLIENTE_KEY);
     localStorage.removeItem(USER_CLIENTE_KEY);
-    return;
-  }
-
-  const rol = userData.rol;
-
-  // Si es cliente -> guardamos en keys de cliente
-  if (isClienteRole(rol)) {
-    localStorage.setItem(TOKEN_CLIENTE_KEY, newToken);
-    localStorage.setItem(USER_CLIENTE_KEY, JSON.stringify(userData));
-
-    // opcional: limpiamos intranet para evitar mezclas
-    localStorage.removeItem(TOKEN_INTRANET_KEY);
-    localStorage.removeItem(USER_INTRANET_KEY);
-    return;
-  }
-
-  // Si es intranet (ADMIN/SUPERVISOR/SOCIO) -> guardamos en intranet
-  localStorage.setItem(TOKEN_INTRANET_KEY, newToken);
-  localStorage.setItem(USER_INTRANET_KEY, JSON.stringify(userData));
-
-  // opcional: limpiamos cliente para evitar mezclas
-  localStorage.removeItem(TOKEN_CLIENTE_KEY);
-  localStorage.removeItem(USER_CLIENTE_KEY);
-};
+  };
 
   const logout = () => {
     setToken(null);

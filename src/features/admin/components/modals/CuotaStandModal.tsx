@@ -5,10 +5,13 @@ import {
   DialogActions,
   TextField,
   Button,
-  MenuItem,
   Stack,
+  Box,
+  Typography,
+  Autocomplete,
+  createFilterOptions,
 } from "@mui/material";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 export interface StandOption {
   idStand: number;
@@ -29,6 +32,36 @@ interface Props {
     montoCuota: number;
   }) => void;
 }
+
+function normalizeBloque(b?: string) {
+  return String(b ?? "").trim().toUpperCase();
+}
+
+// Convierte "503" -> 503 para ordenar numéricamente (si no es número, deja Infinity)
+function numeroToInt(n?: string) {
+  const v = String(n ?? "").trim();
+  const asInt = parseInt(v, 10);
+  return Number.isFinite(asInt) ? asInt : Number.POSITIVE_INFINITY;
+}
+
+// ✅ Label que quieres: "F-503 — Abarrotes Doña Carmen"
+function standLabel(s: StandOption) {
+  const bloque = normalizeBloque(s.bloque);
+  const numero = String(s.numero ?? "").trim();
+  const nombre = String(s.nombre ?? "").trim();
+  return `${bloque}-${numero} — ${nombre}`;
+}
+
+// 🔎 Búsqueda por nombre, bloque, número, "F-503"
+const filterOptions = createFilterOptions<StandOption>({
+  stringify: (option) => {
+    const bloque = normalizeBloque(option.bloque);
+    const numero = String(option.numero ?? "").trim();
+    const nombre = String(option.nombre ?? "").trim();
+    return `${nombre} ${bloque} ${numero} ${bloque}-${numero}`;
+  },
+  trim: true,
+});
 
 export default function CuotaStandModal({
   open,
@@ -53,6 +86,35 @@ export default function CuotaStandModal({
     }
   }, [open, periodoDefault]);
 
+  // ✅ Orden: bloque ASC, número ASC, nombre ASC
+  const standsSorted = useMemo(() => {
+    const copy = [...(stands ?? [])];
+
+    copy.sort((a, b) => {
+      const ba = normalizeBloque(a.bloque);
+      const bb = normalizeBloque(b.bloque);
+
+      const cmpBloque = ba.localeCompare(bb, "es", { sensitivity: "base" });
+      if (cmpBloque !== 0) return cmpBloque;
+
+      const na = numeroToInt(a.numero);
+      const nb = numeroToInt(b.numero);
+      if (na !== nb) return na - nb;
+
+      // desempate: nombre
+      const an = String(a.nombre ?? "").trim();
+      const bn = String(b.nombre ?? "").trim();
+      return an.localeCompare(bn, "es", { sensitivity: "base" });
+    });
+
+    return copy;
+  }, [stands]);
+
+  const selectedStand = useMemo(() => {
+    if (!form.idStand) return null;
+    return standsSorted.find((s) => s.idStand === Number(form.idStand)) ?? null;
+  }, [form.idStand, standsSorted]);
+
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
@@ -61,10 +123,8 @@ export default function CuotaStandModal({
   };
 
   const handleConfirm = () => {
-    const monto = parseFloat(form.montoCuota.replace(",", "."));
-    if (!form.idStand || !form.periodo || isNaN(monto) || monto <= 0) {
-      return;
-    }
+    const monto = parseFloat(String(form.montoCuota).replace(",", "."));
+    if (!form.idStand || !form.periodo || isNaN(monto) || monto <= 0) return;
 
     onSubmit({
       idStand: Number(form.idStand),
@@ -79,22 +139,39 @@ export default function CuotaStandModal({
       <DialogTitle sx={{ fontWeight: "bold" }}>
         Crear cuota individual
       </DialogTitle>
+
       <DialogContent dividers>
         <Stack spacing={3} sx={{ mt: 1 }}>
-          <TextField
-            select
-            fullWidth
-            label="Stand"
-            name="idStand"
-            value={form.idStand}
-            onChange={handleChange}
-          >
-            {stands.map((s) => (
-              <MenuItem key={s.idStand} value={s.idStand}>
-                {s.nombre} ({s.bloque}-{s.numero})
-              </MenuItem>
-            ))}
-          </TextField>
+          {/* ✅ Stand con búsqueda + label "BLOQUE-NÚMERO — NOMBRE" */}
+          <Autocomplete
+            options={standsSorted}
+            value={selectedStand}
+            onChange={(_, newValue) => {
+              setForm((prev) => ({
+                ...prev,
+                idStand: newValue ? newValue.idStand : 0,
+              }));
+            }}
+            filterOptions={filterOptions}
+            getOptionLabel={(option) => standLabel(option)}
+            isOptionEqualToValue={(option, value) =>
+              option.idStand === value.idStand
+            }
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                label="Stand"
+                placeholder="Escribe para buscar (nombre, bloque, número o F-503)"
+              />
+            )}
+            renderOption={(props, option) => (
+              <Box component="li" {...props} key={option.idStand}>
+                <Typography sx={{ fontWeight: 700, fontSize: 14 }}>
+                  {standLabel(option)}
+                </Typography>
+              </Box>
+            )}
+          />
 
           <TextField
             fullWidth
@@ -123,6 +200,7 @@ export default function CuotaStandModal({
           />
         </Stack>
       </DialogContent>
+
       <DialogActions sx={{ p: 2 }}>
         <Button onClick={onClose} color="inherit">
           Cancelar

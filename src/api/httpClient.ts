@@ -8,21 +8,26 @@ const http = axios.create({
   baseURL: API_BASE_URL,
 });
 
-// Interceptor que mete el Authorization en TODAS las peticiones
+// --- Evitar que dispare 20 veces el mismo flujo ---
+let expiredHandled = false;
+let lastToken: string | null = null;
+
+// Interceptor request (igual que tienes, solo agrego reset del flag)
 http.interceptors.request.use(
   (config) => {
-    // 🔐 buscamos token de cliente o intranet
     const token =
       localStorage.getItem("token_cliente") ||
       localStorage.getItem("token_intranet") ||
       localStorage.getItem("token");
 
-    if (token) {
-      // Aseguramos que headers existe
-      if (!config.headers) {
-        config.headers = {} as any;
-      }
+    // si cambió el token, resetea el “handled”
+    if (token && token !== lastToken) {
+      lastToken = token;
+      expiredHandled = false;
+    }
 
+    if (token) {
+      if (!config.headers) config.headers = {} as any;
       (config.headers as any).Authorization = `Bearer ${token}`;
     }
 
@@ -31,20 +36,19 @@ http.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Interceptor de respuesta del backend
+// Interceptor response
 http.interceptors.response.use(
   (res) => res,
   (error) => {
+    const status = error?.response?.status;
     const data = error?.response?.data;
 
     let msg = "Ocurrió un error";
 
-    // 1) Si backend devuelve texto plano
     if (typeof data === "string" && data.trim()) {
       msg = data;
     }
 
-    // 2) Si backend devuelve JSON con campos comunes
     if (data && typeof data === "object") {
       msg =
         data.message ||
@@ -56,14 +60,30 @@ http.interceptors.response.use(
         msg;
     }
 
-    // 3) Si no hay response (caída de red, CORS, etc.)
     if (!error?.response) {
       msg = "No se pudo conectar con el servidor. Revisa tu conexión.";
     }
 
-    // Guardamos el mensaje para usarlo en los catch
-    (error as any).userMessage = msg;
+    // ✅ SESSION EXPIRED / NO AUTENTICADO (401/403)
+    if ((status === 401 || status === 403) && !expiredHandled) {
+      expiredHandled = true;
 
+      // limpia tokens
+      localStorage.removeItem("token_cliente");
+      localStorage.removeItem("token_intranet");
+      localStorage.removeItem("token");
+
+      // dispara evento global para que React haga toast + navigate
+      window.dispatchEvent(
+        new CustomEvent("auth:session-expired", {
+          detail: {
+            message: "Tu sesión ha expirado. Vuelve a iniciar sesión.",
+          },
+        })
+      );
+    }
+
+    (error as any).userMessage = msg;
     return Promise.reject(error);
   }
 );
