@@ -1,9 +1,5 @@
 import http from "../httpClient";
 
-function toParams(obj?: Record<string, any>) {
-  return obj ?? {};
-}
-
 export interface ProductoRequestDto {
   idCategoriaProducto?: number;
   nombre: string;

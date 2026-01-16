@@ -56,7 +56,7 @@ export default function StandModal({
   propietarios = [],
 }: Props) {
   const [form, setForm] = useState({
-    id_propietario: "",
+    id_propietario: "", // opcional: puede ir vacío
     id_categoria_stand: "",
     bloque: "",
     numero_stand: "",
@@ -89,7 +89,9 @@ export default function StandModal({
         setLoadingCats(true);
         setErrorCats(null);
 
-        const res = await http.get<CategoriaAdminApi[]>("/api/v1/admin/categorias-stands");
+        const res = await http.get<CategoriaAdminApi[]>(
+          "/api/v1/admin/categorias-stands"
+        );
 
         const mapped: CategoriaOption[] = (res.data ?? [])
           // opcional: si estado=false no queremos mostrarla
@@ -115,7 +117,7 @@ export default function StandModal({
 
   useEffect(() => {
     const emptyForm = {
-      id_propietario: "",
+      id_propietario: "", // opcional
       id_categoria_stand: "",
       bloque: "",
       numero_stand: "",
@@ -141,8 +143,7 @@ export default function StandModal({
           numero_stand: initialData.numero_stand ?? "",
           nombre_comercial: initialData.nombre_comercial ?? "",
           descripcion_negocio: initialData.descripcion_negocio ?? "",
-          latitud:
-            initialData.latitud != null ? String(initialData.latitud) : "",
+          latitud: initialData.latitud != null ? String(initialData.latitud) : "",
           longitud:
             initialData.longitud != null ? String(initialData.longitud) : "",
           estado: initialData.estado ?? "Activo",
@@ -161,9 +162,7 @@ export default function StandModal({
   const validar = () => {
     const err: any = {};
 
-    if (!form.id_propietario) {
-      err.id_propietario = "Selecciona un propietario / socio";
-    }
+    // ✅ id_propietario es OPCIONAL: ya no se valida como obligatorio
 
     if (!form.id_categoria_stand) {
       err.id_categoria_stand = "Selecciona una categoría";
@@ -187,7 +186,8 @@ export default function StandModal({
     // convertir ids a número para el backend
     const payload = {
       ...form,
-      id_propietario: Number(form.id_propietario),
+      // ✅ si viene vacío, enviar null (no 0 / no NaN)
+      id_propietario: form.id_propietario ? Number(form.id_propietario) : null,
       id_categoria_stand: Number(form.id_categoria_stand),
       // opcional: normalizar bloque
       bloque: String(form.bloque ?? "").toUpperCase().trim(),
@@ -225,18 +225,23 @@ export default function StandModal({
         </Typography>
 
         <Stack spacing={2}>
-          {/* PROPIETARIO / SOCIO */}
+          {/* PROPIETARIO / SOCIO (OPCIONAL) */}
           <TextField
             select
             fullWidth
             size="small"
             name="id_propietario"
-            label="Propietario / socio"
+            label="Propietario / socio (opcional)"
             value={propietarioValue}
             onChange={handleChange}
             error={!!errors.id_propietario}
             helperText={errors.id_propietario}
           >
+            {/* ✅ Permitir dejar en blanco */}
+            <MenuItem value="">
+              <em>Sin propietario asignado</em>
+            </MenuItem>
+
             {propietarios.map((p) => (
               <MenuItem key={p.id} value={String(p.id)}>
                 {p.nombre}
