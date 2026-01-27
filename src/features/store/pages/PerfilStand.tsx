@@ -7,9 +7,6 @@ import {
   Stack,
   Avatar,
   Divider,
-  List,
-  ListItem,
-  ListItemText,
   Rating,
   Button,
   CircularProgress,
@@ -52,9 +49,27 @@ import ProductsGrid, {
 import { useAuth } from "../../../auth/useAuth";
 import { favoritosApi } from "../../../api/cliente/favoritosApi";
 import { calificacionesClienteApi } from "../../../api/cliente/calificacionesClienteApi";
+import ProductoStandModal from "../../../features/store/components/modal/ProductoStand";
+
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
+
+/**
+ * Normaliza la URL de imagen para que funcione tanto si:
+ * - viene como URL absoluta: https://...
+ * - viene como ruta relativa: /uploads/... o uploads/...
+ * - viene como snake_case en el JSON: imagen_url
+ */
+function buildImageUrl(raw?: any) {
+  const path = String(raw ?? "").trim();
+  if (!path) return "";
+  if (path.startsWith("http://") || path.startsWith("https://")) return path;
+
+  // Evita duplicar slashes
+  const clean = path.startsWith("/") ? path : `/${path}`;
+  return `${API_BASE_URL}${clean}`;
+}
 
 type TabKey = "info" | "productos" | "reseñas";
 
@@ -125,8 +140,22 @@ export default function PerfilStand() {
   const [savingResena, setSavingResena] = useState(false);
   const [errorCrearResena, setErrorCrearResena] = useState<string | null>(null);
 
+  const [openProducto, setOpenProducto] = useState(false);
+  const [productoId, setProductoId] = useState<number | null>(null);
+
+  const onOpenProducto = (pid: number) => {
+    setProductoId(pid);
+    setOpenProducto(true);
+  };
+
+  const onCloseProducto = () => {
+    setOpenProducto(false);
+    setProductoId(null);
+  };
+
+
   const handleVerProducto = (product: StoreProduct) => {
-    navigate(`/tienda/producto/${product.id}`);
+    onOpenProducto(Number(product.id));
   };
 
   const fetchPromedio = async () => {
@@ -299,6 +328,10 @@ export default function PerfilStand() {
             );
           }
 
+          // ✅ soporta imagenUrl o imagen_url (snake_case)
+          const rawImg = p.imagenUrl ?? p.imagen_url ?? "";
+          const imageUrl = rawImg ? buildImageUrl(rawImg) : "";
+
           return {
             id: p.idProducto,
             nombre: p.nombreProducto,
@@ -311,9 +344,8 @@ export default function PerfilStand() {
             moneda: "S/.",
             esOferta: enOferta,
             descuentoPorc,
-            imageUrl:
-              p.imagenUrl ??
-              "https://via.placeholder.com/400x300?text=Sin+imagen",
+            // ✅ ya no usamos placeholder: si viene vacío, ProductsGrid debe manejarlo.
+            imageUrl,
           } as StoreProduct;
         });
 
@@ -530,9 +562,7 @@ export default function PerfilStand() {
                           useFlexGap
                         >
                           <Chip
-                            label={
-                              stand.nombreCategoriaStand ?? "Sin categoría"
-                            }
+                            label={stand.nombreCategoriaStand ?? "Sin categoría"}
                             size="small"
                             sx={{
                               bgcolor: "#dcfce7",
@@ -547,9 +577,7 @@ export default function PerfilStand() {
                             icon={<StarRoundedIcon sx={{ fontSize: 18 }} />}
                             label={
                               totalReseñas > 0
-                                ? `${ratingPromedio.toFixed(
-                                    1
-                                  )} (${totalReseñas})`
+                                ? `${ratingPromedio.toFixed(1)} (${totalReseñas})`
                                 : "Nuevo"
                             }
                             size="small"
@@ -563,11 +591,7 @@ export default function PerfilStand() {
                             }}
                           />
 
-                          <Stack
-                            direction="row"
-                            spacing={0.5}
-                            alignItems="center"
-                          >
+                          <Stack direction="row" spacing={0.5} alignItems="center">
                             <LocationOnOutlinedIcon
                               sx={{ fontSize: 18, color: "#64748b" }}
                             />
@@ -626,9 +650,7 @@ export default function PerfilStand() {
                           onClick={toggleFavorito}
                           disabled={loadingFav}
                           variant={isFav ? "contained" : "outlined"}
-                          startIcon={
-                            isFav ? <FavoriteIcon /> : <FavoriteBorderIcon />
-                          }
+                          startIcon={isFav ? <FavoriteIcon /> : <FavoriteBorderIcon />}
                           color={isFav ? "error" : "inherit"}
                           sx={{
                             borderRadius: "12px",
@@ -706,11 +728,7 @@ export default function PerfilStand() {
                             bgcolor: "#fafafa",
                           }}
                         >
-                          <Stack
-                            direction="row"
-                            spacing={2}
-                            alignItems="flex-start"
-                          >
+                          <Stack direction="row" spacing={2} alignItems="flex-start">
                             <Box
                               sx={{
                                 width: 40,
@@ -755,11 +773,7 @@ export default function PerfilStand() {
                             bgcolor: "#fafafa",
                           }}
                         >
-                          <Stack
-                            direction="row"
-                            spacing={2}
-                            alignItems="flex-start"
-                          >
+                          <Stack direction="row" spacing={2} alignItems="flex-start">
                             <Box
                               sx={{
                                 width: 40,
@@ -811,11 +825,7 @@ export default function PerfilStand() {
                             bgcolor: "#fafafa",
                           }}
                         >
-                          <Stack
-                            direction="row"
-                            spacing={2}
-                            alignItems="flex-start"
-                          >
+                          <Stack direction="row" spacing={2} alignItems="flex-start">
                             <Box
                               sx={{
                                 width: 40,
@@ -850,11 +860,7 @@ export default function PerfilStand() {
                                 alignItems="center"
                                 sx={{ mt: 1 }}
                               >
-                                <Rating
-                                  value={ratingPromedio}
-                                  precision={0.5}
-                                  readOnly
-                                />
+                                <Rating value={ratingPromedio} precision={0.5} readOnly />
                                 <Typography variant="h6" fontWeight={900}>
                                   {ratingPromedio.toFixed(1)}
                                 </Typography>
@@ -895,10 +901,7 @@ export default function PerfilStand() {
 
                       {loadingProductos ? (
                         <Box sx={{ textAlign: "center", py: 6 }}>
-                          <CircularProgress
-                            size={32}
-                            sx={{ color: "#22c55e" }}
-                          />
+                          <CircularProgress size={32} sx={{ color: "#22c55e" }} />
                           <Typography
                             sx={{ mt: 2, fontWeight: 600 }}
                             color="text.secondary"
@@ -941,8 +944,7 @@ export default function PerfilStand() {
                             Aún no hay productos publicados
                           </Typography>
                           <Typography color="text.secondary" sx={{ mb: 2 }}>
-                            Este stand todavía no registra productos visibles en
-                            la tienda.
+                            Este stand todavía no registra productos visibles en la tienda.
                           </Typography>
                         </Paper>
                       ) : (
@@ -987,9 +989,7 @@ export default function PerfilStand() {
                             },
                           }}
                         >
-                          {esCliente
-                            ? "Escribir reseña"
-                            : "Inicia sesión para opinar"}
+                          {esCliente ? "Escribir reseña" : "Inicia sesión para opinar"}
                         </Button>
                       </Stack>
 
@@ -1080,12 +1080,7 @@ export default function PerfilStand() {
                                 </Typography>
                               </Stack>
 
-                              <Rating
-                                value={r.rating}
-                                readOnly
-                                size="small"
-                                sx={{ mb: 1.5 }}
-                              />
+                              <Rating value={r.rating} readOnly size="small" sx={{ mb: 1.5 }} />
 
                               <Typography
                                 variant="body2"
@@ -1096,11 +1091,7 @@ export default function PerfilStand() {
                                 }}
                               >
                                 {r.comentario || (
-                                  <Box
-                                    component="span"
-                                    fontStyle="italic"
-                                    color="text.disabled"
-                                  >
+                                  <Box component="span" fontStyle="italic" color="text.disabled">
                                     Sin comentario escrito.
                                   </Box>
                                 )}
@@ -1149,11 +1140,7 @@ export default function PerfilStand() {
               >
                 Calificación
               </Typography>
-              <Rating
-                value={miRating}
-                onChange={(_, v) => setMiRating(v)}
-                size="large"
-              />
+              <Rating value={miRating} onChange={(_, v) => setMiRating(v)} size="large" />
             </Box>
 
             <TextField
@@ -1203,6 +1190,25 @@ export default function PerfilStand() {
           </Button>
         </DialogActions>
       </Dialog>
+
+       {/* MODAL DETALLE PRODUCTO (DENTRO DEL STAND) */}
+      <ProductoStandModal
+        open={openProducto}
+        productId={productoId}
+        stand={
+          stand
+            ? {
+                id: stand.id,
+                bloque: stand.bloque,
+                numeroStand: stand.numeroStand,
+                nombreComercial: stand.nombreComercial,
+                nombreCategoriaStand: stand.nombreCategoriaStand,
+                nombrePropietario: stand.nombrePropietario,
+              }
+            : null
+        }
+        onClose={onCloseProducto}
+      />
 
       <PublicFooter />
     </Box>

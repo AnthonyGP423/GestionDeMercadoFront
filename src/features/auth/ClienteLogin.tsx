@@ -358,6 +358,22 @@ export default function ClienteLogin() {
               {loading ? "Ingresando..." : "Iniciar Sesión"}
             </Button>
 
+            <Button
+              variant="text"
+              size="small"
+              onClick={() => navigate("/cliente/forgot-password")}
+              sx={{
+                textTransform: "none",
+                fontWeight: 700,
+                color: amberDark,
+                mt: 1,
+              }}
+            >
+              ¿Olvidaste tu contraseña?
+            </Button>
+
+
+
             <Box
               sx={{
                 mt: 2,
@@ -391,6 +407,7 @@ export default function ClienteLogin() {
               >
                 Regístrate
               </Button>
+
             </Box>
           </Stack>
         </form>

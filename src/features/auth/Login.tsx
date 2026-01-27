@@ -395,7 +395,21 @@ const Login = () => {
               {loading ? "Ingresando..." : "Iniciar Sesión"}
             </Button>
 
-            {/* ✅ Sin registro en intranet */}
+            <Button
+              variant="text"
+              size="small"
+              onClick={() => navigate("/forgot-password")}
+              sx={{
+                textTransform: "none",
+                fontWeight: 600,
+                color: "#16a34a",
+                mt: 1,
+              }}
+            >
+              ¿Olvidaste tu contraseña?
+            </Button>
+
+            {/* Sin registro en intranet */}
             <Box
               sx={{
                 mt: 1,

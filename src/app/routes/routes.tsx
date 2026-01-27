@@ -27,6 +27,10 @@ import IncidenciasAdmin from "../../features/admin/pages/Incidencias";
 import CredencialesQrAdmin from "../../features/admin/pages/CredencialesQrAdmin";
 
 import PanelSocio from "../../layouts/dashboard/PanelSocioLayout";
+import ForgotPassword from "../../features/auth/ForgotPassword";
+import ResetPassword from "../../features/auth/ResetPassword";
+
+
 
 // Socio
 import DashboardSocioHome from "../../features/socio/pages/DashboardSocioHome";
@@ -50,6 +54,20 @@ const AppRoutes = () => {
       {/* Auth Cliente */}
       <Route path="/cliente/login" element={<ClienteLogin />} />
       <Route path="/cliente/registro" element={<ClienteRegistro />} />
+
+      {/* Forgot password */}
+      <Route
+        path="/forgot-password"
+        element={<ForgotPassword variant="intranet" />}
+      />
+
+      <Route
+        path="/cliente/forgot-password"
+        element={<ForgotPassword variant="cliente" />}
+      />
+
+      <Route path="/reset-password" element={<ResetPassword />} />
+
 
       {/* Dashboard protegido */}
       <Route
