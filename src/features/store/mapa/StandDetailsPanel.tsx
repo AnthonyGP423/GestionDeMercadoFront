@@ -27,11 +27,11 @@ import FavoriteIcon from "@mui/icons-material/Favorite";
 import FavoriteBorderIcon from "@mui/icons-material/FavoriteBorder";
 import StarRoundedIcon from "@mui/icons-material/StarRounded";
 
-import axios from "axios";
 import { useNavigate, useLocation } from "react-router-dom";
 
 import { useAuth } from "../../../auth/useAuth";
 import { favoritosApi } from "../../../api/cliente/favoritosApi";
+import http from "../../../api/httpClient";
 
 type StandEstado = "ABIERTO" | "CERRADO" | "CLAUSURADO" | "DISPONIBLE";
 
@@ -90,7 +90,7 @@ export default function StandDetailsPanel({
   const fetchRatingPublico = async (idStand: number) => {
     try {
       setLoadingRating(true);
-      const resp = await axios.get(
+      const resp = await http.get(
         `${API_BASE_URL}/api/public/calificaciones/stand/${idStand}/promedio`
       );
       const d = resp.data || {};

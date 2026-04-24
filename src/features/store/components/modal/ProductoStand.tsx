@@ -14,14 +14,13 @@ import {
   Alert,
   useMediaQuery,
   Skeleton,
-  Rating,
   Paper,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import StorefrontIcon from "@mui/icons-material/Storefront";
 import ImageNotSupportedRoundedIcon from "@mui/icons-material/ImageNotSupportedRounded";
 import { useTheme } from "@mui/material/styles";
-import axios from "axios";
+import http from "../../../../api/httpClient";
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
@@ -99,7 +98,7 @@ export default function ProductoStandModal({ open, productId, stand, onClose }: 
         setLoading(true);
         setError(null);
 
-        const resp = await axios.get(`${PRODUCTO_API_URL}/${productId}`);
+        const resp = await http.get(`${PRODUCTO_API_URL}/${productId}`);
         const p = resp.data;
 
         // oferta (misma lógica que tu modal anterior)

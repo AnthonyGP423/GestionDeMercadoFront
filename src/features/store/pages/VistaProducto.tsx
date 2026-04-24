@@ -22,7 +22,7 @@ import {
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { useParams, Link as RouterLink, useNavigate } from "react-router-dom";
-import axios from "axios";
+import http from "../../../api/httpClient";
 
 // Iconos
 import NavigateNextIcon from "@mui/icons-material/NavigateNext";
@@ -118,7 +118,7 @@ export default function VistaProducto() {
         setError(null);
 
         // 1) DETALLE PRINCIPAL
-        const resp = await axios.get(`${PRODUCTO_API_URL}/${id}`);
+        const resp = await http.get(`${PRODUCTO_API_URL}/${id}`);
         const p = resp.data;
 
         // ✅ misma lógica de oferta que ya tienes en el modal
@@ -170,7 +170,7 @@ export default function VistaProducto() {
 
         // 2) OTRAS OFERTAS (si falla, no bloquea)
         try {
-          const respOfertas = await axios.get(`${PRODUCTO_API_URL}/${id}/ofertas`);
+          const respOfertas = await http.get(`${PRODUCTO_API_URL}/${id}/ofertas`);
           const ofertasMapped: StandOferta[] = (respOfertas.data ?? []).map(
             (o: any) => ({
               id: o.idOferta ?? o.id ?? 0,

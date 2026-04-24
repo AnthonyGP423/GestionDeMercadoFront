@@ -22,11 +22,8 @@ import {
   Tooltip,
   Fade,
   Grow,
-  useTheme,
-  useMediaQuery,
 } from "@mui/material";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import axios from "axios";
 
 import FavoriteIcon from "@mui/icons-material/Favorite";
 import FavoriteBorderIcon from "@mui/icons-material/FavoriteBorder";
@@ -49,6 +46,7 @@ import ProductsGrid, {
 import { useAuth } from "../../../auth/useAuth";
 import { favoritosApi } from "../../../api/cliente/favoritosApi";
 import { calificacionesClienteApi } from "../../../api/cliente/calificacionesClienteApi";
+import http from "../../../api/httpClient";
 import ProductoStandModal from "../../../features/store/components/modal/ProductoStand";
 
 
@@ -106,8 +104,6 @@ export default function PerfilStand() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
   const { isAuthenticated, user } = useAuth() as any;
   const esCliente = useMemo(() => {
@@ -161,7 +157,7 @@ export default function PerfilStand() {
   const fetchPromedio = async () => {
     if (!id) return;
     try {
-      const resp = await axios.get(
+      const resp = await http.get(
         `${API_BASE_URL}/api/public/calificaciones/stand/${id}/promedio`
       );
       const d = resp.data || {};
@@ -183,7 +179,7 @@ export default function PerfilStand() {
       setLoadingReseñas(true);
       setErrorReseñas(null);
 
-      const resp = await axios.get(
+      const resp = await http.get(
         `${API_BASE_URL}/api/public/calificaciones/stand/${id}/comentarios`,
         { params: { page: 0, size: 10 } }
       );
@@ -269,7 +265,7 @@ export default function PerfilStand() {
         setLoadingStand(true);
         setErrorStand(null);
 
-        const resp = await axios.get(`${API_BASE_URL}/api/public/stands/${id}`);
+        const resp = await http.get(`${API_BASE_URL}/api/public/stands/${id}`);
         const s = resp.data;
 
         const mapped: StandPerfil = {
@@ -302,7 +298,7 @@ export default function PerfilStand() {
         setLoadingProductos(true);
         setErrorProductos(null);
 
-        const resp = await axios.get(
+        const resp = await http.get(
           `${API_BASE_URL}/api/public/productos/por-stand/${id}`
         );
         const data: any[] = resp.data ?? [];

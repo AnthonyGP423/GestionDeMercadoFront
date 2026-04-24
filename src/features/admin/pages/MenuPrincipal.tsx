@@ -22,7 +22,7 @@ import ReportProblemIcon from "@mui/icons-material/ReportProblem";
 
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import http from "../../../api/httpClient";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL as string;
 
@@ -167,7 +167,7 @@ export default function Principal() {
       const headers = { Authorization: `Bearer ${token}` };
 
       try {
-        const res = await axios.get<IndicadoresCuotas>(
+        const res = await http.get<IndicadoresCuotas>(
           `${API_BASE_URL}/api/v1/admin/cuotas/indicadores`,
           { headers, params: { periodo: periodoActual } }
         );
@@ -177,7 +177,7 @@ export default function Principal() {
       }
 
       try {
-        const res = await axios.get<CuotaDto[]>(
+        const res = await http.get<CuotaDto[]>(
           `${API_BASE_URL}/api/v1/admin/cuotas/morosos`,
           { headers, params: { periodo: periodoActual } }
         );
@@ -188,7 +188,7 @@ export default function Principal() {
       }
 
       try {
-        const res = await axios.get<Stand[]>(`${API_BASE_URL}/api/v1/stands`, {
+        const res = await http.get<Stand[]>(`${API_BASE_URL}/api/v1/stands`, {
           headers,
         });
         setStands(toArray<Stand>(res.data));
@@ -198,7 +198,7 @@ export default function Principal() {
       }
 
       try {
-        const res = await axios.get<CuotaDto[]>(
+        const res = await http.get<CuotaDto[]>(
           `${API_BASE_URL}/api/v1/admin/cuotas/ultimos-pagos`,
           { headers, params: { limit: 5 } }
         );
@@ -209,7 +209,7 @@ export default function Principal() {
       }
 
       try {
-        const res = await axios.get<any>(
+        const res = await http.get<any>(
           `${API_BASE_URL}/api/v1/admin/usuarios`,
           { headers }
         );
@@ -220,7 +220,7 @@ export default function Principal() {
       }
 
       try {
-        const res = await axios.get<any>(
+        const res = await http.get<any>(
           `${API_BASE_URL}/api/v1/admin/productos`,
           { headers }
         );
@@ -231,7 +231,7 @@ export default function Principal() {
       }
 
       try {
-        const res = await axios.get<any>(
+        const res = await http.get<any>(
           `${API_BASE_URL}/api/v1/admin/incidencias`,
           { headers }
         );

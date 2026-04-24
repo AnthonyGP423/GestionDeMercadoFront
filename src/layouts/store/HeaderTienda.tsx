@@ -22,7 +22,6 @@ import {
 } from "@mui/material";
 
 import StorefrontIcon from "@mui/icons-material/Storefront";
-import LanguageIcon from "@mui/icons-material/Language";
 import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
 import FavoriteBorderIcon from "@mui/icons-material/FavoriteBorder";
 import LogoutIcon from "@mui/icons-material/Logout";

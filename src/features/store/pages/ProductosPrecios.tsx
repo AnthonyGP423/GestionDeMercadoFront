@@ -15,7 +15,6 @@ import {
   Fade,
   Grow,
 } from "@mui/material";
-import axios from "axios";
 import { useLocation, useNavigate } from "react-router-dom";
 import NavigateNextIcon from "@mui/icons-material/NavigateNext";
 import SearchIcon from "@mui/icons-material/Search";
@@ -28,6 +27,7 @@ import PublicFooter from "../../../layouts/store/FooterTienda";
 import ProductFiltersBar from "../../../components/shared/ProductFiltersBar";
 import OffersStrip from "../../../features/store/components/OffersStrip";
 import PriceComparatorBanner from "../../../features/store/components/PriceComparatorBanner";
+import http from "../../../api/httpClient";
 import ProductsGrid, {
   StoreProduct,
 } from "../../../features/store/components/product/ProductsGrid";
@@ -103,7 +103,7 @@ export default function ProductosPrecios() {
         setLoading(true);
         setError(null);
 
-        const response = await axios.get(API_URL, {
+        const response = await http.get(API_URL, {
           params: {
             nombre: search || undefined,
             page: 0,

@@ -121,7 +121,7 @@ export default function IncidenciaModal({
     try {
       setUploading(true);
 
-      // ✅ usa httpClient (axios) => interceptor agrega Authorization
+      // Usa el cliente HTTP nativo para agregar Authorization automaticamente.
       const data = await filesApi.upload("incidencias", file);
 
       const url = String(data?.url ?? "").trim();

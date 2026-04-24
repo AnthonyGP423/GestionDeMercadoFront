@@ -33,7 +33,6 @@ import CuotaStandModal, {
 
 import cuotasApi, {
   CuotaResponseDto,
-  IndicadoresCuotasDto,
   PagoCuotaRequest,
 } from "../../../api/admin/cuotasApi";
 
@@ -49,10 +48,6 @@ export default function Pagos() {
   const [loadingIndicadores, setLoadingIndicadores] = useState(false);
 
   const [cuotas, setCuotas] = useState<CuotaResponseDto[]>([]);
-  const [indicadores, setIndicadores] = useState<IndicadoresCuotasDto | null>(
-    null
-  );
-  const [ultimosPagos, setUltimosPagos] = useState<CuotaResponseDto[]>([]);
 
   // filtros
   const [periodoFiltro, setPeriodoFiltro] = useState<string>(() => {
@@ -86,20 +81,13 @@ export default function Pagos() {
   // =========================
   // CARGA INICIAL
   // =========================
-  const cargarDatos = async (periodo: string) => {
+  const cargarDatos = async (_periodo: string) => {
     try {
       setLoading(true);
 
-      const [todasLasCuotas, indicadoresResp, ultimos] = await Promise.all([
-        // Trae TODAS las cuotas (de todos los periodos)
-        cuotasApi.listarCuotasAdmin({}),
-        cuotasApi.obtenerIndicadores(periodo),
-        cuotasApi.listarUltimosPagos(6),
-      ]);
+      const todasLasCuotas = await cuotasApi.listarCuotasAdmin({});
 
       setCuotas(todasLasCuotas);
-      setIndicadores(indicadoresResp);
-      setUltimosPagos(ultimos);
     } catch (err: any) {
       console.error(err);
       showToast(

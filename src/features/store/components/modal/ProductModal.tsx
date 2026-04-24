@@ -19,10 +19,10 @@ import FavoriteIcon from "@mui/icons-material/Favorite";
 import FavoriteBorderIcon from "@mui/icons-material/FavoriteBorder";
 import StorefrontIcon from "@mui/icons-material/Storefront";
 import { useTheme } from "@mui/material/styles";
-import axios from "axios";
 
 import { buildPublicImgSrc } from "../../../store/utils/buildPublicImageUrl";
 import { favoritosApi } from "../../../../api/cliente/favoritosApi";
+import http from "../../../../api/httpClient";
 
 type ProductoVista = {
   id: number;
@@ -52,7 +52,9 @@ type ProductoVista = {
   };
 };
 
-const PRODUCTO_API_URL = "http://localhost:8080/api/public/productos";
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
+const PRODUCTO_API_URL = `${API_BASE_URL}/api/public/productos`;
 
 type Props = {
   open: boolean;
@@ -110,7 +112,7 @@ export default function ProductModal({
         setLoading(true);
         setError(null);
 
-        const resp = await axios.get(`${PRODUCTO_API_URL}/${productId}`);
+        const resp = await http.get(`${PRODUCTO_API_URL}/${productId}`);
         const p = resp.data;
 
         // ✅ MISMA LÓGICA QUE ProductosPrecios.tsx

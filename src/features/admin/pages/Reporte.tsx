@@ -31,7 +31,7 @@ import productosAdminApi, {
 } from "../../../api/admin/productosAdminApi";
 
 import { useEffect, useMemo, useState } from "react";
-import axios from "axios";
+import http from "../../../api/httpClient";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL as string;
 
@@ -252,11 +252,11 @@ export default function Reportes() {
         const headers = { Authorization: `Bearer ${token}` };
 
         const [catsStandRes, catsProdRes] = await Promise.all([
-          axios.get<CategoriaStandDto[]>(
+          http.get<CategoriaStandDto[]>(
             `${API_BASE_URL}/api/v1/admin/categorias-stands`,
             { headers }
           ),
-          axios.get<CategoriaProductoDto[]>(
+          http.get<CategoriaProductoDto[]>(
             `${API_BASE_URL}/api/v1/admin/categorias-productos`,
             { headers }
           ),
@@ -353,13 +353,13 @@ export default function Reportes() {
 
       if (filtrosMorosidad.vista === "MOROSOS") {
         // usa endpoint existente
-        const morososRes = await axios.get<CuotaDto[]>(
+        const morososRes = await http.get<CuotaDto[]>(
           `${API_BASE_URL}/api/v1/admin/cuotas/morosos`,
           { headers, params }
         );
         listado = morososRes.data || [];
       } else {
-        const allRes = await axios.get<CuotaDto[]>(
+        const allRes = await http.get<CuotaDto[]>(
           `${API_BASE_URL}/api/v1/admin/cuotas`,
           { headers, params }
         );
@@ -376,7 +376,7 @@ export default function Reportes() {
       }
 
       // 2) Indicadores siempre salen del endpoint existente
-      const indicadoresRes = await axios.get<IndicadoresCuotas>(
+      const indicadoresRes = await http.get<IndicadoresCuotas>(
         `${API_BASE_URL}/api/v1/admin/cuotas/indicadores`,
         { headers, params: { periodo: filtrosMorosidad.periodo } }
       );
@@ -426,7 +426,7 @@ export default function Reportes() {
       if (filtrosIncidencias.prioridad !== "TODAS")
         params.prioridad = filtrosIncidencias.prioridad;
 
-      const res = await axios.get(`${API_BASE_URL}/api/v1/admin/incidencias`, {
+      const res = await http.get(`${API_BASE_URL}/api/v1/admin/incidencias`, {
         headers,
         params,
       });
@@ -512,7 +512,7 @@ export default function Reportes() {
 
       const headers = { Authorization: `Bearer ${token}` };
 
-      const res = await axios.get<StandDto[]>(`${API_BASE_URL}/api/v1/stands`, {
+      const res = await http.get<StandDto[]>(`${API_BASE_URL}/api/v1/stands`, {
         headers,
       });
       setStands(res.data || []);
