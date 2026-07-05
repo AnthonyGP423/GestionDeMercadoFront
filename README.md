@@ -129,4 +129,4 @@ Una vez que el backend esté corriendo, puedes acceder a la documentación en:
 
 ## 📄 Licencia
 
-Proyecto académico desarrollado como parte del **Proyecto de Titulación (PPI)**.
+Proyecto académico desarrollado como parte del **Proyecto de Titulación SISE (PPI)**.
